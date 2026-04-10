@@ -6,10 +6,10 @@ work/
 *.xpr
 
 # IP Cores 
-ip/*/*
+ip/**/*
 # keep the IP configuration source files
-!ip/*/*.xci
-!ip/*/*.xcix
+!ip/**/*.xci
+!ip/**/*.xcix
 
 
 # Vivado Logs, Journals, and Crash Files
