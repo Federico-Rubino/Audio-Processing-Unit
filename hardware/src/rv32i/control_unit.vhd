@@ -67,7 +67,8 @@ entity control_unit is
     AWrite : out std_logic;
     BWrite : out std_logic;
     ALUOutWrite : out std_logic;
-    BranchOutWrite : out std_logic
+    BranchOutWrite : out std_logic;
+    PCincrement : out std_logic
     
    );
 end control_unit;
@@ -118,6 +119,7 @@ begin
         BranchOutWrite <= '0';
         branch <= '0';
         is_store <= '0';
+        PCincrement <= '0';
     -- end default value
     
         case state is
@@ -139,6 +141,7 @@ begin
             
             when EXECUTE =>
                 next_state <= MEMORY;
+                PCincrement <= '1';
                 case opcode_s is
                     when OP_ALU =>
                         mux_alu_in_1 <= '0'; --rs1

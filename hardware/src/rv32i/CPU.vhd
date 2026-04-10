@@ -98,7 +98,8 @@ architecture Behavioral of CPU is
     signal A, B : std_logic_vector(31 downto 0);
     signal ALUOut : std_logic_vector(31 downto 0);
     signal BranchOut : std_logic;
-    signal IRWrite, AWrite, BWrite, ALUOutWrite, BranchOutWrite  : std_logic;
+    signal PCplus4 : std_logic_vector(31 downto 0);
+    signal IRWrite, AWrite, BWrite, ALUOutWrite, BranchOutWrite, PCincrement  : std_logic;
     
     --LSU
     signal is_store : std_logic;
@@ -189,7 +190,8 @@ begin
             BranchOutWrite => BranchOutWrite,
             
             lsu_op => lsu_op,
-            is_store => is_store
+            is_store => is_store,
+            PCincrement => PCincrement
         );
         
      load_store_unit : entity work.load_store_unit
@@ -222,6 +224,10 @@ begin
         if BranchOutWrite = '1' then
             BranchOut <= branch_result;
         end if;
+        
+        if PCincrement = '1' then
+            PCplus4 <= std_logic_vector(pc + 4);
+        end if;
     end if;
     end process;
    
@@ -235,7 +241,7 @@ begin
    
    reg_file_wdata <= ALUOut when mux_regfile_in = "00" 
                      else data_mem_to_rd when mux_regfile_in = "01" 
-                     else std_logic_vector(pc + 4) when mux_regfile_in = "10"
+                     else PCplus4 when mux_regfile_in = "10"
                      else imm_extended;
    
    instr_mem_addr <= pc;

@@ -82,15 +82,15 @@ module cpu_riscv_virtual_mem_test;
         instr_mem[1] = 32'h01400113; // addi x2, x0, 20
         instr_mem[2] = 32'h002081b3; // add x3, x1, x2 -> x3=30
         instr_mem[3] = 32'h00302023; // sw x3, 0(x0)
-        instr_mem[4] = 32'h0000f1b7; // lui x31,0
-        instr_mem[5] = 32'h00010083; // lw x31, 0(x0)
+        instr_mem[4] = 32'h00000fb7; // lui x31,0
+        instr_mem[5] = 32'h00002f83; // lw x31, 0(x0)
 
         #20;           // wait before release reset
         rst = 0;
         instr_en = 1;
 
         // Wait sufficient cycles for CPU to finish program
-        repeat (30) @(posedge clk);
+        repeat (31) @(posedge clk);
 
         // --- Verification ---
         if (x1 !== 10)   $error("FAIL: x1 != 10, got %0d", x1);
