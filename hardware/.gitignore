@@ -1,7 +1,7 @@
 
 # Vivado Project & Build Folders
 # Ignore the entire directory where generated projects, runs, and caches live
-build/
+vivado-data/
 work/
 *.xpr
 
