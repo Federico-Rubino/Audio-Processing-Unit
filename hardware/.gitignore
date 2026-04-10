@@ -7,6 +7,7 @@ work/
 
 # IP Cores 
 ip/**/*
+!ip/**/
 # keep the IP configuration source files
 !ip/**/*.xci
 !ip/**/*.xcix
