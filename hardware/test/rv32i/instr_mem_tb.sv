@@ -2,20 +2,18 @@
 
 module instr_mem_tb;
 
-    // clock
     logic clk;
-    always #5 clk = ~clk; // 100 MHz approx
+    always #5 clk = ~clk;
 
-    // segnali per la BRAM
-    logic [31:0] pc;          // indirizzo
-    logic [31:0] instr_out;   // dato letto
+    //BRAM
+    logic [31:0] pc;         
+    logic [31:0] instr_out;   
     logic ena;
 
-    // istanza della BRAM
     instruction_memory instr_mem_inst (
         .clka(clk),
         .ena(ena),
-        .addra(pc[31:2]),   // PC in byte -> parola
+        .addra(pc[31:2]),  
         .douta(instr_out)
     );
 
@@ -27,11 +25,10 @@ module instr_mem_tb;
 
         #10;
 
-        // stampiamo le prime 6 istruzioni
         repeat (6) begin
             $display("PC=%0d instr=%h", pc, instr_out);
-            #10; // un ciclo per leggere
-            pc = pc + 4; // passa alla parola successiva
+            #10; 
+            pc = pc + 4; 
         end
 
         $display("FINE TEST BRAM");

@@ -115,24 +115,21 @@ module cpu_tb;
 
     disable fork;
 
-    // =========================
-    // CHECK RESULTS
-    // =========================
-
+    
+    // check results
     $display("x1 (RA) = %0d", x1);
     $display("x2       = %0d", x2);
     $display("x3       = %0d", x3);
     $display("x31      = %h", x31);
 
-    // ===== ASSERTIONS =====
-
+    // assertion
     if (x31 != 120)
-      $fatal(1, "FAIL: JAL/JALR flow broken (x31 never reached)");
+      $fatal(1, "FAIL: x31 never reached");
 
     if (x1 == 0)
       $fatal(1, "FAIL: JAL did not write return address");
 
-    $display("JAL/JALR TEST PASSED");
+    $display(".DATA SECTION/JAL-JALR/ TEST PASSED");
     $finish;
   end
 
