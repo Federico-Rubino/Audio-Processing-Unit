@@ -36,6 +36,7 @@ entity control_unit is
   Port (
     clk : in std_logic;
     rst : in std_logic;
+    stall : in std_logic;
     instr : in std_logic_vector(31 downto 0);
     
     pc_we : out std_logic;
@@ -86,11 +87,11 @@ begin
 
     opcode <= opcode_s;
 
-    process(clk)
+    process(clk, rst)
     begin
         if rst = '1' then
             state <= FETCH;
-        elsif rising_edge(clk) then
+        elsif rising_edge(clk)and stall = '0' then
             state <= next_state;
         end if;
     end process;
@@ -104,9 +105,10 @@ begin
     rd_s  <= unsigned(instr(11 downto 7));
     
     
-    process(state, rs1_s, rs2_s, rd_s, opcode_s, funct3_s, funct7_s)
+    process(state, rs1_s, rs2_s, rd_s, opcode_s, funct3_s, funct7_s, stall)
     begin
     
+        next_state <= state;
     --ENABLE SIGNAL ARE 0 DEFAULT
         pc_we <= '0';
         instr_mem_ena <= '0';
@@ -122,8 +124,7 @@ begin
         PCincrement <= '0';
     -- end default value
     
-        case state is
-            
+        case state is  
             when FETCH =>
                 next_state <= DECODE;
                 instr_mem_ena <= '1';
@@ -230,6 +231,18 @@ begin
                 end case;
              when others => null;
         end case;
+        
+        
+        if stall = '1' then
+            pc_we <= '0';
+            reg_file_wea <= '0';
+            IRWrite <= '0';
+            AWrite <= '0';
+            BWrite <= '0';
+            ALUOutWrite <= '0';
+            BranchOutWrite <= '0';
+            PCincrement <= '0';
+        end if;
     end process;
     
 

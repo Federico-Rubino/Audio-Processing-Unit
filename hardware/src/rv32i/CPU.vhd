@@ -36,6 +36,7 @@ entity CPU is
   Port (
   clk : in std_logic;
   rst : in std_logic;
+  stall : in std_logic;
   
   --instruction memory
   instr_mem_addr : out unsigned(31 downto 0);
@@ -161,6 +162,7 @@ begin
         port map (
             clk => clk,
             rst => rst,
+            stall => stall,
             instr => instr_mem_data,
             
             pc_we => pc_write_enable,

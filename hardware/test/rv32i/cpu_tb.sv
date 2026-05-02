@@ -4,6 +4,7 @@ module cpu_tb;
 
   logic clk;
   logic rst;
+  logic stall;
 
   logic [31:0] instr_mem_data;
   logic [31:0] data_mem_data_in;
@@ -58,6 +59,7 @@ module cpu_tb;
   CPU cpu_inst (
     .clk(clk),
     .rst(rst),
+    .stall(stall),
 
     .instr_mem_data(instr_mem_data),
     .data_mem_data_in(data_mem_data_in),
@@ -95,8 +97,12 @@ module cpu_tb;
   initial begin
     clk = 0;
     rst = 1;
+    stall = 0;
 
     #20 rst = 0;
+    
+    #480 stall = 1;
+    #200 stall = 0;
 
     // timeout watchdog
     fork

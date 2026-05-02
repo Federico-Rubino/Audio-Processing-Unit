@@ -6,6 +6,7 @@ module cpu_riscv_virtual_mem_test;
     logic clk;
     logic rst;
     logic instr_en;
+    logic stall;
 
     // --- CPU buses ---
     logic [31:0] instr_to_cpu;
@@ -38,6 +39,7 @@ module cpu_riscv_virtual_mem_test;
     CPU cpu_inst (
         .clk(clk),
         .rst(rst),
+        .stall(stall),
         .instr_mem_data(instr_to_cpu),
         .data_mem_data_in(data_from_mem),
         .instr_mem_addr(instr_addr),
@@ -70,6 +72,7 @@ module cpu_riscv_virtual_mem_test;
     initial begin
         rst = 1;
         instr_en = 0;
+        stall = 0;
 
         // Clear memories
         for (int i=0; i<MEM_SIZE; i++) begin
