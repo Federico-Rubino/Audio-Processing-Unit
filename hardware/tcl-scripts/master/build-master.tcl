@@ -1,5 +1,5 @@
 # =========================================================================================
-# TCL GENERATION SCRIPT FOR RISCV32I PROJECT
+# TCL GENERATION SCRIPT FOR MASTER PROJECT
 # =========================================================================================
 
 # 1. Setup Paths (Relative to the script's location)
