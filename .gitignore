@@ -1,2 +1,6 @@
 *.jou
 *.log
+
+**/.vscode/
+**/.vscode-test/
+**/bin/

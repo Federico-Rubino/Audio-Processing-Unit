@@ -56,7 +56,7 @@ if { [string first $scripts_vivado_version $current_vivado_version] == -1 } {
 
 set list_projs [get_projects -quiet]
 if { $list_projs eq "" } {
-   create_project project_1 myproj -part xc7z010iclg225-1L
+   create_project project_1 myproj -part xc7z020clg484-1
 }
 
 
@@ -142,6 +142,7 @@ xilinx.com:ip:blk_mem_gen:8.4\
 xilinx.com:ip:smartconnect:1.0\
 xilinx.com:ip:proc_sys_reset:5.0\
 xilinx.com:ip:xlslice:1.0\
+xilinx.com:ip:axi_uartlite:2.0\
 "
 
    set list_ips_missing ""
@@ -230,6 +231,8 @@ proc create_root_design { parentCell } {
 
 
   # Create interface ports
+  set uart_rtl_0 [ create_bd_intf_port -mode Master -vlnv xilinx.com:interface:uart_rtl:1.0 uart_rtl_0 ]
+
 
   # Create ports
   set sys_clk [ create_bd_port -dir I -type clk -freq_hz 100000000 sys_clk ]
@@ -262,7 +265,7 @@ proc create_root_design { parentCell } {
   set axi_bram_ctrl_0_bram [ create_bd_cell -type ip -vlnv xilinx.com:ip:blk_mem_gen:8.4 axi_bram_ctrl_0_bram ]
   set_property -dict [list \
     CONFIG.Byte_Size {8} \
-    CONFIG.Coe_File {c:/Users/campi/Documents/Uni/Audio-Processing-Unit/hardware/test/master/data_basic_axi_test.coe} \
+    CONFIG.Coe_File {c:/Users/campi/Documents/Uni/Audio-Processing-Unit/hardware/test/master/coe/uart/uart_data_mem.coe} \
     CONFIG.Load_Init_File {true} \
     CONFIG.Memory_Type {True_Dual_Port_RAM} \
     CONFIG.Register_PortA_Output_of_Memory_Primitives {false} \
@@ -276,7 +279,10 @@ proc create_root_design { parentCell } {
 
   # Create instance: axi_smc, and set properties
   set axi_smc [ create_bd_cell -type ip -vlnv xilinx.com:ip:smartconnect:1.0 axi_smc ]
-  set_property CONFIG.NUM_SI {1} $axi_smc
+  set_property -dict [list \
+    CONFIG.NUM_MI {2} \
+    CONFIG.NUM_SI {1} \
+  ] $axi_smc
 
 
   # Create instance: rst_clk_wiz_100M, and set properties
@@ -295,7 +301,7 @@ proc create_root_design { parentCell } {
   set blk_mem_gen_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:blk_mem_gen:8.4 blk_mem_gen_0 ]
   set_property -dict [list \
     CONFIG.Assume_Synchronous_Clk {true} \
-    CONFIG.Coe_File {c:/Users/campi/Documents/Uni/Audio-Processing-Unit/hardware/test/master/instr_basic_axi_test.coe} \
+    CONFIG.Coe_File {c:/Users/campi/Documents/Uni/Audio-Processing-Unit/hardware/test/master/coe/uart/uart_instr_mem.coe} \
     CONFIG.Load_Init_File {true} \
     CONFIG.Memory_Type {True_Dual_Port_RAM} \
     CONFIG.Register_PortA_Output_of_Memory_Primitives {false} \
@@ -312,10 +318,17 @@ proc create_root_design { parentCell } {
   ] $xlslice_1
 
 
+  # Create instance: axi_uartlite_0, and set properties
+  set axi_uartlite_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_uartlite:2.0 axi_uartlite_0 ]
+  set_property CONFIG.C_BAUDRATE {115200} $axi_uartlite_0
+
+
   # Create interface connections
   connect_bd_intf_net -intf_net RV32I_AXI_Bridge_0_M_AXI [get_bd_intf_pins RV32I_AXI_Bridge_0/M_AXI] [get_bd_intf_pins axi_smc/S00_AXI]
   connect_bd_intf_net -intf_net axi_bram_ctrl_0_BRAM_PORTA [get_bd_intf_pins axi_bram_ctrl_0_bram/BRAM_PORTA] [get_bd_intf_pins axi_bram_ctrl_0/BRAM_PORTA]
   connect_bd_intf_net -intf_net axi_smc_M00_AXI [get_bd_intf_pins axi_smc/M00_AXI] [get_bd_intf_pins axi_bram_ctrl_0/S_AXI]
+  connect_bd_intf_net -intf_net axi_smc_M01_AXI [get_bd_intf_pins axi_smc/M01_AXI] [get_bd_intf_pins axi_uartlite_0/S_AXI]
+  connect_bd_intf_net -intf_net axi_uartlite_0_UART [get_bd_intf_ports uart_rtl_0] [get_bd_intf_pins axi_uartlite_0/UART]
 
   # Create port connections
   connect_bd_net -net CPU_0_data_mem_addr  [get_bd_pins CPU_0/data_mem_addr] \
@@ -353,7 +366,8 @@ proc create_root_design { parentCell } {
   connect_bd_net -net rst_clk_wiz_100M_peripheral_aresetn  [get_bd_pins rst_clk_wiz_100M/peripheral_aresetn] \
   [get_bd_pins RV32I_AXI_Bridge_0/m_axi_aresetn] \
   [get_bd_pins axi_bram_ctrl_0/s_axi_aresetn] \
-  [get_bd_pins axi_smc/aresetn]
+  [get_bd_pins axi_smc/aresetn] \
+  [get_bd_pins axi_uartlite_0/s_axi_aresetn]
   connect_bd_net -net rst_clk_wiz_100M_peripheral_reset  [get_bd_pins rst_clk_wiz_100M/peripheral_reset] \
   [get_bd_pins CPU_0/rst]
   connect_bd_net -net sys_clk_1  [get_bd_ports sys_clk] \
@@ -362,7 +376,8 @@ proc create_root_design { parentCell } {
   [get_bd_pins axi_bram_ctrl_0/s_axi_aclk] \
   [get_bd_pins RV32I_AXI_Bridge_0/m_axi_aclk] \
   [get_bd_pins blk_mem_gen_0/clka] \
-  [get_bd_pins CPU_0/clk]
+  [get_bd_pins CPU_0/clk] \
+  [get_bd_pins axi_uartlite_0/s_axi_aclk]
   connect_bd_net -net sys_rst_1  [get_bd_ports sys_rst] \
   [get_bd_pins rst_clk_wiz_100M/ext_reset_in]
   connect_bd_net -net xlslice_0_Dout  [get_bd_pins xlslice_0/Dout] \
@@ -372,6 +387,7 @@ proc create_root_design { parentCell } {
 
   # Create address segments
   assign_bd_address -offset 0x00001000 -range 0x00001000 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00002000 -range 0x00000080 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_uartlite_0/S_AXI/Reg] -force
 
 
   # Restore current instance
