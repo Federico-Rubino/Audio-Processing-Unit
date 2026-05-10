@@ -143,6 +143,7 @@ xilinx.com:ip:smartconnect:1.0\
 xilinx.com:ip:proc_sys_reset:5.0\
 xilinx.com:ip:xlslice:1.0\
 xilinx.com:ip:axi_uartlite:2.0\
+xilinx.com:ip:processing_system7:5.5\
 "
 
    set list_ips_missing ""
@@ -231,16 +232,12 @@ proc create_root_design { parentCell } {
 
 
   # Create interface ports
-  set uart_rtl_0 [ create_bd_intf_port -mode Master -vlnv xilinx.com:interface:uart_rtl:1.0 uart_rtl_0 ]
+  set DDR [ create_bd_intf_port -mode Master -vlnv xilinx.com:interface:ddrx_rtl:1.0 DDR ]
+
+  set FIXED_IO [ create_bd_intf_port -mode Master -vlnv xilinx.com:display_processing_system7:fixedio_rtl:1.0 FIXED_IO ]
 
 
   # Create ports
-  set sys_clk [ create_bd_port -dir I -type clk -freq_hz 100000000 sys_clk ]
-  set sys_rst [ create_bd_port -dir I -type rst sys_rst ]
-  set_property -dict [ list \
-   CONFIG.POLARITY {ACTIVE_HIGH} \
- ] $sys_rst
-  set debugs_register [ create_bd_port -dir O -from 1023 -to 0 debugs_register ]
 
   # Create instance: CPU_0, and set properties
   set block_name CPU
@@ -281,7 +278,7 @@ proc create_root_design { parentCell } {
   set axi_smc [ create_bd_cell -type ip -vlnv xilinx.com:ip:smartconnect:1.0 axi_smc ]
   set_property -dict [list \
     CONFIG.NUM_MI {2} \
-    CONFIG.NUM_SI {1} \
+    CONFIG.NUM_SI {2} \
   ] $axi_smc
 
 
@@ -323,12 +320,58 @@ proc create_root_design { parentCell } {
   set_property CONFIG.C_BAUDRATE {115200} $axi_uartlite_0
 
 
+  # Create instance: processing_system7_0, and set properties
+  set processing_system7_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:processing_system7:5.5 processing_system7_0 ]
+  set_property -dict [list \
+    CONFIG.PCW_ACT_APU_PERIPHERAL_FREQMHZ {666.666687} \
+    CONFIG.PCW_ACT_CAN_PERIPHERAL_FREQMHZ {10.000000} \
+    CONFIG.PCW_ACT_DCI_PERIPHERAL_FREQMHZ {10.158730} \
+    CONFIG.PCW_ACT_ENET0_PERIPHERAL_FREQMHZ {10.000000} \
+    CONFIG.PCW_ACT_ENET1_PERIPHERAL_FREQMHZ {10.000000} \
+    CONFIG.PCW_ACT_FPGA0_PERIPHERAL_FREQMHZ {100.000000} \
+    CONFIG.PCW_ACT_FPGA1_PERIPHERAL_FREQMHZ {10.000000} \
+    CONFIG.PCW_ACT_FPGA2_PERIPHERAL_FREQMHZ {10.000000} \
+    CONFIG.PCW_ACT_FPGA3_PERIPHERAL_FREQMHZ {10.000000} \
+    CONFIG.PCW_ACT_PCAP_PERIPHERAL_FREQMHZ {200.000000} \
+    CONFIG.PCW_ACT_QSPI_PERIPHERAL_FREQMHZ {10.000000} \
+    CONFIG.PCW_ACT_SDIO_PERIPHERAL_FREQMHZ {10.000000} \
+    CONFIG.PCW_ACT_SMC_PERIPHERAL_FREQMHZ {10.000000} \
+    CONFIG.PCW_ACT_SPI_PERIPHERAL_FREQMHZ {10.000000} \
+    CONFIG.PCW_ACT_TPIU_PERIPHERAL_FREQMHZ {200.000000} \
+    CONFIG.PCW_ACT_TTC0_CLK0_PERIPHERAL_FREQMHZ {111.111115} \
+    CONFIG.PCW_ACT_TTC0_CLK1_PERIPHERAL_FREQMHZ {111.111115} \
+    CONFIG.PCW_ACT_TTC0_CLK2_PERIPHERAL_FREQMHZ {111.111115} \
+    CONFIG.PCW_ACT_TTC1_CLK0_PERIPHERAL_FREQMHZ {111.111115} \
+    CONFIG.PCW_ACT_TTC1_CLK1_PERIPHERAL_FREQMHZ {111.111115} \
+    CONFIG.PCW_ACT_TTC1_CLK2_PERIPHERAL_FREQMHZ {111.111115} \
+    CONFIG.PCW_ACT_UART_PERIPHERAL_FREQMHZ {100.000000} \
+    CONFIG.PCW_ACT_WDT_PERIPHERAL_FREQMHZ {111.111115} \
+    CONFIG.PCW_CLK0_FREQ {100000000} \
+    CONFIG.PCW_CLK1_FREQ {10000000} \
+    CONFIG.PCW_CLK2_FREQ {10000000} \
+    CONFIG.PCW_CLK3_FREQ {10000000} \
+    CONFIG.PCW_DDR_RAM_HIGHADDR {0x1FFFFFFF} \
+    CONFIG.PCW_EN_EMIO_UART1 {1} \
+    CONFIG.PCW_EN_UART1 {1} \
+    CONFIG.PCW_FPGA0_PERIPHERAL_FREQMHZ {100} \
+    CONFIG.PCW_FPGA_FCLK0_ENABLE {1} \
+    CONFIG.PCW_UART1_GRP_FULL_ENABLE {0} \
+    CONFIG.PCW_UART1_PERIPHERAL_ENABLE {1} \
+    CONFIG.PCW_UART1_UART1_IO {EMIO} \
+    CONFIG.PCW_UART_PERIPHERAL_FREQMHZ {100} \
+    CONFIG.PCW_UART_PERIPHERAL_VALID {1} \
+    CONFIG.PCW_UIPARAM_ACT_DDR_FREQ_MHZ {533.333374} \
+  ] $processing_system7_0
+
+
   # Create interface connections
   connect_bd_intf_net -intf_net RV32I_AXI_Bridge_0_M_AXI [get_bd_intf_pins RV32I_AXI_Bridge_0/M_AXI] [get_bd_intf_pins axi_smc/S00_AXI]
   connect_bd_intf_net -intf_net axi_bram_ctrl_0_BRAM_PORTA [get_bd_intf_pins axi_bram_ctrl_0_bram/BRAM_PORTA] [get_bd_intf_pins axi_bram_ctrl_0/BRAM_PORTA]
   connect_bd_intf_net -intf_net axi_smc_M00_AXI [get_bd_intf_pins axi_smc/M00_AXI] [get_bd_intf_pins axi_bram_ctrl_0/S_AXI]
   connect_bd_intf_net -intf_net axi_smc_M01_AXI [get_bd_intf_pins axi_smc/M01_AXI] [get_bd_intf_pins axi_uartlite_0/S_AXI]
-  connect_bd_intf_net -intf_net axi_uartlite_0_UART [get_bd_intf_ports uart_rtl_0] [get_bd_intf_pins axi_uartlite_0/UART]
+  connect_bd_intf_net -intf_net processing_system7_0_DDR [get_bd_intf_ports DDR] [get_bd_intf_pins processing_system7_0/DDR]
+  connect_bd_intf_net -intf_net processing_system7_0_FIXED_IO [get_bd_intf_ports FIXED_IO] [get_bd_intf_pins processing_system7_0/FIXED_IO]
+  connect_bd_intf_net -intf_net processing_system7_0_M_AXI_GP0 [get_bd_intf_pins processing_system7_0/M_AXI_GP0] [get_bd_intf_pins axi_smc/S01_AXI]
 
   # Create port connections
   connect_bd_net -net CPU_0_data_mem_addr  [get_bd_pins CPU_0/data_mem_addr] \
@@ -339,8 +382,6 @@ proc create_root_design { parentCell } {
   [get_bd_pins RV32I_AXI_Bridge_0/cpu_mem_en]
   connect_bd_net -net CPU_0_data_mem_wea  [get_bd_pins CPU_0/data_mem_wea] \
   [get_bd_pins RV32I_AXI_Bridge_0/cpu_mem_wea]
-  connect_bd_net -net CPU_0_debug_regs  [get_bd_pins CPU_0/debug_regs] \
-  [get_bd_ports debugs_register]
   connect_bd_net -net CPU_0_instr_mem_addr  [get_bd_pins CPU_0/instr_mem_addr] \
   [get_bd_pins xlslice_1/Din]
   connect_bd_net -net CPU_0_instr_mem_ena  [get_bd_pins CPU_0/instr_mem_ena] \
@@ -361,8 +402,22 @@ proc create_root_design { parentCell } {
   [get_bd_pins axi_bram_ctrl_0_bram/wea]
   connect_bd_net -net axi_bram_ctrl_0_bram_wrdata_a  [get_bd_pins axi_bram_ctrl_0/bram_wrdata_a] \
   [get_bd_pins axi_bram_ctrl_0_bram/dina]
+  connect_bd_net -net axi_uartlite_0_tx  [get_bd_pins axi_uartlite_0/tx] \
+  [get_bd_pins processing_system7_0/UART1_RX]
   connect_bd_net -net blk_mem_gen_0_douta  [get_bd_pins blk_mem_gen_0/douta] \
   [get_bd_pins CPU_0/instr_mem_data]
+  connect_bd_net -net processing_system7_0_FCLK_CLK0  [get_bd_pins processing_system7_0/FCLK_CLK0] \
+  [get_bd_pins axi_bram_ctrl_0/s_axi_aclk] \
+  [get_bd_pins axi_smc/aclk] \
+  [get_bd_pins axi_uartlite_0/s_axi_aclk] \
+  [get_bd_pins CPU_0/clk] \
+  [get_bd_pins processing_system7_0/M_AXI_GP0_ACLK] \
+  [get_bd_pins rst_clk_wiz_100M/slowest_sync_clk] \
+  [get_bd_pins RV32I_AXI_Bridge_0/m_axi_aclk]
+  connect_bd_net -net processing_system7_0_FCLK_RESET0_N  [get_bd_pins processing_system7_0/FCLK_RESET0_N] \
+  [get_bd_pins rst_clk_wiz_100M/ext_reset_in]
+  connect_bd_net -net processing_system7_0_UART1_TX  [get_bd_pins processing_system7_0/UART1_TX] \
+  [get_bd_pins axi_uartlite_0/rx]
   connect_bd_net -net rst_clk_wiz_100M_peripheral_aresetn  [get_bd_pins rst_clk_wiz_100M/peripheral_aresetn] \
   [get_bd_pins RV32I_AXI_Bridge_0/m_axi_aresetn] \
   [get_bd_pins axi_bram_ctrl_0/s_axi_aresetn] \
@@ -370,16 +425,6 @@ proc create_root_design { parentCell } {
   [get_bd_pins axi_uartlite_0/s_axi_aresetn]
   connect_bd_net -net rst_clk_wiz_100M_peripheral_reset  [get_bd_pins rst_clk_wiz_100M/peripheral_reset] \
   [get_bd_pins CPU_0/rst]
-  connect_bd_net -net sys_clk_1  [get_bd_ports sys_clk] \
-  [get_bd_pins rst_clk_wiz_100M/slowest_sync_clk] \
-  [get_bd_pins axi_smc/aclk] \
-  [get_bd_pins axi_bram_ctrl_0/s_axi_aclk] \
-  [get_bd_pins RV32I_AXI_Bridge_0/m_axi_aclk] \
-  [get_bd_pins blk_mem_gen_0/clka] \
-  [get_bd_pins CPU_0/clk] \
-  [get_bd_pins axi_uartlite_0/s_axi_aclk]
-  connect_bd_net -net sys_rst_1  [get_bd_ports sys_rst] \
-  [get_bd_pins rst_clk_wiz_100M/ext_reset_in]
   connect_bd_net -net xlslice_0_Dout  [get_bd_pins xlslice_0/Dout] \
   [get_bd_pins axi_bram_ctrl_0_bram/addra]
   connect_bd_net -net xlslice_1_Dout  [get_bd_pins xlslice_1/Dout] \
@@ -388,6 +433,10 @@ proc create_root_design { parentCell } {
   # Create address segments
   assign_bd_address -offset 0x00001000 -range 0x00001000 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_bram_ctrl_0/S_AXI/Mem0] -force
   assign_bd_address -offset 0x00002000 -range 0x00000080 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_uartlite_0/S_AXI/Reg] -force
+
+  # Exclude Address Segments
+  exclude_bd_addr_seg -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs axi_bram_ctrl_0/S_AXI/Mem0]
+  exclude_bd_addr_seg -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs axi_uartlite_0/S_AXI/Reg]
 
 
   # Restore current instance
