@@ -38,6 +38,15 @@ if {[llength $rtl_files] > 0} {
     puts "Warning: No RTL files found in $repo_root/src/rv32i/"
 }
 
+# 4. Add RTL Sources (src/audioIO)
+set rtl_files [glob -nocomplain "$repo_root/src/audioIO/*.{v,vhd,sv}"]
+if {[llength $rtl_files] > 0} {
+    add_files $rtl_files
+    puts "Added [llength $rtl_files] RTL files."
+} else {
+    puts "Warning: No RTL files found in $repo_root/src/audioIO/"
+}
+
 # 4. Add RTL Sources (src/master)
 set rtl_files [glob -nocomplain "$repo_root/src/master/*.{v,vhd,sv}"]
 if {[llength $rtl_files] > 0} {
