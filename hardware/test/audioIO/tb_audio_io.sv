@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module tb_audioIO();
+module tb_audio_in();
 
     // --- Clock and Reset ---
     logic clk = 0;
@@ -30,7 +30,7 @@ module tb_audioIO();
     always #5 clk = ~clk;
 
     // --- DUT Instance ---
-    audioIO dut (
+    audio_in dut (
         .clk(clk),
         .rst(rst),
         .new_sample(tb_new_sample),
