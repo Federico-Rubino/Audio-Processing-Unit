@@ -7,7 +7,7 @@ typedef struct{
     volatile uint32_t control; //control register 0xCh offset
 } uart_t;
 
-#define UART ((uart_t*) 0x2000) //base address of UART peripheral
+#define UART ((uart_t*) 0x00028000) //base address of UART peripheral
 
 #define UART_STATUS_TX_FULL 0x08 //tx full status
 #define UART_STATUS_RX_VALID 0x01 //rx valid status

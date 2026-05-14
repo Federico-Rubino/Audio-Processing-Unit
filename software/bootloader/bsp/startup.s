@@ -1,6 +1,6 @@
-.section .text
+.section .text.init
 .global _start
-.global main
+.global bootloader
 
 _start:
     # stack pointer init (x2)
@@ -17,7 +17,7 @@ loop_init_bss:
     blt t0, t1, loop_init_bss
 end_init_bss:
 
-    call main
+    call bootloader
 
 _exit:
     j _exit

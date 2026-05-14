@@ -23,7 +23,7 @@ all: $(ELF) $(HEX_INSTR) $(HEX_DATA)
 
 #compile ELF
 $(ELF): $(SRC)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ -lgcc
 
 # Generate instruction binary (.text)
 $(BIN_INSTR): $(ELF)
@@ -31,7 +31,7 @@ $(BIN_INSTR): $(ELF)
 
 # Generate data binary (.data + .rodata)
 $(BIN_DATA): $(ELF)
-	$(OBJCOPY) -j .data -O binary $< $@
+	$(OBJCOPY) -O binary -j .data -j .rodata -j .sdata -j .srodata $< $@
 
 
 # Generate hex files from binaries

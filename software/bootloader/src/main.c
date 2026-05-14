@@ -18,14 +18,14 @@ uint32_t uart_read_word(){
 
 void jump_to_main(){
     __asm__ volatile (
-        "li t0, 0x00002000 \n"
+        "li t0, 0x00010000 \n"
         "jr t0 \n"
     );
 }
 
 void bootloader(){
     
-    uart_send_byte(READY_SIGNAL); //bootloader ready signal
+    uart_write_byte(READY_SIGNAL); //bootloader ready signal
 
     while(1){
         uint8_t cmd = uart_read_byte();
@@ -43,7 +43,7 @@ void bootloader(){
                 mem_ptr[i] = uart_read_word();
             }
 
-            uart_send_byte(ACK_SIGNAL);
+            uart_write_byte(ACK_SIGNAL);
         }
     }
 

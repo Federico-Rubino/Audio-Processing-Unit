@@ -7,7 +7,7 @@ OBJCOPY = riscv64-unknown-elf-objcopy
 INCLUDES = -Iinclude -I../uart/include
 
 # Project files
-SRC = /bsp/startup.s src/main.c
+SRC = bsp/startup.s src/main.c
 ELF = bin/firmware.elf
 BIN_INSTR = bin/instr.bin
 BIN_DATA = bin/data.bin
@@ -16,7 +16,7 @@ HEX_DATA = bin/data.hex
 
 #Compiler flags
 CFLAGS = -O0 -Wall -march=rv32i -mabi=ilp32 -ffreestanding -nostartfiles -nodefaultlibs $(INCLUDES)
-LDFLAGS = -T /bsp/bootloader_linker.ld
+LDFLAGS = -T bsp/bootloader_linker.ld
 
 #Default target
 all: $(ELF) $(HEX_INSTR) $(HEX_DATA)

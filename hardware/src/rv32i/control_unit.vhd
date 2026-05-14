@@ -75,7 +75,7 @@ entity control_unit is
 end control_unit;
 
 architecture Behavioral of control_unit is
-    type state_t is (FETCH, DECODE, EXECUTE, MEMORY, WRITEBACK);
+    type state_t is (FETCH, FETCH1, DECODE, EXECUTE, MEMORY, WRITEBACK);
     signal state, next_state : state_t;
     signal opcode_s : std_logic_vector(6 downto 0);
     signal funct3_s : std_logic_vector(2 downto 0);
@@ -126,6 +126,11 @@ begin
     
         case state is  
             when FETCH =>
+                next_state <= FETCH1;
+                instr_mem_ena <= '1';
+                IRWrite <= '1';
+                
+            when FETCH1 =>
                 next_state <= DECODE;
                 instr_mem_ena <= '1';
                 IRWrite <= '1';
