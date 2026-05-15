@@ -310,7 +310,7 @@ proc create_root_design { parentCell } {
     CONFIG.Fill_Remaining_Memory_Locations {true} \
     CONFIG.Load_Init_File {true} \
     CONFIG.Memory_Type {True_Dual_Port_RAM} \
-    CONFIG.Register_PortA_Output_of_Memory_Primitives {false} \
+    CONFIG.Register_PortA_Output_of_Memory_Primitives {true} \
     CONFIG.Register_PortB_Output_of_Memory_Primitives {false} \
     CONFIG.Use_Byte_Write_Enable {true} \
     CONFIG.Write_Depth_A {16384} \
@@ -363,7 +363,7 @@ proc create_root_design { parentCell } {
     CONFIG.Enable_32bit_Address {false} \
     CONFIG.Load_Init_File {true} \
     CONFIG.Memory_Type {Single_Port_ROM} \
-    CONFIG.Register_PortA_Output_of_Memory_Primitives {false} \
+    CONFIG.Register_PortA_Output_of_Memory_Primitives {true} \
     CONFIG.Write_Depth_A {1024} \
     CONFIG.use_bram_block {Stand_Alone} \
   ] $blk_mem_gen_1
@@ -373,13 +373,13 @@ proc create_root_design { parentCell } {
   set clk_wiz_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:clk_wiz:6.0 clk_wiz_0 ]
   set_property -dict [list \
     CONFIG.CLKIN1_JITTER_PS {100.0} \
-    CONFIG.CLKOUT1_JITTER {137.143} \
+    CONFIG.CLKOUT1_JITTER {130.958} \
     CONFIG.CLKOUT1_PHASE_ERROR {98.575} \
-    CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {80.000} \
+    CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {100.000} \
     CONFIG.MMCM_CLKFBOUT_MULT_F {10.000} \
     CONFIG.MMCM_CLKIN1_PERIOD {10.000} \
     CONFIG.MMCM_CLKIN2_PERIOD {10.000} \
-    CONFIG.MMCM_CLKOUT0_DIVIDE_F {12.500} \
+    CONFIG.MMCM_CLKOUT0_DIVIDE_F {10.000} \
   ] $clk_wiz_0
 
 
