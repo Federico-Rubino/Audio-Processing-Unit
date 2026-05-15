@@ -83,7 +83,7 @@ architecture Behavioral of audio_in is
 
 begin
 
-    left_channel_buffer : entity work.circular_channel_buffer
+    left_channel_buffer_in : entity work.circular_channel_buffer_in
         port map (
             clk => clk,
             rst => rst,
@@ -95,7 +95,7 @@ begin
             avail_samples => next_status_reg(10 downto 3) --update status register bits for available samples in left channel
         );
 
-    right_channel_buffer : entity work.circular_channel_buffer
+    right_channel_buffer_in : entity work.circular_channel_buffer_in
         port map (
             clk => clk,
             rst => rst,

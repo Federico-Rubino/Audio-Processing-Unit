@@ -3,7 +3,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use work.audioIO_types.all;
 
-entity circular_channel_buffer is
+entity circular_channel_buffer_in is
     Port (
         clk          : in  std_logic;
         rst        : in  std_logic;
@@ -16,9 +16,9 @@ entity circular_channel_buffer is
         has_data     : out std_logic;  -- 1 if w_ptr = r_ptr
         avail_samples : out std_logic_vector(7 downto 0) -- number of available samples 
     );
-end circular_channel_buffer;
+end circular_channel_buffer_in;
 
-architecture RTL of circular_channel_buffer is
+architecture RTL of circular_channel_buffer_in is
     signal circ_reg : aio_internal_regs_t := (others => (others => '0'));
     signal w_ptr    : integer range 0 to DEPTH-1 := 0;
     signal r_ptr    : integer range 0 to DEPTH-1 := 0;
