@@ -58,14 +58,14 @@ if {[llength $ip_files] > 0} {
     puts "Note: No IP (.xci) files found for master."
 }
 
-# 5b. Reconstruct Block Design (scripts/master/recreate_bd.tcl)
+# 5b. Reconstruct Block Design (scripts/master/recreate-bd.tcl)
 # -----------------------------------------------------------------------------------------
-set bd_script "$repo_root/tcl-scripts/master/recreate_bd.tcl"
+set bd_script "$repo_root/tcl-scripts/master/recreate-bd.tcl"
 
 if {[file exists $bd_script]} {
     puts "--- Reconstructing Block Design from script..."
     
-    # 1. Source the script (Ensure the "MAIN FLOW" block at the bottom of recreate_bd.tcl is commented out)
+    # 1. Source the script (Ensure the "MAIN FLOW" block at the bottom of recreate-bd.tcl is commented out)
     source $bd_script
     
     # 2. Define the BD name explicitly (Make sure this matches what you called it originally)

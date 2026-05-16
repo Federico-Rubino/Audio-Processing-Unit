@@ -1,3 +1,6 @@
+#ifndef UART_H
+#define UART_H
+
 #include <stdint.h>
 
 typedef struct{
@@ -44,3 +47,4 @@ void uart_write_byte(uint8_t data){
     UART->tx = (uint32_t)data;
 }
 
+#endif // UART_H
