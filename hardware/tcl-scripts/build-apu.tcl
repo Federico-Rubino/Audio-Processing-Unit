@@ -61,7 +61,14 @@ if {[llength $coe_files] > 0} {
     add_files -fileset sim_1 $coe_files
 }
 
-# 8. Cleanup and Finalize
+# 8. Force all VHDL files in the project to use VHDL 2008
+set vhdl_sources [get_files -filter {FILE_TYPE == "VHDL"}]
+if {[llength $vhdl_sources] > 0} {
+    set_property FILE_TYPE "VHDL 2008" $vhdl_sources
+    puts "Changed [llength $vhdl_sources] VHDL files to VHDL 2008."
+}
+
+# 9. Cleanup and Finalize
 update_compile_order -fileset sources_1
 update_compile_order -fileset sim_1
 
