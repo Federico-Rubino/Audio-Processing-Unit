@@ -145,6 +145,7 @@ xilinx.com:ip:xlslice:1.0\
 xilinx.com:ip:axi_uartlite:2.0\
 xilinx.com:ip:clk_wiz:6.0\
 xilinx.com:ip:axi_gpio:2.0\
+xilinx.com:user:AXI_AudioIO:1.0\
 "
 
    set list_ips_missing ""
@@ -247,6 +248,15 @@ proc create_root_design { parentCell } {
    CONFIG.POLARITY {ACTIVE_HIGH} \
  ] $reset_rtl_0
   set clk_in1_0 [ create_bd_port -dir I -type clk clk_in1_0 ]
+  set AC_SCK_0 [ create_bd_port -dir O AC_SCK_0 ]
+  set AC_ADR0_0 [ create_bd_port -dir O AC_ADR0_0 ]
+  set AC_ADR1_0 [ create_bd_port -dir O AC_ADR1_0 ]
+  set AC_GPIO0_0 [ create_bd_port -dir O AC_GPIO0_0 ]
+  set AC_GPIO1_0 [ create_bd_port -dir I AC_GPIO1_0 ]
+  set AC_GPIO2_0 [ create_bd_port -dir I AC_GPIO2_0 ]
+  set AC_GPIO3_0 [ create_bd_port -dir I AC_GPIO3_0 ]
+  set AC_MCLK_0 [ create_bd_port -dir O AC_MCLK_0 ]
+  set AC_SDA_0 [ create_bd_port -dir IO AC_SDA_0 ]
 
   # Create instance: CPU_0, and set properties
   set block_name CPU
@@ -287,7 +297,7 @@ proc create_root_design { parentCell } {
   # Create instance: axi_smc, and set properties
   set axi_smc [ create_bd_cell -type ip -vlnv xilinx.com:ip:smartconnect:1.0 axi_smc ]
   set_property -dict [list \
-    CONFIG.NUM_MI {4} \
+    CONFIG.NUM_MI {5} \
     CONFIG.NUM_SI {2} \
   ] $axi_smc
 
@@ -406,6 +416,9 @@ proc create_root_design { parentCell } {
   ] $axi_gpio_0
 
 
+  # Create instance: AXI_AudioIO_0, and set properties
+  set AXI_AudioIO_0 [ create_bd_cell -type ip -vlnv xilinx.com:user:AXI_AudioIO:1.0 AXI_AudioIO_0 ]
+
   # Create interface connections
   connect_bd_intf_net -intf_net RV32I_AXI_Bridge_0_M_AXI [get_bd_intf_pins RV32I_AXI_Bridge_0/M_AXI] [get_bd_intf_pins axi_smc/S00_AXI]
   connect_bd_intf_net -intf_net axi_bram_ctrl_0_BRAM_PORTA [get_bd_intf_pins axi_bram_ctrl_0_bram/BRAM_PORTA] [get_bd_intf_pins axi_bram_ctrl_0/BRAM_PORTA]
@@ -415,9 +428,32 @@ proc create_root_design { parentCell } {
   connect_bd_intf_net -intf_net axi_smc_M01_AXI [get_bd_intf_pins axi_smc/M01_AXI] [get_bd_intf_pins axi_uartlite_0/S_AXI]
   connect_bd_intf_net -intf_net axi_smc_M02_AXI [get_bd_intf_pins axi_smc/M02_AXI] [get_bd_intf_pins axi_bram_ctrl_1/S_AXI]
   connect_bd_intf_net -intf_net axi_smc_M03_AXI [get_bd_intf_pins axi_smc/M03_AXI] [get_bd_intf_pins axi_gpio_0/S_AXI]
+  connect_bd_intf_net -intf_net axi_smc_M04_AXI [get_bd_intf_pins axi_smc/M04_AXI] [get_bd_intf_pins AXI_AudioIO_0/S00_AXI_AudioIO]
   connect_bd_intf_net -intf_net axi_uartlite_0_UART [get_bd_intf_ports uart_rtl_0] [get_bd_intf_pins axi_uartlite_0/UART]
 
   # Create port connections
+  connect_bd_net -net AC_GPIO1_0_1  [get_bd_ports AC_GPIO1_0] \
+  [get_bd_pins AXI_AudioIO_0/AC_GPIO1]
+  connect_bd_net -net AC_GPIO2_0_1  [get_bd_ports AC_GPIO2_0] \
+  [get_bd_pins AXI_AudioIO_0/AC_GPIO2]
+  connect_bd_net -net AC_GPIO3_0_1  [get_bd_ports AC_GPIO3_0] \
+  [get_bd_pins AXI_AudioIO_0/AC_GPIO3]
+  connect_bd_net -net AXI_AudioIO_0_AC_ADR0  [get_bd_pins AXI_AudioIO_0/AC_ADR0] \
+  [get_bd_ports AC_ADR0_0]
+  connect_bd_net -net AXI_AudioIO_0_AC_ADR1  [get_bd_pins AXI_AudioIO_0/AC_ADR1] \
+  [get_bd_ports AC_ADR1_0]
+  connect_bd_net -net AXI_AudioIO_0_AC_GPIO0  [get_bd_pins AXI_AudioIO_0/AC_GPIO0] \
+  [get_bd_ports AC_GPIO0_0]
+  connect_bd_net -net AXI_AudioIO_0_AC_MCLK  [get_bd_pins AXI_AudioIO_0/AC_MCLK] \
+  [get_bd_ports AC_MCLK_0]
+  connect_bd_net -net AXI_AudioIO_0_AC_SCK  [get_bd_pins AXI_AudioIO_0/AC_SCK] \
+  [get_bd_ports AC_SCK_0]
+  connect_bd_net -net AXI_AudioIO_0_data_mem_data_out  [get_bd_pins AXI_AudioIO_0/data_mem_data_out] \
+  [get_bd_pins axi_bram_ctrl_0_bram/dinb]
+  connect_bd_net -net AXI_AudioIO_0_data_mem_ena  [get_bd_pins AXI_AudioIO_0/data_mem_ena] \
+  [get_bd_pins axi_bram_ctrl_0_bram/enb]
+  connect_bd_net -net AXI_AudioIO_0_data_mem_wea  [get_bd_pins AXI_AudioIO_0/data_mem_wea] \
+  [get_bd_pins axi_bram_ctrl_0_bram/web]
   connect_bd_net -net CPU_0_data_mem_addr  [get_bd_pins CPU_0/data_mem_addr] \
   [get_bd_pins RV32I_AXI_Bridge_0/cpu_addr]
   connect_bd_net -net CPU_0_data_mem_data_out  [get_bd_pins CPU_0/data_mem_data_out] \
@@ -430,6 +466,8 @@ proc create_root_design { parentCell } {
   [get_bd_pins instr_mem_mux_0/instr_mem_addr_in]
   connect_bd_net -net CPU_0_instr_mem_ena  [get_bd_pins CPU_0/instr_mem_ena] \
   [get_bd_pins instr_mem_mux_0/instr_mem_ena_in]
+  connect_bd_net -net Net  [get_bd_ports AC_SDA_0] \
+  [get_bd_pins AXI_AudioIO_0/AC_SDA]
   connect_bd_net -net RV32I_AXI_Bridge_0_cpu_rdata  [get_bd_pins RV32I_AXI_Bridge_0/cpu_rdata] \
   [get_bd_pins CPU_0/data_mem_data_in]
   connect_bd_net -net RV32I_AXI_Bridge_0_cpu_stall  [get_bd_pins RV32I_AXI_Bridge_0/cpu_stall] \
@@ -474,7 +512,9 @@ proc create_root_design { parentCell } {
   [get_bd_pins RV32I_AXI_Bridge_0/m_axi_aclk] \
   [get_bd_pins blk_mem_gen_1/clka] \
   [get_bd_pins blk_mem_gen_0/clka] \
-  [get_bd_pins axi_gpio_0/s_axi_aclk]
+  [get_bd_pins axi_gpio_0/s_axi_aclk] \
+  [get_bd_pins axi_bram_ctrl_0_bram/clkb] \
+  [get_bd_pins AXI_AudioIO_0/s00_axi_audioio_aclk]
   connect_bd_net -net clk_wiz_0_locked  [get_bd_pins clk_wiz_0/locked] \
   [get_bd_pins rst_clk_wiz_100M/dcm_locked]
   connect_bd_net -net instr_mem_mux_0_boot_mem_addr_out  [get_bd_pins instr_mem_mux_0/boot_mem_addr_out] \
@@ -496,7 +536,8 @@ proc create_root_design { parentCell } {
   [get_bd_pins axi_smc/aresetn] \
   [get_bd_pins axi_uartlite_0/s_axi_aresetn] \
   [get_bd_pins axi_bram_ctrl_1/s_axi_aresetn] \
-  [get_bd_pins axi_gpio_0/s_axi_aresetn]
+  [get_bd_pins axi_gpio_0/s_axi_aresetn] \
+  [get_bd_pins AXI_AudioIO_0/s00_axi_audioio_aresetn]
   connect_bd_net -net rst_clk_wiz_100M_peripheral_reset  [get_bd_pins rst_clk_wiz_100M/peripheral_reset] \
   [get_bd_pins CPU_0/rst]
   connect_bd_net -net xlslice_0_Dout  [get_bd_pins xlslice_0/Dout] \
@@ -509,6 +550,7 @@ proc create_root_design { parentCell } {
   [get_bd_pins blk_mem_gen_0/addrb]
 
   # Create address segments
+  assign_bd_address -offset 0x0002A000 -range 0x00000080 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs AXI_AudioIO_0/S00_AXI_AudioIO/S00_AXI_AudioIO_reg] -force
   assign_bd_address -offset 0x00020000 -range 0x00008000 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_bram_ctrl_0/S_AXI/Mem0] -force
   assign_bd_address -offset 0x00010000 -range 0x00010000 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_bram_ctrl_1/S_AXI/Mem0] -force
   assign_bd_address -offset 0x00029000 -range 0x00000080 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_gpio_0/S_AXI/Reg] -force
@@ -518,7 +560,6 @@ proc create_root_design { parentCell } {
   # Restore current instance
   current_bd_instance $oldCurInst
 
-  validate_bd_design
   save_bd_design
 }
 # End of create_root_design()
@@ -530,4 +571,6 @@ proc create_root_design { parentCell } {
 
 create_root_design ""
 
+
+common::send_gid_msg -ssname BD::TCL -id 2053 -severity "WARNING" "This Tcl script was generated from a block design that has not been validated. It is possible that design <$design_name> may result in errors during validation."
 

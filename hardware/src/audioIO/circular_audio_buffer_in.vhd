@@ -27,7 +27,7 @@ architecture RTL of circular_channel_buffer_in is
 begin
 
     has_data <= '1' when occupancy >= 2 else '0';
-    avail_samples <= std_logic_vector(to_unsigned(occupancy, 8));
+    avail_samples <= std_logic_vector(to_unsigned(255, 8)) when occupancy >= 255 else std_logic_vector(to_unsigned(occupancy, 8));
     sample_pair_out <= circ_reg((r_ptr + 1) mod DEPTH) & circ_reg(r_ptr);
 
     process(clk)

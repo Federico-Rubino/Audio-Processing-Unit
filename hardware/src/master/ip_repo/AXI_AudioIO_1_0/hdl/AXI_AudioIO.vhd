@@ -95,7 +95,29 @@ architecture arch_imp of AXI_AudioIO is
 		S_AXI_RDATA	: out std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
 		S_AXI_RRESP	: out std_logic_vector(1 downto 0);
 		S_AXI_RVALID	: out std_logic;
-		S_AXI_RREADY	: in std_logic
+		S_AXI_RREADY	: in std_logic;
+		
+		--ADAU
+        AC_ADR0  : out   STD_LOGIC;  -- control signals to ADAU chip
+        AC_ADR1  : out   STD_LOGIC;
+        AC_GPIO0 : out   STD_LOGIC;  -- I2S MISO
+        AC_GPIO1 : in    STD_LOGIC;  -- I2S MOSI
+        AC_GPIO2 : in    STD_LOGIC;  -- I2S_bclk
+        AC_GPIO3 : in    STD_LOGIC;  -- I2S_LR
+        AC_MCLK  : out   STD_LOGIC;
+        AC_SCK   : out   STD_LOGIC;
+        AC_SDA   : inout STD_LOGIC;
+    
+        --memory
+        data_mem_addr : out std_logic_vector(31 downto 0);
+        data_mem_data_out : out std_logic_vector(31 downto 0);
+        data_mem_ena : out std_logic;
+        data_mem_wea: out std_logic;
+    
+        --audio from apu interface
+        new_sample_pair : in  std_logic;
+        sample_pair     : in  std_logic_vector(31 downto 0);
+        channel_sel     : in  std_logic
 		);
 	end component AXI_AudioIO_slave_lite_v1_0_S00_AXI_AudioIO;
 

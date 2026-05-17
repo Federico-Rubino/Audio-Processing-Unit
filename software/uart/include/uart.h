@@ -17,7 +17,7 @@ typedef struct{
 
 //ASCII
 void putchar(char c) {
-    // Wait until the transmit buffer is not full
+    //wait transmit buffer not full
     while (UART->status & UART_STATUS_TX_FULL);
     // Write the character to the transmit register
     UART->tx = (uint32_t)c;
@@ -30,9 +30,9 @@ void printuart(const char* str) {
 }
 
 char getchar() {
-    // Wait until there is valid data in the receive buffer
+    // wait until valid data in receive buffer
     while (!(UART->status & UART_STATUS_RX_VALID));
-    // Read the character from the receive register
+    //read char receive register
     return (char)(UART->rx & 0xFF);
 }
 

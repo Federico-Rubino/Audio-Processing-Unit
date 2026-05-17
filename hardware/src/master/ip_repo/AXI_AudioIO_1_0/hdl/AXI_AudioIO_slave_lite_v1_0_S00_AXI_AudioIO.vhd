@@ -135,6 +135,9 @@ architecture arch_imp of AXI_AudioIO_slave_lite_v1_0_S00_AXI_AudioIO is
 	signal slv_reg3	:std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
 	signal byte_index	: integer;
 
+	--STATUS SIGNAL FROM AUDIOIO
+	signal status_from_audio : std_logic_vector(18 downto 0);
+
 	 signal mem_logic  : std_logic_vector(ADDR_LSB + OPT_MEM_ADDR_BITS downto ADDR_LSB);
 
 	 --State machine local parameters
@@ -233,7 +236,7 @@ begin
 	begin
 	  if rising_edge(S_AXI_ACLK) then 
 	    if S_AXI_ARESETN = '0' then
-	      slv_reg0 <= (others => '0');
+	      --slv_reg0 <= (others => '0');
 	      slv_reg1 <= (others => '0');
 	      slv_reg2 <= (others => '0');
 	      slv_reg3 <= (others => '0');
@@ -245,7 +248,7 @@ begin
 	              if ( S_AXI_WSTRB(byte_index) = '1' ) then
 	                -- Respective byte enables are asserted as per write strobes                   
 	                -- slave registor 0
-	                slv_reg0(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
+	                --slv_reg0(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
 	              end if;
 	            end loop;
 	          when b"01" =>
@@ -273,7 +276,7 @@ begin
 	              end if;
 	            end loop;
 	          when others =>
-	            slv_reg0 <= slv_reg0;
+	            --slv_reg0 <= slv_reg0;
 	            slv_reg1 <= slv_reg1;
 	            slv_reg2 <= slv_reg2;
 	            slv_reg3 <= slv_reg3;
@@ -332,6 +335,9 @@ begin
 	 slv_reg3 when (axi_araddr(ADDR_LSB+OPT_MEM_ADDR_BITS downto ADDR_LSB) = "11" ) else 
 	 (others => '0');
 
+	slv_reg0(18 downto 0)  <= status_from_audio;
+    slv_reg0(31 downto 19) <= (others => '0');
+
 	-- Add user logic here
 	audioIO_inst: entity work.audioIO
 	   port map(
@@ -359,7 +365,7 @@ begin
            next_ctrl_reg => slv_reg1(1 downto 0), -- constrol register value, bit 0: start, bit 1: 0-left, 1-right
            next_start_addr_reg => slv_reg2, -- address register value
            next_offset_reg => slv_reg3, -- offset register value
-           status_reg => slv_reg0(18 downto 0), -- status register: bit 0: finished, bit 1: new sample in left, bit 2:  new sample in right, bit 3-10: avail left samples, bit 11-18: avail right samples
+           status_reg => status_from_audio, -- status register: bit 0: finished, bit 1: new sample in left, bit 2:  new sample in right, bit 3-10: avail left samples, bit 11-18: avail right samples
     
     
            --audio from apu interface
