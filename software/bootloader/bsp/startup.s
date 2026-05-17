@@ -1,20 +1,13 @@
 .section .text.init
 .global _start
-.global main
+.global bootloader
 
 _start:
-    # The linker defines __global_pointer$ based on your .data section
-    .option push
-    .option norelax
-    la gp, __global_pointer$
     # stack pointer init (x2)
     # _stack_top from linker.ld
     la sp, _stack_top
-    .option pop
 
     # put 0 in all global non init var
-    .option push
-    .option norelax
     la t0, _bss_start
     la t1, _bss_end
     bge t0, t1, end_init_bss
@@ -24,7 +17,7 @@ loop_init_bss:
     blt t0, t1, loop_init_bss
 end_init_bss:
 
-    call main
+    call bootloader
 
 _exit:
     j _exit

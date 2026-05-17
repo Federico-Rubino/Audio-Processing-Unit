@@ -47,9 +47,9 @@ module cpu_axi_tb;
 
   //block design wrapper inst
   top_module_wrapper uut (
-    .sys_clk(clk),
-    .sys_rst(rst),        
-    .debugs_register(debug_regs)
+    .reset_rtl_0(clk),
+    .clk_in1_0(rst),        
+    .debugs_register(debug_regs_0)
   );
 
   // Generatore di clock (100 MHz)

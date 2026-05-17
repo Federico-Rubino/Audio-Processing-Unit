@@ -15,7 +15,7 @@ HEX_INSTR = bin/instr.hex
 HEX_DATA = bin/data.hex
 
 #Compiler flags
-CFLAGS = -O0 -Wall -march=rv32i -mabi=ilp32 -ffreestanding -nostartfiles -nodefaultlibs $(INCLUDES)
+CFLAGS = -O2 -Wall -march=rv32i -mabi=ilp32 -ffreestanding -nostartfiles -nodefaultlibs $(INCLUDES)
 LDFLAGS = -T ../bsp/linker.ld
 
 #Default target

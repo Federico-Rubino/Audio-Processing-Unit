@@ -1,3 +1,6 @@
+#ifndef UART_H
+#define UART_H
+
 #include <stdint.h>
 
 typedef struct{
@@ -7,11 +10,12 @@ typedef struct{
     volatile uint32_t control; //control register 0xCh offset
 } uart_t;
 
-#define UART ((uart_t*) 0x2000) //base address of UART peripheral
+#define UART ((uart_t*) 0x00028000) //base address of UART peripheral
 
 #define UART_STATUS_TX_FULL 0x08 //tx full status
 #define UART_STATUS_RX_VALID 0x01 //rx valid status
 
+//ASCII
 void putchar(char c) {
     // Wait until the transmit buffer is not full
     while (UART->status & UART_STATUS_TX_FULL);
@@ -32,4 +36,15 @@ char getchar() {
     return (char)(UART->rx & 0xFF);
 }
 
+//BYTE
+uint8_t uart_read_byte(){
+    while (!(UART->status & UART_STATUS_RX_VALID));
+    return (uint8_t)(UART->rx & 0xFF);
+}
 
+void uart_write_byte(uint8_t data){
+    while(UART->status & UART_STATUS_TX_FULL);
+    UART->tx = (uint32_t)data;
+}
+
+#endif // UART_H

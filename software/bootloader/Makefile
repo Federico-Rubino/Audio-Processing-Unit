@@ -4,10 +4,10 @@ OBJDUMP = riscv64-unknown-elf-objdump
 OBJCOPY = riscv64-unknown-elf-objcopy
 
 # Include directories
-INCLUDES = -Iinclude
+INCLUDES = -Iinclude -I../uart/include
 
 # Project files
-SRC = ../bsp/startup.s src/main.c
+SRC = bsp/startup.s src/main.c
 ELF = bin/firmware.elf
 BIN_INSTR = bin/instr.bin
 BIN_DATA = bin/data.bin
@@ -16,14 +16,14 @@ HEX_DATA = bin/data.hex
 
 #Compiler flags
 CFLAGS = -O0 -Wall -march=rv32i -mabi=ilp32 -ffreestanding -nostartfiles -nodefaultlibs $(INCLUDES)
-LDFLAGS = -T ../bsp/linker.ld
+LDFLAGS = -T bsp/bootloader_linker.ld
 
 #Default target
 all: $(ELF) $(HEX_INSTR) $(HEX_DATA)
 
 #compile ELF
 $(ELF): $(SRC)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ -lgcc
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
 # Generate instruction binary (.text)
 $(BIN_INSTR): $(ELF)
@@ -31,7 +31,7 @@ $(BIN_INSTR): $(ELF)
 
 # Generate data binary (.data + .rodata)
 $(BIN_DATA): $(ELF)
-	$(OBJCOPY) -O binary -j .data -j .rodata -j .sdata -j .srodata $< $@
+	$(OBJCOPY) -j .data -O binary $< $@
 
 
 # Generate hex files from binaries

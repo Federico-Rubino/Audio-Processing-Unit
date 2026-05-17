@@ -9,7 +9,7 @@ module uart_axi_tb;
 
     // UART Timing Calculation
     parameter CLK_FREQ  = 100_000_000; // 100 MHz clock
-    parameter BAUD_RATE = 115200;      
+    parameter BAUD_RATE = 9600;      
     localparam integer BIT_PERIOD = 1_000_000_000 / BAUD_RATE; 
 
     wire uart_tx; 
@@ -42,9 +42,9 @@ module uart_axi_tb;
     endtask
 
     top_module_wrapper uut (
-        .sys_clk(clk),
-        .sys_rst(rst),        
-        .debugs_register(debug_regs),
+        .clk_in1_0(clk),
+        .reset_rtl_0(rst),        
+        //.debug_regs_0(debug_regs),
         .uart_rtl_0_txd(uart_tx), 
         .uart_rtl_0_rxd(uart_rx)
     );
