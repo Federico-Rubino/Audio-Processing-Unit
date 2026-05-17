@@ -20,13 +20,22 @@ puts "--- Working Directory: $proj_dir"
 # The project files are kept in 'vivado-data' which should be git-ignored
 create_project $proj_name $proj_dir -part $my_part -force
 
-# 4. Add RTL Sources (src/rv32i)
+# 4. Add RTL Sources (src/audioIO)
 set rtl_files [glob -nocomplain "$repo_root/src/audioIO/*.{v,vhd,sv}"]
 if {[llength $rtl_files] > 0} {
     add_files $rtl_files
     puts "Added [llength $rtl_files] RTL files."
 } else {
     puts "Warning: No RTL files found in $repo_root/src/audioIO/"
+}
+
+# 4. Add RTL Sources (src/audioIO/zedboard_audio/hdl/)
+set rtl_files [glob -nocomplain "$repo_root/src/audioIO/zedboard_audio/hdl/*.{v,vhd,sv}"]
+if {[llength $rtl_files] > 0} {
+    add_files $rtl_files
+    puts "Added [llength $rtl_files] RTL files."
+} else {
+    puts "Warning: No RTL files found in $repo_root/src/audioIO/zedboard_audio/hdl/"
 }
 
 # 5. Add IP Cores (ip/audioIO)
