@@ -58,7 +58,8 @@
 #     along with some better organization and notes like we do with our SOMs.
 #
 # ----------------------------------------------------------------------------
-
+set_max_delay -from [get_cells -hier -filter {NAME =~ *audio_r_out_reg*}] -to [get_cells -hier -filter {NAME =~ *line_in_r_reg*}] 10.0 -datapath_only
+set_max_delay -from [get_cells -hier -filter {NAME =~ *audio_l_out_reg*}] -to [get_cells -hier -filter {NAME =~ *line_in_l_reg*}] 10.0 -datapath_only
 # ----------------------------------------------------------------------------
 # Audio Codec - Bank 13
 # ---------------------------------------------------------------------------- 
@@ -370,3 +371,9 @@ set_property IOSTANDARD LVCMOS25 [get_ports -of_objects [get_iobanks 35]];
 
 # Note that the bank voltage for IO Bank 13 is fixed to 3.3V on ZedBoard. 
 set_property IOSTANDARD LVCMOS33 [get_ports -of_objects [get_iobanks 13]];
+
+set_clock_groups -asynchronous \
+  -group [get_clocks clk_out1_top_module_clk_wiz_0_0] \
+  -group [get_clocks clk_out1_top_module_clk_wiz_0_0_1] \
+  -group [get_clocks zed_audio_clk_48M] \
+  -group [get_clocks zed_audio_clk_48M_1]

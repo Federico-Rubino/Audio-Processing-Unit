@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <uart.h>
 
 typedef struct{
     volatile uint32_t status;
@@ -22,6 +23,24 @@ typedef struct{
 #define CONTROL_START 0x01
 #define CONTROL_CHANNEL 0x02 
 
+
+void printuart_uint32(uint32_t num) {
+    if (num == 0) {
+        printuart("0");
+        return;
+    }
+    char buffer[12];
+    buffer[11] = '\0';
+    int i = 10;
+    while (num > 0) {
+        buffer[i] = (num % 10) + '0';
+        num /= 10;
+        i--;
+    }
+    printuart(&buffer[i + 1]);
+}
+
+
 static inline void audioIO_copy_grain(uint32_t base_address, uint32_t num_samples, uint8_t channel){
     if(channel == 0){
         AUDIO_IO->ctrl |= CONTROL_CHANNEL;
@@ -29,10 +48,11 @@ static inline void audioIO_copy_grain(uint32_t base_address, uint32_t num_sample
         AUDIO_IO->ctrl &= ~CONTROL_CHANNEL;
     }
 
-    AUDIO_IO->base_addr = base_address;
+    AUDIO_IO->base_addr = base_address; 
     AUDIO_IO->num_samples = num_samples;
     AUDIO_IO->ctrl |= CONTROL_START;
 
+    printuart_uint32(AUDIO_IO->status & STATUS_FINISHED);
     while(!(AUDIO_IO->status & STATUS_FINISHED)){}
 }
 
