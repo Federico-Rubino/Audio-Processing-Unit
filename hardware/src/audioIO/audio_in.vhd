@@ -50,7 +50,7 @@ entity audio_in is
     next_ctrl_reg : in std_logic_vector(1 downto 0); -- constrol register value, bit 0: start, bit 1: 0-left, 1-right
     next_start_addr_reg : in std_logic_vector(31 downto 0); -- address register value
     next_offset_reg : in std_logic_vector(31 downto 0); -- offset register value
-    status_reg: out std_logic_vector(18 downto 0) -- status register: bit 0: finished, bit 1: new sample in left, bit 2:  new sample in right, bit 3-10: avail left samples, bit 11-18: avail right samples
+    status_reg: out std_logic_vector(22 downto 0) -- status register: bit 0: finished, bit 1: new sample in left, bit 2:  new sample in right, bit 3-12: avail left samples, bit 13-22: avail right samples
    );
 end audio_in;
 
@@ -66,7 +66,7 @@ architecture Behavioral of audio_in is
     signal offset_reg : std_logic_vector(31 downto 0);
     signal offset_reg_ena : std_logic;
 
-    signal next_status_reg : std_logic_vector(18 downto 0);
+    signal next_status_reg : std_logic_vector(22 downto 0);
 
     signal read_pair_l, read_pair_r : std_logic;
     signal sample_pair_l, sample_pair_r : std_logic_vector(31 downto 0);
@@ -92,7 +92,7 @@ begin
             read_pair => read_pair_l,
             sample_pair_out => sample_pair_l,
             has_data => next_status_reg(1),
-            avail_samples => next_status_reg(10 downto 3) --update status register bits for available samples in left channel
+            avail_samples => next_status_reg(12 downto 3) --update status register bits for available samples in left channel
         );
 
     right_channel_buffer_in : entity work.circular_channel_buffer_in
@@ -104,7 +104,7 @@ begin
             read_pair => read_pair_r,
             sample_pair_out => sample_pair_r,
             has_data => next_status_reg(2), 
-            avail_samples => next_status_reg(18 downto 11) -- update status register bits for available samples in right channel
+            avail_samples => next_status_reg(22 downto 13) -- update status register bits for available samples in right channel
         );
 
     address_gen : entity work.audioIO_address_generator

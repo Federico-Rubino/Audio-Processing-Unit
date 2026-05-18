@@ -46,7 +46,7 @@ if { [string first $scripts_vivado_version $current_vivado_version] == -1 } {
 
 # The design that will be created by this Tcl script contains the following 
 # module references:
-# CPU, instr_mem_mux
+# CPU, instr_mem_mux, audio_ram_mux
 
 # Please add the sources of those modules before sourcing this Tcl script.
 
@@ -173,6 +173,7 @@ if { $bCheckModules == 1 } {
    set list_check_mods "\ 
 CPU\
 instr_mem_mux\
+audio_ram_mux\
 "
 
    set list_mods_missing ""
@@ -419,6 +420,17 @@ proc create_root_design { parentCell } {
   # Create instance: AXI_AudioIO_0, and set properties
   set AXI_AudioIO_0 [ create_bd_cell -type ip -vlnv xilinx.com:user:AXI_AudioIO:1.0 AXI_AudioIO_0 ]
 
+  # Create instance: audio_ram_mux_0, and set properties
+  set block_name audio_ram_mux
+  set block_cell_name audio_ram_mux_0
+  if { [catch {set audio_ram_mux_0 [create_bd_cell -type module -reference $block_name $block_cell_name] } errmsg] } {
+     catch {common::send_gid_msg -ssname BD::TCL -id 2095 -severity "ERROR" "Unable to add referenced block <$block_name>. Please add the files for ${block_name}'s definition into the project."}
+     return 1
+   } elseif { $audio_ram_mux_0 eq "" } {
+     catch {common::send_gid_msg -ssname BD::TCL -id 2096 -severity "ERROR" "Unable to referenced block <$block_name>. Please add the files for ${block_name}'s definition into the project."}
+     return 1
+   }
+  
   # Create interface connections
   connect_bd_intf_net -intf_net RV32I_AXI_Bridge_0_M_AXI [get_bd_intf_pins RV32I_AXI_Bridge_0/M_AXI] [get_bd_intf_pins axi_smc/S00_AXI]
   connect_bd_intf_net -intf_net axi_bram_ctrl_0_BRAM_PORTA [get_bd_intf_pins axi_bram_ctrl_0_bram/BRAM_PORTA] [get_bd_intf_pins axi_bram_ctrl_0/BRAM_PORTA]
@@ -448,12 +460,14 @@ proc create_root_design { parentCell } {
   [get_bd_ports AC_MCLK_0]
   connect_bd_net -net AXI_AudioIO_0_AC_SCK  [get_bd_pins AXI_AudioIO_0/AC_SCK] \
   [get_bd_ports AC_SCK_0]
+  connect_bd_net -net AXI_AudioIO_0_data_mem_addr  [get_bd_pins AXI_AudioIO_0/data_mem_addr] \
+  [get_bd_pins audio_ram_mux_0/audioIO_addr]
   connect_bd_net -net AXI_AudioIO_0_data_mem_data_out  [get_bd_pins AXI_AudioIO_0/data_mem_data_out] \
-  [get_bd_pins axi_bram_ctrl_0_bram/dinb]
+  [get_bd_pins audio_ram_mux_0/audioIO_data_in]
   connect_bd_net -net AXI_AudioIO_0_data_mem_ena  [get_bd_pins AXI_AudioIO_0/data_mem_ena] \
-  [get_bd_pins axi_bram_ctrl_0_bram/enb]
+  [get_bd_pins audio_ram_mux_0/audioIO_ena]
   connect_bd_net -net AXI_AudioIO_0_data_mem_wea  [get_bd_pins AXI_AudioIO_0/data_mem_wea] \
-  [get_bd_pins axi_bram_ctrl_0_bram/web]
+  [get_bd_pins audio_ram_mux_0/audioIO_wea]
   connect_bd_net -net CPU_0_data_mem_addr  [get_bd_pins CPU_0/data_mem_addr] \
   [get_bd_pins RV32I_AXI_Bridge_0/cpu_addr]
   connect_bd_net -net CPU_0_data_mem_data_out  [get_bd_pins CPU_0/data_mem_data_out] \
@@ -472,12 +486,22 @@ proc create_root_design { parentCell } {
   [get_bd_pins CPU_0/data_mem_data_in]
   connect_bd_net -net RV32I_AXI_Bridge_0_cpu_stall  [get_bd_pins RV32I_AXI_Bridge_0/cpu_stall] \
   [get_bd_pins CPU_0/stall]
+  connect_bd_net -net audio_ram_mux_0_data_mem_addr  [get_bd_pins audio_ram_mux_0/data_mem_addr] \
+  [get_bd_pins axi_bram_ctrl_0_bram/addrb]
+  connect_bd_net -net audio_ram_mux_0_data_mem_data_out  [get_bd_pins audio_ram_mux_0/data_mem_data_out] \
+  [get_bd_pins axi_bram_ctrl_0_bram/dinb]
+  connect_bd_net -net audio_ram_mux_0_data_mem_ena  [get_bd_pins audio_ram_mux_0/data_mem_ena] \
+  [get_bd_pins axi_bram_ctrl_0_bram/enb]
+  connect_bd_net -net audio_ram_mux_0_data_mem_wea  [get_bd_pins audio_ram_mux_0/data_mem_wea] \
+  [get_bd_pins axi_bram_ctrl_0_bram/web]
   connect_bd_net -net axi_bram_ctrl_0_bram_addr_a  [get_bd_pins axi_bram_ctrl_0/bram_addr_a] \
   [get_bd_pins xlslice_0/Din]
   connect_bd_net -net axi_bram_ctrl_0_bram_clk_a  [get_bd_pins axi_bram_ctrl_0/bram_clk_a] \
   [get_bd_pins axi_bram_ctrl_0_bram/clka]
   connect_bd_net -net axi_bram_ctrl_0_bram_douta  [get_bd_pins axi_bram_ctrl_0_bram/douta] \
   [get_bd_pins axi_bram_ctrl_0/bram_rddata_a]
+  connect_bd_net -net axi_bram_ctrl_0_bram_doutb  [get_bd_pins axi_bram_ctrl_0_bram/doutb] \
+  [get_bd_pins audio_ram_mux_0/data_mem_data_in]
   connect_bd_net -net axi_bram_ctrl_0_bram_en_a  [get_bd_pins axi_bram_ctrl_0/bram_en_a] \
   [get_bd_pins axi_bram_ctrl_0_bram/ena]
   connect_bd_net -net axi_bram_ctrl_0_bram_we_a  [get_bd_pins axi_bram_ctrl_0/bram_we_a] \
@@ -560,6 +584,7 @@ proc create_root_design { parentCell } {
   # Restore current instance
   current_bd_instance $oldCurInst
 
+  validate_bd_design
   save_bd_design
 }
 # End of create_root_design()
@@ -571,6 +596,4 @@ proc create_root_design { parentCell } {
 
 create_root_design ""
 
-
-common::send_gid_msg -ssname BD::TCL -id 2053 -severity "WARNING" "This Tcl script was generated from a block design that has not been validated. It is possible that design <$design_name> may result in errors during validation."
 

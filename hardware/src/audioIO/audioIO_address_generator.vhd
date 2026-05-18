@@ -38,9 +38,9 @@ begin
                 running   <= '0';
             else
                 if start = '1' then
-                    addr_reg  <= unsigned(base_addr);
-                    stop_addr <= unsigned(base_addr) + unsigned(offset);
-                    
+                    addr_reg  <= "00" & unsigned(base_addr(31 downto 2)); --word alignment
+                    stop_addr <= ("00" & unsigned(base_addr(31 downto 2))) + unsigned(offset);
+
                     if unsigned(offset) > 0 then
                         running <= '1';
                     else

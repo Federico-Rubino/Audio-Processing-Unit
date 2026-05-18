@@ -16,8 +16,8 @@ typedef struct{
 #define STATUS_FINISHED       0x01      // bit 0
 #define STATUS_NEW_SAMPLE_L   0x02      // bit 1
 #define STATUS_NEW_SAMPLE_R   0x04      // bit 2
-#define STATUS_AVAIL_SAMPLE_L 0x07F8    // bits 3-10
-#define STATUS_AVAIL_SAMPLE_R 0x7F800   // bits 11-18
+#define STATUS_AVAIL_SAMPLE_L 0x3FF8   // bits 3-12
+#define STATUS_AVAIL_SAMPLE_R 0x7FE000   // bits 13-22
 
 #define CONTROL_START 0x01
 #define CONTROL_CHANNEL 0x02 
@@ -40,7 +40,7 @@ static inline uint32_t audioIO_get_avail_samples(uint8_t channel){
     if(channel == 0){
         return (AUDIO_IO->status & STATUS_AVAIL_SAMPLE_L) >> 3; 
     }else{
-        return (AUDIO_IO->status & STATUS_AVAIL_SAMPLE_R) >> 11;
+        return (AUDIO_IO->status & STATUS_AVAIL_SAMPLE_R) >> 13;
     }
 }
 

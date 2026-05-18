@@ -136,7 +136,7 @@ architecture arch_imp of AXI_AudioIO_slave_lite_v1_0_S00_AXI_AudioIO is
 	signal byte_index	: integer;
 
 	--STATUS SIGNAL FROM AUDIOIO
-	signal status_from_audio : std_logic_vector(18 downto 0);
+	signal status_from_audio : std_logic_vector(22 downto 0);
 
 	 signal mem_logic  : std_logic_vector(ADDR_LSB + OPT_MEM_ADDR_BITS downto ADDR_LSB);
 
@@ -335,7 +335,7 @@ begin
 	 slv_reg3 when (axi_araddr(ADDR_LSB+OPT_MEM_ADDR_BITS downto ADDR_LSB) = "11" ) else 
 	 (others => '0');
 
-	slv_reg0(18 downto 0)  <= status_from_audio;
+	slv_reg0(22 downto 0)  <= status_from_audio;
     slv_reg0(31 downto 19) <= (others => '0');
 
 	-- Add user logic here

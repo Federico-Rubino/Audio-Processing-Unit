@@ -14,7 +14,7 @@ entity circular_channel_buffer_in is
         read_pair  : in  std_logic; 
         sample_pair_out   : out std_logic_vector(31 downto 0);
         has_data     : out std_logic;  -- 1 if w_ptr = r_ptr
-        avail_samples : out std_logic_vector(7 downto 0) -- number of available samples 
+        avail_samples : out std_logic_vector(9 downto 0) -- number of available samples 
     );
 end circular_channel_buffer_in;
 
@@ -27,7 +27,7 @@ architecture RTL of circular_channel_buffer_in is
 begin
 
     has_data <= '1' when occupancy >= 2 else '0';
-    avail_samples <= std_logic_vector(to_unsigned(255, 8)) when occupancy >= 255 else std_logic_vector(to_unsigned(occupancy, 8));
+    avail_samples <=  std_logic_vector(to_unsigned(occupancy, 10));
     sample_pair_out <= circ_reg((r_ptr + 1) mod DEPTH) & circ_reg(r_ptr);
 
     process(clk)
