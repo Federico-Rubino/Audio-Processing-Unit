@@ -12,4 +12,6 @@ package apu_pkg;
         DOUBLE_WRITE = 2'b10
     } datapath_config_t;
     
+    const logic [6:0] broadcast = 7'b1111111;
+    
 endpackage

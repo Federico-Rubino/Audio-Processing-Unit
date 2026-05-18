@@ -7,7 +7,8 @@ entity AudioOut is
         sample1, sample2 : in std_logic_vector(15 downto 0);
         lr : in std_logic;
         audio_out : out std_logic_vector(31 downto 0);
-        lr_out : out std_logic
+        lr_out : out std_logic;
+        enable_out : out std_logic
     );
 end AudioOut;
 
@@ -16,9 +17,10 @@ begin
 
     process(clk)
     begin
-        if rising_edge(clk) and enable = '1' then
+        if rising_edge(clk) then
             audio_out <= sample2 & sample1;
             lr_out <= lr;
+            enable_out <= enable;
         end if;
     end process;
 
