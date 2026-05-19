@@ -2,7 +2,7 @@
 
 import apu_pkg::*;
 
-module AudioTop_tb;
+module AudioTop2_tb;
 
     // -------------------------------------------------------------------------
     // Clock and Reset
@@ -20,18 +20,18 @@ module AudioTop_tb;
     // CU Input Signals (Register File / Triggers)
     // -------------------------------------------------------------------------
     apu_opcode_t opcode;
-    logic [17:0] in_buffer1_start;
+    logic [9:0]  in_buffer1_start;
     logic [17:0] in_buffer1_offset;
-    logic [17:0] in_buffer2_start;
+    logic [9:0]  in_buffer2_start;
     logic [17:0] in_buffer2_offset;
-    logic [17:0] in_buffer3_start;
+    logic [9:0]  in_buffer3_start;
     logic [17:0] in_buffer3_offset;
-    logic [17:0] out_buffer1_start;
+    logic [9:0]  out_buffer1_start;
     logic [17:0] out_buffer1_offset;
-    logic [17:0] out_buffer2_start;
+    logic [9:0]  out_buffer2_start;
     logic [17:0] out_buffer2_offset;
     logic [17:0] action_size;
-    logic [17:0] block_size;
+    logic [9:0]  block_size;
     logic [15:0] param1;
     logic [15:0] param2;
     logic [31:0] start_ram_address;
@@ -41,8 +41,8 @@ module AudioTop_tb;
     // -------------------------------------------------------------------------
     // CU Output Signals
     // -------------------------------------------------------------------------
-    logic next_start;
-    logic next_status;
+    logic [31:0] next_status;
+    logic        started;
 
     // -------------------------------------------------------------------------
     // Interconnects (CU -> Datapath)
@@ -96,8 +96,8 @@ module AudioTop_tb;
         .start_ram_address(start_ram_address),
         .left_right(left_right),
         .start(start),
-        .next_start(next_start),
         .next_status(next_status),
+        .started(started),
         .enable(enable),
         .mode(mode),
         .we_a(we_a),
@@ -143,13 +143,26 @@ module AudioTop_tb;
     );
 
     // -------------------------------------------------------------------------
-    // Mock RAM Behavior
+    // Mock RAM Behavior (8 values)
     // -------------------------------------------------------------------------
+    logic [31:0] mock_memory_array [0:7];
+
+    initial begin
+        mock_memory_array[0] = 32'h1111_AAAA;
+        mock_memory_array[1] = 32'h2222_BBBB;
+        mock_memory_array[2] = 32'h3333_CCCC;
+        mock_memory_array[3] = 32'h4444_DDDD;
+        mock_memory_array[4] = 32'h5555_EEEE;
+        mock_memory_array[5] = 32'h6666_FFFF;
+        mock_memory_array[6] = 32'h7777_1111;
+        mock_memory_array[7] = 32'h8888_2222;
+    end
+
     always @(posedge clk) begin
-        // Feed mock data to the datapath when a RAM read is happening
-        // We'll use a recognizable hex value for testing
-        if (ram_addr_out == 32'd1000) begin
-            ram_out <= {16'hAAAA, 16'hBBBB}; 
+        // If the CU requests an address between 1000 and 1007, return the mapped array value
+        if (ram_addr_out >= 32'd1000 && ram_addr_out <= 32'd1007) begin
+            // Offset the address by the base to get the index 0 through 7
+            ram_out <= mock_memory_array[ram_addr_out - 32'd1000];
         end else begin
             ram_out <= 32'h0;
         end
@@ -163,10 +176,10 @@ module AudioTop_tb;
         rst = 1'b0;
         start = 1'b0;
         opcode = APU_OP_COPY;
-        in_buffer1_start = 18'd0;
+        in_buffer1_start = 10'd0;
         in_buffer1_offset = 18'd0;
         action_size = 18'd0;
-        block_size = 18'd100;
+        block_size = 10'd100;
         start_ram_address = 32'd0;
         left_right = 1'b0;
 
@@ -176,37 +189,40 @@ module AudioTop_tb;
         rst <= 1'b1;
         $display("[TB] Reset released at time %0t", $time);
         
-        // Wait a few cycles for idle state to settle
         repeat(3) @(posedge clk);
 
-        // 3. TEST: COPY Instruction (RAM -> BRAM)
-        $display("[TB] Sending APU_OP_COPY Instruction...");
+        // ---------------------------------------------------------------------
+        // 3. TEST: COPY Instruction (RAM -> BRAM, 8 words)
+        // ---------------------------------------------------------------------
+        $display("[TB] Sending APU_OP_COPY Instruction (8 words)...");
         opcode            <= APU_OP_COPY;
-        in_buffer1_start  <= 18'd60; // We want to write at addr 60
-        in_buffer1_offset <= 18'd0;
-        action_size       <= 18'd1;  // Process 1+1 words based on your counter logic
-        start_ram_address <= 32'd1000;
+        in_buffer1_start  <= 10'd60;   // BRAM base address
+        in_buffer1_offset <= 18'd0;    // Start precisely at the base address
+        action_size       <= 18'd16;   // Action Size = N-1, so 7 means 8 loops
+        start_ram_address <= 32'd1000; // Start pulling mock data from address 1000
         
         // Pulse Start
         start <= 1'b1;
         @(posedge clk);
         start <= 1'b0;
 
-        // Wait for operation to complete (wait for status to go low again)
-        wait(next_status == 1'b1);
-        wait(next_status == 1'b0);
+        // Wait for next_status[0] to go HIGH (indicating fetching/busy), then LOW (idle)
+        wait(next_status[0] == 1'b1);
+        wait(next_status[0] == 1'b0);
         $display("[TB] APU_OP_COPY Completed at time %0t", $time);
 
-        // Give the pipeline a moment to completely drain
+        // Let the wait_pipeline drain fully
         repeat(5) @(posedge clk);
 
-        // 4. TEST: AUDIO OUT Instruction (BRAM -> Audio_Out)
-        $display("[TB] Sending APU_OP_AUDIO_OUT Instruction...");
+        // ---------------------------------------------------------------------
+        // 4. TEST: AUDIO OUT Instruction (BRAM -> Audio_Out, 8 words)
+        // ---------------------------------------------------------------------
+        $display("[TB] Sending APU_OP_AUDIO_OUT Instruction (8 words)...");
         opcode            <= APU_OP_AUDIO_OUT;
-        in_buffer1_start  <= 18'd60; // Read from the same addr we just wrote to
+        in_buffer1_start  <= 10'd60;   // Read from the exact same block we wrote to
         in_buffer1_offset <= 18'd0;
-        action_size       <= 18'd1;  
-        left_right        <= 1'b1;   // Route to Right channel
+        action_size       <= 18'd7;    // Action Size = 7 (for 8 outputs)
+        left_right        <= 1'b1;     // Route to Right channel
 
         // Pulse Start
         start <= 1'b1;
@@ -214,11 +230,11 @@ module AudioTop_tb;
         start <= 1'b0;
 
         // Wait for operation to complete
-        wait(next_status == 1'b1);
-        wait(next_status == 1'b0);
+        wait(next_status[0] == 1'b1);
+        wait(next_status[0] == 1'b0);
         $display("[TB] APU_OP_AUDIO_OUT Completed at time %0t", $time);
         
-        // Flush remaining pipeline stages
+        // Let the pipeline drain out the final audio sample
         repeat(5) @(posedge clk);
 
         $display("[TB] Simulation finished successfully.");
@@ -228,19 +244,22 @@ module AudioTop_tb;
     // -------------------------------------------------------------------------
     // Assertions / Monitors
     // -------------------------------------------------------------------------
-    initial begin
-        // Monitor Datapath outputs
-        $monitor("Time=%0t | State_Status=%b | DP_En=%b | DP_Mode=%b | AudioOut=%h | LR=%b | Out_En=%b", 
-                 $time, next_status, enable, mode, audio_out, lr_out, enable_out);
-    end
+    int output_counter = 0;
 
-    // Basic checker for the final output
     always @(posedge clk) begin
         if (enable_out) begin
-            $display("[CHECK] Valid Audio Output detected at %0t! Value: %h (Expected around AAAABBBB depending on your memory packing)", $time, audio_out);
-            if (audio_out !== {16'hAAAA, 16'hBBBB}) begin
-                $warning("[WARNING] Audio out did not match the test payload sent from RAM.");
+            $display("[CHECK] Audio Output #%0d detected at %0t! Value: %h", 
+                     output_counter, $time, audio_out);
+                     
+            // Check if the output correctly matches the mock array values in sequence
+            if (audio_out !== mock_memory_array[output_counter]) begin
+                $warning("  -> [WARNING] Mismatch! Expected %h but got %h", 
+                         mock_memory_array[output_counter], audio_out);
+            end else begin
+                $display("  -> [PASS] Match successful.");
             end
+            
+            output_counter++;
         end
     end
 

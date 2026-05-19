@@ -17,8 +17,7 @@ entity AudioCU is
         in_buffer3_start : in std_logic_vector(9 downto 0);     -- Address of the third input buffer in the BRAM block 0
         in_buffer3_offset : in std_logic_vector(17 downto 0);   -- Where in the third input buffer to start the operation [bit 17: 0 for sample 15:0, 1 for sample 31:16;  bits 16-10: select the BRAM block;  bits 9-0: actual address in the BRAM block]
         out_buffer1_start : in std_logic_vector(9 downto 0);    -- Address of the first output buffer in the BRAM block 0
-        out_buffer1_offset : in std_logic_vector(17 downto 0);  -- Address of the first input buffer in the BRAM block 0
-        in_buffer1_offset : in std_logic_vector(17 downto 0);   -- Where in the first output buffer to start the operation [bit 17: 0 for sample 15:0, 1 for sample 31:16;  bits 16-10: select the BRAM block;  bits 9-0: actual address in the BRAM block]
+        out_buffer1_offset : in std_logic_vector(17 downto 0);  -- Where in the first output buffer to start the operation [bit 17: 0 for sample 15:0, 1 for sample 31:16;  bits 16-10: select the BRAM block;  bits 9-0: actual address in the BRAM block]
         out_buffer2_start : in std_logic_vector(9 downto 0);    -- Address of the second output buffer in the BRAM block 0
         out_buffer2_offset : in std_logic_vector(17 downto 0);  -- Where in the second output buffer to start the operation [bit 17: 0 for sample 15:0, 1 for sample 31:16;  bits 16-10: select the BRAM block;  bits 9-0: actual address in the BRAM block]
         action_size : in std_logic_vector(17 downto 0);         -- On how many samples the operation should be applied (consider there are 2 samples for each memory access)
@@ -30,7 +29,7 @@ entity AudioCU is
         start : in std_logic;                                   -- 0: do nothing; 1: do the operation
 
         -- Write Register File
-        next_status : out std_logic_vector(31 downto 0);        -- bits 31-17: reserved for future use;  bit 16: 1 if it is ready to execute, 0 if it is executing some operation;  bits 15-0: result of the operation
+        next_status : out std_logic_vector(31 downto 0);        -- bits 31-16: result of the operation;  bit 15-1: reserved for future use; bit 0: 1 if it is ready to execute, 0 if it is executing some operation
         
         -- 
         started : out std_logic;
@@ -54,15 +53,16 @@ entity AudioCU is
 end AudioCU;
 
 architecture Behavioral of AudioCU is
-    type state is (idle, fetch, copy, audio_out, wait_pipeline, reset);
+    type state is (idle, fetch, copy, audio_out, wait_pipeline);
     signal cu_state : state;
     signal op : apu_opcode_t;
     signal error : std_logic;
     signal counter : std_logic_vector(17 downto 0);
     signal address : std_logic_vector(17 downto 0);
     signal ram_address : std_logic_vector(31 downto 0);
-    signal upper_bound : std_logic_vector(17 downto 0);
-    signal lower_bound : std_logic_vector(17 downto 0);
+    signal upper_bound : std_logic_vector(9 downto 0);
+    signal lower_bound : std_logic_vector(9 downto 0);
+    signal last_result : std_logic_vector(15 downto 0);
 
     signal next_cu_state : state;
     signal next_op : apu_opcode_t;
@@ -70,8 +70,9 @@ architecture Behavioral of AudioCU is
     signal next_counter : std_logic_vector(17 downto 0);
     signal next_address : std_logic_vector(17 downto 0);
     signal next_ram_address : std_logic_vector(31 downto 0);
-    signal next_upper_bound : std_logic_vector(17 downto 0);
-    signal next_lower_bound : std_logic_vector(17 downto 0);
+    signal next_upper_bound : std_logic_vector(9 downto 0);
+    signal next_lower_bound : std_logic_vector(9 downto 0);
+    signal next_last_result : std_logic_vector(15 downto 0);
 
 begin
 
@@ -81,7 +82,8 @@ begin
     process(clk, rst)
     begin
         if rst = '0' then
-            cu_state <= idle;
+            cu_state <= idle;                               
+            last_result <= (others => '0');
         elsif rising_edge(clk) then
             cu_state <= next_cu_state;
             op <= next_op;
@@ -91,11 +93,22 @@ begin
             ram_address <= next_ram_address;
             lower_bound <= next_lower_bound;
             upper_bound <= next_upper_bound;
+            last_result <= next_last_result;
         end if;
     end process;
 
-    process(cu_state, op, counter, address, ram_address, upper_bound, lower_bound)
+    process(
+        cu_state, op, counter, address, ram_address, upper_bound, lower_bound, last_result,
+        opcode, in_buffer1_start, in_buffer1_offset, in_buffer2_start, in_buffer2_offset, in_buffer3_start, in_buffer3_offset,
+        out_buffer1_start, out_buffer1_offset, out_buffer2_start, out_buffer2_offset,
+        action_size, block_size,
+        param1, param2, start_ram_address, left_right, start
+    )
     begin
+        next_last_result <= last_result;    -- default assignment
+        next_status(31 downto 16) <= last_result;
+        next_status(15 downto 0)  <= (others => '0');
+    
         case cu_state is
 
             when idle =>
@@ -113,12 +126,10 @@ begin
                 next_upper_bound <= (others => '0');
                 
                 -- Outputs
-                next_status <= '0';
-                next_start <= '0';
                 enable <= '0';
 
             when fetch =>
-                next_status <= '1';
+                next_status(0) <= '1';
 
                 case op is
                     when APU_OP_COPY =>
@@ -129,7 +140,7 @@ begin
                                                              unsigned(block_size));
                         next_address     <= std_logic_vector(unsigned(in_buffer1_start) +
                                                              unsigned(in_buffer1_offset));
-                        next_counter <= action_size;
+                        next_counter <= '0' & std_logic_vector(unsigned(action_size(17 downto 1)) - 1);
                         next_ram_address <= start_ram_address;
                     when APU_OP_AUDIO_OUT =>
                         next_cu_state <= audio_out;
@@ -146,6 +157,8 @@ begin
                 end case;
 
             when copy =>
+                next_status(0) <= '1';
+                
                 -- Datapath Control Signals (Outputs)
                 enable <= '1';
                 mode <= "01";   -- Mixed Read/Write Mode
@@ -181,6 +194,8 @@ begin
                 end if;
                 
             when audio_out =>
+                next_status(0) <= '1';
+                
                 -- Datapath Control Signals (Outputs)
                 enable <= '1';
                 mode <= "01";   -- Mixed Read/Write Mode
@@ -193,6 +208,7 @@ begin
                 ram_we <= '0';
                 ram_addr <= ram_address;
                 write_from <= "00";
+                mux_index <= address(17 downto 10);
                 audio_out_enable <= '1';
                 audio_out_lr <= left_right;
 
@@ -213,6 +229,8 @@ begin
                 end if;
                 
             when wait_pipeline =>   -- going to this state requires setting the 'counter' value
+                next_status(0) <= '1';
+                
                 -- Reset Output Signals (do not reset 'enable' and 'mode', they will be reset in idle state)
                 we_a <= '0';
                 we_b <= '0';
@@ -222,10 +240,10 @@ begin
                 -- State Transition
                 if unsigned(counter) = 0 then
                     next_cu_state <= idle;
+                else
+                    next_counter <= std_logic_vector(unsigned(counter) - 1);
+                    next_cu_state <= wait_pipeline;
                 end if;
-                
-                next_counter <= std_logic_vector(unsigned(counter) - 1);
-                next_cu_state <= wait_pipeline;
 
             when others =>
                 next_cu_state <= idle;
