@@ -11,17 +11,17 @@ entity AudioDataPath is
         -- memory signals
         we_a : in std_logic;
         addr_a : in std_logic_vector(9 downto 0);
-        select_a : in std_logic_vector(6 downto 0);
+        select_a : in std_logic_vector(7 downto 0);
         we_b : in std_logic;
         addr_b : in std_logic_vector(9 downto 0);
-        select_b : in std_logic_vector(6 downto 0);
+        select_b : in std_logic_vector(7 downto 0);
 
         -- ram signals
         ram_we : in std_logic;
         ram_addr : in std_logic_vector(31 downto 0);
 
         -- mux signals
-        mux_index : in std_logic_vector(6 downto 0);
+        mux_index : in std_logic_vector(7 downto 0);
         
         -- write signals
         write_from : in std_logic_vector(1 downto 0);
@@ -47,8 +47,8 @@ architecture Behavioral of AudioDataPath is
     -----------------------------------------------------------------------------------------
 
     -- Audio Out Multiplexer
-    signal mux_index_1 : std_logic_vector(6 downto 0);
-    signal next_mux_index_1 : std_logic_vector(6 downto 0);
+    signal mux_index_1 : std_logic_vector(7 downto 0);
+    signal next_mux_index_1 : std_logic_vector(7 downto 0);
 
     -- Audio Out
     signal audio_out_enable_2 : std_logic;
@@ -81,21 +81,21 @@ architecture Behavioral of AudioDataPath is
     signal next_addr_b_2 : std_logic_vector (9 downto 0);
     signal addr_b_1 : std_logic_vector (9 downto 0);
     signal next_addr_b_1 : std_logic_vector (9 downto 0);
-    signal sel_a_2 : std_logic_vector (6 downto 0);
-    signal next_sel_a_2 : std_logic_vector (6 downto 0);
-    signal sel_a_1 : std_logic_vector (6 downto 0);
-    signal next_sel_a_1 : std_logic_vector (6 downto 0);
-    signal sel_b_2 : std_logic_vector (6 downto 0);
-    signal next_sel_b_2 : std_logic_vector (6 downto 0);
-    signal sel_b_1 : std_logic_vector (6 downto 0);
-    signal next_sel_b_1 : std_logic_vector (6 downto 0);
-    signal in_a_2 : logic_aoa(6 downto 0)(31 downto 0);
+    signal sel_a_2 : std_logic_vector (7 downto 0);
+    signal next_sel_a_2 : std_logic_vector (7 downto 0);
+    signal sel_a_1 : std_logic_vector (7 downto 0);
+    signal next_sel_a_1 : std_logic_vector (7 downto 0);
+    signal sel_b_2 : std_logic_vector (7 downto 0);
+    signal next_sel_b_2 : std_logic_vector (7 downto 0);
+    signal sel_b_1 : std_logic_vector (7 downto 0);
+    signal next_sel_b_1 : std_logic_vector (7 downto 0);
+    signal in_a_2 : logic_aoa(7 downto 0)(31 downto 0);
     -- signal next_in_a_2 : std_logic_vector (31 downto 0);  -- It is not a register anymore, but asynchronous signal
-    signal in_b_2 : logic_aoa(6 downto 0)(31 downto 0);
+    signal in_b_2 : logic_aoa(7 downto 0)(31 downto 0);
     -- signal next_in_b_2 : std_logic_vector (31 downto 0);  -- It is not a register anymore, but asynchronous signal
-    signal out_a_1 : logic_aoa(6 downto 0)(31 downto 0);
+    signal out_a_1 : logic_aoa(7 downto 0)(31 downto 0);
     -- signal next_out_a_1 : logic_aoa(6 downto 0)(31 downto 0);
-    signal out_b_1 : logic_aoa(6 downto 0)(31 downto 0);
+    signal out_b_1 : logic_aoa(7 downto 0)(31 downto 0);
     -- signal next_out_b_1 : logic_aoa(6 downto 0)(31 downto 0);
 
     -- Audio Out Mux Outputs
@@ -119,15 +119,15 @@ architecture Behavioral of AudioDataPath is
     -----------------------------------------------------------------------------------------
     signal mem_we_a, mem_we_b : std_logic;
     signal mem_addr_a, mem_addr_b : std_logic_vector(9 downto 0);
-    signal mem_sel_a, mem_sel_b : std_logic_vector(6 downto 0);
-    signal mem_in_a, mem_in_b : logic_aoa(6 downto 0)(31 downto 0);
-    signal mem_out_a, mem_out_b : logic_aoa(6 downto 0)(31 downto 0);
+    signal mem_sel_a, mem_sel_b : std_logic_vector(7 downto 0);
+    signal mem_in_a, mem_in_b : logic_aoa(7 downto 0)(31 downto 0);
+    signal mem_out_a, mem_out_b : logic_aoa(7 downto 0)(31 downto 0);
     
     -----------------------------------------------------------------------------------------
     -- OTHER SIGNALS
     -----------------------------------------------------------------------------------------
-    signal data_in_a : logic_aoa(6 downto 0)(31 downto 0);
-    signal data_in_b : logic_aoa(6 downto 0)(31 downto 0);
+    signal data_in_a : logic_aoa(7 downto 0)(31 downto 0);
+    signal data_in_b : logic_aoa(7 downto 0)(31 downto 0);
 
 begin
 

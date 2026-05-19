@@ -5,8 +5,8 @@ use work.apu_internal_pkg.all;
 
 entity MemorySamplesMux is
     Port (
-        samples : in logic_aoa(6 downto 0)(31 downto 0);
-        index : in std_logic_vector(6 downto 0);
+        samples : in logic_aoa(7 downto 0)(31 downto 0);
+        index : in std_logic_vector(7 downto 0);
         sample1 : out std_logic_vector(15 downto 0);
         sample2 : out std_logic_vector(15 downto 0)
     );

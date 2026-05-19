@@ -14,27 +14,27 @@ entity MemoryBlock is
         we_a       : in  std_logic;
         addr_a     : in  std_logic_vector(9 downto 0);
         data_in_a  : in  std_logic_vector(31 downto 0);
-        select_a   : in  std_logic_vector(6 downto 0);
+        select_a   : in  std_logic_vector(7 downto 0);
         data_out_a : out std_logic_vector(31 downto 0);
         
         -- Port B Interface
         we_b       : in  std_logic;
         addr_b     : in  std_logic_vector(9 downto 0);
         data_in_b  : in  std_logic_vector(31 downto 0);
-        select_b   : in  std_logic_vector(6 downto 0);
+        select_b   : in  std_logic_vector(7 downto 0);
         data_out_b : out std_logic_vector(31 downto 0)
     );
 end MemoryBlock;
 
 architecture Behavioral of MemoryBlock is
     signal ram_block : logic_aoa(1023 downto 0)(31 downto 0) := (others => (others => '0'));
-    signal index_signal : std_logic_vector(6 downto 0);
+    signal index_signal : std_logic_vector(7 downto 0);
 begin
 
     process(clk)
     begin
         if rising_edge(clk) then
-            index_signal <= std_logic_vector(to_unsigned(index, 7));
+            index_signal <= std_logic_vector(to_unsigned(index, 8));
 
             if (select_a = index_signal) or (select_a = broadcast) then
                 -- Port A

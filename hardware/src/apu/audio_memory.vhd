@@ -10,23 +10,23 @@ entity AudioMemory is
         -- Ports A Interface
         we_a       : in  std_logic;
         addr_a     : in  std_logic_vector(9 downto 0);
-        select_a   : in  std_logic_vector(6 downto 0);
-        data_in_a  : in  logic_aoa(6 downto 0)(31 downto 0);
-        data_out_a : out logic_aoa(6 downto 0)(31 downto 0);
+        select_a   : in  std_logic_vector(7 downto 0);
+        data_in_a  : in  logic_aoa(7 downto 0)(31 downto 0);
+        data_out_a : out logic_aoa(7 downto 0)(31 downto 0);
 
         -- Port B Interface
         we_b       : in  std_logic;
         addr_b     : in  std_logic_vector(9 downto 0);
-        select_b   : in  std_logic_vector(6 downto 0);
-        data_in_b  : in  logic_aoa(6 downto 0)(31 downto 0);
-        data_out_b : out logic_aoa(6 downto 0)(31 downto 0)
+        select_b   : in  std_logic_vector(7 downto 0);
+        data_in_b  : in  logic_aoa(7 downto 0)(31 downto 0);
+        data_out_b : out logic_aoa(7 downto 0)(31 downto 0)
     );
 end AudioMemory;
 
 architecture Structural of AudioMemory is
 begin
 
-    GEN_MEM_BLOCKS: for i in 0 to 6 generate
+    GEN_MEM_BLOCKS: for i in 0 to 8 generate
         MEM_INST : entity work.MemoryBlock
             generic map (
                 index => i
