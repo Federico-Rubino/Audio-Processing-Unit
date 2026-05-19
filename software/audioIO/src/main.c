@@ -5,23 +5,21 @@
 
 int main(void) {
 
-    for(volatile int i = 0; i < 100000; i++); 
+    for(volatile int i = 0; i < 1000000; i++); 
 
     printuart("init\n");
     
-    uint32_t test_buffer[256]; 
-    for(int i = 0; i < 256; i++){
+    volatile uint32_t test_buffer[128]; 
+    for(int i = 0; i < 128; i++){
         test_buffer[i] = 12;
     }
 
-    printuart("Memory initialized to 0. Polling for audio hardware...\n");
+    printuart("Memory initialized to 12\n");
 
-    printuart("Samples ready\n");
-
-    audioIO_copy_grain((uint32_t)test_buffer, 256, 0); 
+    audioIO_copy_grain((uint32_t)test_buffer, 256, 1); 
     
     printuart("Memory:\n");
-    for(int i = 0; i < 256; i++) {
+    for(int i = 0; i < 128; i++) {
         printuart("Index [");
         printuart_uint32(i);
         printuart("] = ");

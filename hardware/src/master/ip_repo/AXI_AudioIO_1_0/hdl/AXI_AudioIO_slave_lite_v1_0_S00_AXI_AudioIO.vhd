@@ -233,58 +233,44 @@ begin
 	
 
 	process (S_AXI_ACLK)
-	begin
-	  if rising_edge(S_AXI_ACLK) then 
-	    if S_AXI_ARESETN = '0' then
-	      --slv_reg0 <= (others => '0');
-	      slv_reg1 <= (others => '0');
-	      slv_reg2 <= (others => '0');
-	      slv_reg3 <= (others => '0');
-	    else
-	      if (S_AXI_WVALID = '1') then
-	          case (mem_logic) is
-	          when b"00" =>
-	            for byte_index in 0 to (C_S_AXI_DATA_WIDTH/8-1) loop
-	              if ( S_AXI_WSTRB(byte_index) = '1' ) then
-	                -- Respective byte enables are asserted as per write strobes                   
-	                -- slave registor 0
-	                --slv_reg0(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
-	              end if;
-	            end loop;
-	          when b"01" =>
-	            for byte_index in 0 to (C_S_AXI_DATA_WIDTH/8-1) loop
-	              if ( S_AXI_WSTRB(byte_index) = '1' ) then
-	                -- Respective byte enables are asserted as per write strobes                   
-	                -- slave registor 1
-	                slv_reg1(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
-	              end if;
-	            end loop;
-	          when b"10" =>
-	            for byte_index in 0 to (C_S_AXI_DATA_WIDTH/8-1) loop
-	              if ( S_AXI_WSTRB(byte_index) = '1' ) then
-	                -- Respective byte enables are asserted as per write strobes                   
-	                -- slave registor 2
-	                slv_reg2(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
-	              end if;
-	            end loop;
-	          when b"11" =>
-	            for byte_index in 0 to (C_S_AXI_DATA_WIDTH/8-1) loop
-	              if ( S_AXI_WSTRB(byte_index) = '1' ) then
-	                -- Respective byte enables are asserted as per write strobes                   
-	                -- slave registor 3
-	                slv_reg3(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
-	              end if;
-	            end loop;
-	          when others =>
-	            --slv_reg0 <= slv_reg0;
-	            slv_reg1 <= slv_reg1;
-	            slv_reg2 <= slv_reg2;
-	            slv_reg3 <= slv_reg3;
-	        end case;
-	      end if;
-	    end if;
-	  end if;                   
-	end process; 
+    begin
+      if rising_edge(S_AXI_ACLK) then 
+        if S_AXI_ARESETN = '0' then
+          slv_reg1 <= (others => '0');
+          slv_reg2 <= (others => '0');
+          slv_reg3 <= (others => '0');
+        else
+          -- Trigger the write whenever valid DATA is accepted by the slave
+          if (S_AXI_WVALID = '1' and axi_wready = '1') then 
+            
+            -- Use your mem_logic signal to handle offset timing!
+            case (mem_logic) is
+              when b"01" => 
+                for byte_index in 0 to (C_S_AXI_DATA_WIDTH/8-1) loop
+                  if ( S_AXI_WSTRB(byte_index) = '1' ) then
+                    slv_reg1(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
+                  end if;
+                end loop;
+              when b"10" => 
+                for byte_index in 0 to (C_S_AXI_DATA_WIDTH/8-1) loop
+                  if ( S_AXI_WSTRB(byte_index) = '1' ) then
+                    slv_reg2(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
+                  end if;
+                end loop;
+              when b"11" => 
+                for byte_index in 0 to (C_S_AXI_DATA_WIDTH/8-1) loop
+                  if ( S_AXI_WSTRB(byte_index) = '1' ) then
+                    slv_reg3(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
+                  end if;
+                end loop;
+              when others =>
+                -- Do nothing. Registers will hold their previous values automatically.
+                null; 
+            end case;
+          end if;
+        end if;
+      end if;                   
+    end process;
 
 	-- Implement read state machine
 	 process (S_AXI_ACLK)                                          
@@ -336,7 +322,7 @@ begin
 	 (others => '0');
 
 	slv_reg0(22 downto 0)  <= status_from_audio;
-    slv_reg0(31 downto 19) <= (others => '0');
+	slv_reg0(31 downto 23) <= (others => '0');
 
 	-- Add user logic here
 	audioIO_inst: entity work.audioIO

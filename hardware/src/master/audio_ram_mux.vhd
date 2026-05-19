@@ -41,7 +41,7 @@ begin
             data_mem_wea      <= (others => audioIO_wea);
             
         else
-        --api
+        --apu
             data_mem_addr     <= std_logic_vector(unsigned(apu_addr) - C_WORD_BASE_ADDR);
             data_mem_data_out <= (others => '0');
             data_mem_ena      <= apu_ena;

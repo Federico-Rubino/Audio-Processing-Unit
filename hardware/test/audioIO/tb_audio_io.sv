@@ -19,7 +19,7 @@ module tb_audio_in();
 
     // --- Register Interface ---
     logic [1:0]  next_ctrl_reg = 0;
-    logic [31:0] next_start_addr_reg = 0;
+    logic [31:0] next_start_addr_reg = 32'h20000; // Updated to start at 0x20000
     logic [31:0] next_offset_reg = 0;
     logic [18:0] status_reg;
 
@@ -50,11 +50,11 @@ module tb_audio_in();
     always @(posedge clk) begin
         if (data_mem_ena && data_mem_wea) begin
             fake_bram[data_mem_addr] = data_mem_data_out;
-            $display("WRITE -> Addr: 0x%h | Data: 0x%h",data_mem_addr, data_mem_data_out);
+            $display("WRITE -> Addr: 0x%h | Data: 0x%h", data_mem_addr, data_mem_data_out);
         end
     end
 
-    //sample Injector (48kHz)
+    // Sample Injector (48kHz)
     initial begin
         logic [15:0] count_l = 16'h1000;
         logic [15:0] count_r = 16'hE000;
@@ -72,7 +72,6 @@ module tb_audio_in();
         end
     end
 
-
     task copy_action(input [31:0] addr, input [31:0] offset, input [1:0] ctrl, input string label);
     begin
         @(posedge clk);
@@ -81,27 +80,26 @@ module tb_audio_in();
         next_ctrl_reg       = ctrl; 
         
         @(posedge clk);
-        next_ctrl_reg       = 2'b00; //start command
+        next_ctrl_reg       = 2'b00; // start command
         
-        //wait fsm start
+        // wait fsm start
         fork
             begin
                 wait(status_reg[0] == 1'b0);
             end
             begin
-                repeat(10) @(posedge clk); //10-cycle timeout
+                repeat(10) @(posedge clk); // 10-cycle timeout
             end
         join_any
         disable fork; 
         
-        //fsm to finish
+        // fsm to finish
         wait(status_reg[0] == 1'b1); 
         
         repeat(2) @(posedge clk); // Delay to align logs
         $display("%s Complete", label);
     end
     endtask
-
 
     initial begin
         logic [7:0] avail_l;
@@ -110,13 +108,12 @@ module tb_audio_in();
         rst = 1; #100; rst = 0;
         repeat (50 * 2083) @(posedge clk);
         
-
-        $display(" TEST 1: DYNAMIC OCCUPANCY COPY");;
+        $display(" TEST 1: DYNAMIC OCCUPANCY COPY");
 
         // READ LEFT force to even number
         avail_l = status_reg[10:3] & 8'hFE; 
         $display("Triggering Left Copy for %0d samples", avail_l);
-        copy_action(32'h0100, {24'b0, avail_l}, 2'b01, "DYNAMIC LEFT");
+        copy_action(32'h20000, {24'b0, avail_l}, 2'b01, "DYNAMIC LEFT");
 
         #500; 
 
@@ -127,8 +124,7 @@ module tb_audio_in();
 
         #2000; 
         
-        $display(" TEST 2:CONTINUITY");
-
+        $display(" TEST 2: CONTINUITY");
         
         repeat (15 * 2083) @(posedge clk);
 
@@ -140,7 +136,7 @@ module tb_audio_in();
 
         #1000;
         $display("Simulation Finished");
-        #50
+        #50;
         $finish;
     end
 
