@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <uart.h>
+#include <bitops.h>
 
 typedef struct{
     volatile uint32_t status;
@@ -12,35 +13,19 @@ typedef struct{
     volatile uint32_t num_samples;
 } audio_io_t;
 
-#define AUDIO_IO ((audio_io_t*) 0x0002A000) 
+//#define AUDIO_IO ((audio_io_t*) 0x0002A000) 
 
-#define STATUS_FINISHED       0x01      // bit 0
-#define STATUS_NEW_SAMPLE_L   0x02      // bit 1
-#define STATUS_NEW_SAMPLE_R   0x04      // bit 2
-#define STATUS_AVAIL_SAMPLE_L 0x1FF8  // bits 3-12
-#define STATUS_AVAIL_SAMPLE_R 0x7FE000   // bits 13-22
+#define STATUS_FINISHED       BIT(0)      // bit 0
+#define STATUS_NEW_SAMPLE_L   BIT(1)      // bit 1
+#define STATUS_NEW_SAMPLE_R   BIT(2)      // bit 2
+#define STATUS_AVAIL_SAMPLE_L GENMASK(12, 3)  // bits 3-12
+#define STATUS_AVAIL_SAMPLE_R GENMASK(22, 13)   // bits 13-22
 
-#define CONTROL_START 0x01
-#define CONTROL_CHANNEL 0x02 
+#define CONTROL_START BIT(0) 
+#define CONTROL_CHANNEL BIT(1)
 
 
-void printuart_uint32(uint32_t num) {
-    if (num == 0) {
-        printuart("0");
-        return;
-    }
-    char buffer[12];
-    buffer[11] = '\0';
-    int i = 10;
-    while (num > 0) {
-        buffer[i] = (num % 10) + '0';
-        num /= 10;
-        i--;
-    }
-    printuart(&buffer[i + 1]);
-}
-
-static inline void audioIO_copy_grain(uint32_t base_address, uint32_t num_samples, uint8_t channel){
+static inline void audioIO_copy_grain(audio_io_t* audio_io, uint32_t base_address, uint32_t num_samples, uint8_t channel){
     uint32_t ctrl_val = 0;
 
     if(channel == 0){
@@ -49,29 +34,29 @@ static inline void audioIO_copy_grain(uint32_t base_address, uint32_t num_sample
         ctrl_val = CONTROL_CHANNEL; // Bit 1 is 1
     }
 
-    AUDIO_IO->base_addr = base_address; 
-    AUDIO_IO->num_samples = num_samples;
+    audio_io->base_addr = base_address; 
+    audio_io->num_samples = num_samples;
 
-    AUDIO_IO->ctrl = ctrl_val | CONTROL_START;
+    audio_io->ctrl = ctrl_val | CONTROL_START;
 
-    AUDIO_IO->ctrl = ctrl_val;
+    audio_io->ctrl = ctrl_val;
 
-    while((AUDIO_IO->status & STATUS_FINISHED)){}
-    while(!(AUDIO_IO->status & STATUS_FINISHED)){}
+    while((audio_io->status & STATUS_FINISHED)){}
+    while(!(audio_io->status & STATUS_FINISHED)){}
 }
-static inline uint32_t audioIO_get_avail_samples(uint8_t channel){
+static inline uint32_t audioIO_get_avail_samples(audio_io_t* audio_io, uint8_t channel){
     if(channel == 0){
-        return (AUDIO_IO->status & STATUS_AVAIL_SAMPLE_L) >> 3; 
+        return (audio_io->status & STATUS_AVAIL_SAMPLE_L) >> 3; 
     }else{
-        return (AUDIO_IO->status & STATUS_AVAIL_SAMPLE_R) >> 13;
+        return (audio_io->status & STATUS_AVAIL_SAMPLE_R) >> 13;
     }
 }
 
-static inline bool audioIO_have_new_sample(uint8_t channel){
+static inline bool audioIO_have_new_sample(audio_io_t* audio_io, uint8_t channel){
     if(channel == 0){
-        return (AUDIO_IO->status & STATUS_NEW_SAMPLE_L);
+        return (audio_io->status & STATUS_NEW_SAMPLE_L);
     }else{
-        return (AUDIO_IO->status & STATUS_NEW_SAMPLE_R);
+        return (audio_io->status & STATUS_NEW_SAMPLE_R);
     }
 }
 
