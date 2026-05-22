@@ -31,7 +31,7 @@ entity AudioCU is
         -- Write Register File
         next_status : out std_logic_vector(31 downto 0);        -- bits 31-16: result of the operation;  bit 15-1: reserved for future use; bit 0: 1 if it is ready to execute, 0 if it is executing some operation
         
-        -- 
+        -- TODO not used by now
         started : out std_logic;
 
         -- Control Signals
