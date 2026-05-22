@@ -141,7 +141,7 @@ begin
                         next_address     <= std_logic_vector(unsigned(in_buffer1_start) +
                                                              unsigned(in_buffer1_offset));
                         next_counter <= '0' & std_logic_vector(unsigned(action_size(17 downto 1)) - 1);
-                        next_ram_address <= start_ram_address;
+                        next_ram_address <= "00" & start_ram_address(31 downto 2);
                     when APU_OP_AUDIO_OUT =>
                         next_cu_state <= audio_out;
                         next_op <= APU_OP_AUDIO_OUT;
