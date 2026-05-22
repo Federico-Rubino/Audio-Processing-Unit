@@ -27,40 +27,43 @@ entity MemoryBlock is
 end MemoryBlock;
 
 architecture Behavioral of MemoryBlock is
-    signal ram_block : logic_aoa(1023 downto 0)(31 downto 0) := (others => (others => '0'));
     signal index_signal : std_logic_vector(7 downto 0);
+    signal ena : std_logic := '0';
+    signal enb : std_logic := '0';
 begin
-
-    process(clk)
+    
+    aram_block_inst: entity work.aram_block
+    port map(
+        clka => clk,
+        addra => addr_a,
+        dina => data_in_a,
+        wea => we_a,
+        douta => data_out_a,
+        ena => ena,
+        
+        clkb => clk,
+        addrb => addr_b,
+        dinb => data_in_b,
+        doutb => data_out_b,
+        web => we_b,
+        enb => enb 
+    );
+    
+    
+    process(select_a, select_b)
     begin
-        if rising_edge(clk) then
-            index_signal <= std_logic_vector(to_unsigned(index, 8));
+        ena <= '0';
+        enb <= '0';
+        index_signal <= std_logic_vector(to_unsigned(index, 8));
 
-            if (select_a = index_signal) or (select_a = broadcast) then
-                -- Port A
-                if we_a = '1' then
-                    ram_block(to_integer(unsigned(addr_a))) <= data_in_a;
-                end if;
-                
-                if rst = '0' then
-                    data_out_a <= (others => '0');
-                else
-                    data_out_a <= ram_block(to_integer(unsigned(addr_a)));
-                end if;
-            end if;
+        if (select_a = index_signal) or (select_a = broadcast) then
+            -- Port A
+            ena <= '1';
+        end if;
 
-            if (select_b = index_signal) or (select_b = broadcast) then
-                -- Port B
-                if we_b = '1' then
-                    ram_block(to_integer(unsigned(addr_b))) <= data_in_b;
-                end if;
-                
-                if rst = '0' then
-                    data_out_b <= (others => '0');
-                else
-                    data_out_b <= ram_block(to_integer(unsigned(addr_b)));
-                end if;
-            end if;
+        if (select_b = index_signal) or (select_b = broadcast) then
+            -- Port B
+            enb <= '1';
         end if;
     end process;
 

@@ -17,7 +17,7 @@ entity AudioDataPath is
         select_b : in std_logic_vector(7 downto 0);
 
         -- ram signals
-        ram_we : in std_logic;
+        ram_en : in std_logic;
         ram_addr : in std_logic_vector(31 downto 0);
 
         -- mux signals
@@ -35,7 +35,7 @@ entity AudioDataPath is
         lr_out, enable_out : out std_logic;
 
         -- RAM interface
-        ram_we_out : out std_logic;
+        ram_en_out : out std_logic;
         ram_addr_out : out std_logic_vector(31 downto 0);
         ram_out : in std_logic_vector(31 downto 0)
     );
@@ -225,7 +225,7 @@ begin
         we_a_2, addr_a_2, sel_a_2,
         mux_index, audio_out_enable_1, audio_out_enable, 
         audio_out_lr_1, audio_out_lr, write_from_1, write_from,
-        new_data_2, ram_we, ram_addr, ram_out
+        new_data_2, ram_en, ram_addr, ram_out
     )
     begin
         -- Configure Memory Connections
@@ -301,7 +301,7 @@ begin
         end case;
 
         -- RAM Inferface
-        ram_we_out <= ram_we;
+        ram_en_out <= ram_en;
         ram_addr_out <= ram_addr;
         data1_1 <= ram_out(15 downto 0);
         data2_1 <= ram_out(31 downto 16);

@@ -47,6 +47,18 @@ if {[llength $rtl_files] > 0} {
     puts "Warning: No RTL files found in $repo_root/src/audioIO/"
 }
 
+# 4. Add RTL Sources (src/apu)
+set rtl_files [glob -nocomplain "$repo_root/src/apu/*.{v,vhd,sv}"]
+if {[llength $rtl_files] > 0} {
+    add_files $rtl_files
+    foreach f $rtl_files {
+        set_property file_type "VHDL 2008" [get_files $f]
+    }
+    puts "Added [llength $rtl_files] RTL files."
+} else {
+    puts "Warning: No RTL files found in $repo_root/src/apu/"
+}
+
 # 4. Add RTL Sources (src/master)
 set rtl_files [glob -nocomplain "$repo_root/src/master/*.{v,vhd,sv}"]
 if {[llength $rtl_files] > 0} {
@@ -66,6 +78,18 @@ if {[llength $ip_files] > 0} {
 } else {
     puts "Note: No IP (.xci) files found for master."
 }
+
+# 5. Add IP Cores (ip/apu)
+# search recursively (**) to find .xci files in subdirectories
+set ip_files [glob -nocomplain "$repo_root/ip/apu/**/*.xci"]
+if {[llength $ip_files] > 0} {
+    # 'import_ip' copies the IP config into the local project work area
+    import_ip $ip_files
+    puts "Imported [llength $ip_files] IP cores."
+} else {
+    puts "Note: No IP (.xci) files found for apu."
+}
+
 
 # 5b. Reconstruct Block Design (scripts/master/recreate-bd.tcl)
 # -----------------------------------------------------------------------------------------
@@ -119,11 +143,21 @@ if {[llength $sim_files] > 0} {
     puts "Added [llength $sim_files] simulation files."
 }
 
+# 7. Add Testbenches & Simulation Assets (test/apu)
+set sim_files [glob -nocomplain "$repo_root/test/apu/*.{v,vhd,sv}"]
+if {[llength $sim_files] > 0} {
+    add_files -fileset sim_1 $sim_files
+    puts "Added [llength $sim_files] simulation files."
+}
+
 # Add Memory Initialization files (.coe) to simulation fileset
 set coe_files [glob -nocomplain "$repo_root/test/master/*.coe"]
 if {[llength $coe_files] > 0} {
     add_files -fileset sim_1 $coe_files
 }
+
+
+set_property target_language VHDL [current_project]
 
 # 8. Cleanup and Finalize
 update_compile_order -fileset sources_1

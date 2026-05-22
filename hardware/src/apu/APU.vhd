@@ -28,10 +28,10 @@ entity APU is
         start : in std_logic;                                   -- 0: do nothing; 1: do the operation
 
         -- Write Register File
-        next_status : out std_logic_vector(31 downto 0);        -- bits 31-16: result of the operation;  bit 15-1: reserved for future use; bit 0: 1 if it is ready to execute, 0 if it is executing some operation
+        status : out std_logic_vector(31 downto 0);        -- bits 31-16: result of the operation;  bit 15-1: reserved for future use; bit 0: 1 if it is ready to execute, 0 if it is executing some operation
 
         -- RAM interface
-        ram_we_out : out std_logic;
+        ram_en_out : out std_logic;
         ram_addr_out : out std_logic_vector(31 downto 0);
         ram_out : in std_logic_vector(31 downto 0);
         
@@ -52,7 +52,7 @@ architecture Behavioral of APU is
     signal sig_we_b             : std_logic;
     signal sig_addr_b           : std_logic_vector(9 downto 0);
     signal sig_select_b         : std_logic_vector(7 downto 0);
-    signal sig_ram_we           : std_logic;
+    signal sig_ram_en           : std_logic;
     signal sig_ram_addr         : std_logic_vector(31 downto 0);
     signal sig_mux_index        : std_logic_vector(7 downto 0);
     signal sig_write_from       : std_logic_vector(1 downto 0);
@@ -86,7 +86,7 @@ begin
             start_ram_address => start_ram_address,
             left_right => left_right,
             start => start,
-            next_status => next_status,
+            next_status => status,
             
             -- Control signals mapping to internal signals
             started => sig_started,
@@ -98,7 +98,7 @@ begin
             we_b => sig_we_b,
             addr_b => sig_addr_b,
             select_b => sig_select_b,
-            ram_we => sig_ram_we,
+            ram_en => sig_ram_en,
             ram_addr => sig_ram_addr,
             mux_index => sig_mux_index,
             write_from => sig_write_from,
@@ -120,7 +120,7 @@ begin
             we_b => sig_we_b,
             addr_b => sig_addr_b,
             select_b => sig_select_b,
-            ram_we => sig_ram_we,
+            ram_en => sig_ram_en,
             ram_addr => sig_ram_addr,
             mux_index => sig_mux_index,
             write_from => sig_write_from,
@@ -131,7 +131,7 @@ begin
             audio_out => audio_out,
             lr_out => lr_out,
             enable_out => enable_out,
-            ram_we_out => ram_we_out,
+            ram_en_out => ram_en_out,
             ram_addr_out => ram_addr_out,
             ram_out => ram_out
         );

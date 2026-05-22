@@ -43,7 +43,7 @@ entity AudioCU is
         we_b : out std_logic;
         addr_b : out std_logic_vector(9 downto 0);
         select_b : out std_logic_vector(7 downto 0);
-        ram_we : out std_logic;
+        ram_en : out std_logic;
         ram_addr : out std_logic_vector(31 downto 0);
         mux_index : out std_logic_vector(7 downto 0);
         write_from : out std_logic_vector(1 downto 0);
@@ -168,7 +168,7 @@ begin
                 we_b <= '1';
                 addr_b <= address(9 downto 0);
                 select_b <= address(17 downto 10);
-                ram_we <= '0';
+                ram_en <= '0';
                 ram_addr <= ram_address;
                 write_from <= "00"; -- write from RAM
                 audio_out_enable <= '0';
@@ -205,7 +205,7 @@ begin
                 we_b <= '0';
                 addr_b <= (others => '0');
                 select_b <= broadcast;
-                ram_we <= '0';
+                ram_en <= '0';
                 ram_addr <= ram_address;
                 write_from <= "00";
                 mux_index <= address(17 downto 10);
@@ -234,7 +234,7 @@ begin
                 -- Reset Output Signals (do not reset 'enable' and 'mode', they will be reset in idle state)
                 we_a <= '0';
                 we_b <= '0';
-                ram_we <= '0';  -- TODO
+                ram_en <= '0';  -- TODO
                 audio_out_enable <= '0';
 
                 -- State Transition

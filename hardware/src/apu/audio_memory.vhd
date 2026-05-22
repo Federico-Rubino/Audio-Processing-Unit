@@ -26,7 +26,7 @@ end AudioMemory;
 architecture Structural of AudioMemory is
 begin
 
-    GEN_MEM_BLOCKS: for i in 0 to 7 generate
+    GEN_MEM_BLOCKS: for i in 0 to 109 generate
         MEM_INST : entity work.MemoryBlock
             generic map (
                 index => i
