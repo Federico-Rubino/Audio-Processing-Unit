@@ -37,7 +37,7 @@ begin
         clka => clk,
         addra => addr_a,
         dina => data_in_a,
-        wea => we_a,
+        wea(0) => we_a,
         douta => data_out_a,
         ena => ena,
         
@@ -45,7 +45,7 @@ begin
         addrb => addr_b,
         dinb => data_in_b,
         doutb => data_out_b,
-        web => we_b,
+        web(0) => we_b,
         enb => enb 
     );
     
