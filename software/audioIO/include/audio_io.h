@@ -3,8 +3,10 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <uart.h>
 #include <bitops.h>
+
+#define AUDIOIO_CHANNEL_LEFT 0
+#define AUDIOIO_CHANNEL_RIGHT 1
 
 typedef struct{
     volatile uint32_t status;
@@ -41,7 +43,6 @@ static inline void audioIO_copy_grain(audio_io_t* audio_io, uint32_t base_addres
 
     audio_io->ctrl = ctrl_val;
 
-    while((audio_io->status & STATUS_FINISHED)){}
     while(!(audio_io->status & STATUS_FINISHED)){}
 }
 static inline uint32_t audioIO_get_avail_samples(audio_io_t* audio_io, uint8_t channel){

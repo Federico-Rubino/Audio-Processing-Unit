@@ -19,7 +19,8 @@ typedef struct {
     volatile uint32_t out_buffer2_offset;
     volatile uint32_t action_size;
     volatile uint32_t block_size;
-    volatile uint32_t param;
+    volatile uint32_t param1;
+    volatile uint32_t param2;
     volatile uint32_t start_ram_address;
     volatile uint32_t left_right;
     volatile uint32_t start;
@@ -57,7 +58,9 @@ typedef struct {
 //status register mask
 #define APU_STATUS_READY   BIT(0)  //1 if ready 0 if running
 #define APU_STATUS_RESULT GENMASK(31, 16)
-#define APU_STATUS_RESERVED GENMASK(15, 1) //future use
+//#define APU_STATUS_RESERVED GENMASK(15, 1) //future use
+#define APU_STATUS_STATE GENMASK(4,1)
+#define APU_STATUS_OUT_EN BIT(5)
 
 //opcode register mask
 #define APU_OPCODE GENMASK(3,0)
@@ -75,7 +78,7 @@ typedef struct {
 
 //param register mask
 #define APU_PARAM_1 GENMASK(15, 0)
-#define APU_PARAM_2 GENMASK(31, 16)
+#define APU_PARAM_2 GENMASK(15, 0)
 
 //left right register mask
 #define APU_LEFT_RIGHT_LEFT BIT(0) //0 left; 1 right
@@ -87,10 +90,35 @@ typedef struct {
 #define APU_OPCODE_COPY 0x0
 #define APU_OPCODE_AUDIO_OUT 0x1
 
-//#define APU ((apu_t*) 0x0002C000) //MODIFICARE BASE ADDRESSSSSSSSSS
+//#define APU ((apu_t*) 0x0002B000)
+
+
+
+//other macro
+#define APU_CHANNEL_LEFT 0
+#define APU_CHANNEL_RIGHT 1
+
+
+static inline void apu_copy(apu_t* apu, uint32_t origin_address, uint32_t buffer_start, uint32_t buffer_size, uint32_t operation_start, uint32_t operation_size ){
+    apu->opcode = APU_OPCODE_COPY;
+    apu->start_ram_address = origin_address;
+    apu->start = buffer_start;
+    apu->block_size = buffer_size;
+    apu->in_buffer1_offset = operation_size;
+    apu->in_buffer1_start = operation_start;
+}
+
+static inline void apu_audio_out(apu_t* apu, uint32_t buffer_start, uint32_t buffer_size, uint32_t operation_start, uint32_t operation_size, uint32_t lr){
+    apu->opcode = APU_OPCODE_AUDIO_OUT;
+    apu->start = buffer_start;
+    apu->block_size = buffer_size;
+    apu->in_buffer1_offset = operation_size;
+    apu->in_buffer1_start = operation_start;
+    apu->left_right = lr;
+}
 
 static inline int apu_ready(apu_t* apu) {
-    return (apu->status & APU_STATUS_READY) != 0;
+    return !(apu->status & APU_STATUS_READY);
 }
 
 static inline void apu_start(apu_t* apu){
@@ -105,15 +133,23 @@ static inline void apu_wait(apu_t* apu){
     while(!apu_ready(apu));
 }
 
-static inline uint32_t apu_result(apu_t* apu){
+static inline uint32_t apu_status_result(apu_t* apu){
     return (apu->status & APU_STATUS_RESULT) >> 16;
+}
+
+static inline uint32_t apu_status_state(apu_t* apu){
+    return (apu->status & APU_STATUS_STATE) >> 1;
+}
+
+static inline uint32_t apu_status_out_en(apu_t* apu){
+    return (apu->status & APU_STATUS_OUT_EN) >> 5;
 }
 
 static inline uint32_t apu_buffer_offset_composer(apu_buffer_offset_t offset){
     return (offset.sample_select << 17) | (offset.block_select << 10) | offset.address;
 }
 
-int apu_execute(apu_t* apu, const apu_cmd_t *cmd){
+static inline int apu_execute(apu_t* apu, const apu_cmd_t *cmd){
     apu_wait(apu);
 
     apu->opcode = cmd->opcode;
@@ -131,7 +167,8 @@ int apu_execute(apu_t* apu, const apu_cmd_t *cmd){
 
     apu->action_size=cmd->action_size;
     apu->block_size=cmd->block_size;
-    apu->param=cmd->param1;
+    apu->param1=cmd->param1;
+    apu->param2=cmd->param2;
 
     apu->start_ram_address=cmd->start_ram_address;
     apu->left_right=cmd->left_right;
@@ -141,13 +178,6 @@ int apu_execute(apu_t* apu, const apu_cmd_t *cmd){
 
     return 0;
 }
-
-int apu_copy(apu_t* apu, uint32_t mem_addr_start, uint32_t offset){}
-
-int apu_audio_out(apu_t* apu, uint32_t channel, uint32_t offset){}
-
-
-
 
 
 

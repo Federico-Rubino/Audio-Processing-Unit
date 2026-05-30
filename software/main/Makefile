@@ -16,6 +16,7 @@ HEX_DATA = bin/data.hex
 
 #Compiler flags
 CFLAGS = -O2 -Wall -march=rv32i -mabi=ilp32 -ffreestanding -nostartfiles -nodefaultlibs $(INCLUDES)
+SFLAGS = -S -fverbose-asm -O2 -Wall -march=rv32i -mabi=ilp32 -ffreestanding -nostartfiles -nodefaultlibs $(INCLUDES)
 LDFLAGS = -T ../bsp/linker.ld
 
 #Default target
@@ -44,6 +45,9 @@ $(HEX_DATA): $(BIN_DATA)
 # Optional disassembly
 disasm: $(ELF)
 	$(OBJDUMP) -d $< > bin/firmware.asm
+
+asm:
+	$(CC) $(SFLAGS) $(LDFLAGS) -o bin/main.s src/main.c
 
 clean:
 	rm -f $(ELF) $(BIN_INSTR) $(BIN_DATA) $(HEX_INSTR) $(HEX_DATA) bin/firmware.asm

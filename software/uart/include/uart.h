@@ -2,6 +2,7 @@
 #define UART_H
 
 #include <stdint.h>
+#include <bitops.h>
 
 typedef struct{
     volatile uint32_t rx; //rx register 0x0h offset
@@ -47,4 +48,116 @@ void uart_write_byte(uart_t* uart, uint8_t data){
     uart->tx = (uint32_t)data;
 }
 
+uint32_t uart_read_word(uart_t* uart){
+    uint32_t b0 = (uint32_t)uart_read_byte(uart);
+    uint32_t b1 = (uint32_t)uart_read_byte(uart);
+    uint32_t b2 = (uint32_t)uart_read_byte(uart);
+    uint32_t b3 = (uint32_t)uart_read_byte(uart);
+
+    return (b0) | (b1 << 8) | (b2 << 16) | (b3 << 24);
+}
+
+void printuart_uint32(uart_t* uart, uint32_t data)
+{
+    char buffer[11]; // max "4294967295" + '\0'
+    int i = 0;
+
+    // Special case for 0
+    if (data == 0) {
+        uart_write_byte(uart, '0');
+        return;
+    }
+
+    // Convert number to ASCII (reversed)
+    while (data > 0) {
+        buffer[i++] = (data % 10) + '0';
+        data /= 10;
+    }
+
+    // Send in correct order
+    while (i > 0) {
+        uart_write_byte(uart, buffer[--i]);
+    }
+}
+
+void printuart_uint16(uart_t* uart, uint16_t data)
+{
+    char buffer[6]; // max "65535" + '\0'
+    int i = 0;
+
+    // Special case for 0
+    if (data == 0) {
+        uart_write_byte(uart, '0');
+        return;
+    }
+
+    // Convert number to string (reversed)
+    while (data > 0) {
+        buffer[i++] = (data % 10) + '0';
+        data /= 10;
+    }
+
+    // Send characters in correct order
+    while (i > 0) {
+        uart_write_byte(uart, buffer[--i]);
+    }
+}
+
+void printuart_int16(uart_t* uart, int16_t data)
+{
+    // Handle negative numbers
+    if (data < 0) {
+        uart_write_byte(uart, '-');
+        data = -data;
+    }
+
+    char buffer[6]; // max "-32768" + '\0'
+    int i = 0;
+
+    // Special case for 0
+    if (data == 0) {
+        uart_write_byte(uart, '0');
+        return;
+    }
+
+    // Convert to ASCII
+    while (data > 0) {
+        buffer[i++] = (data % 10) + '0';
+        data /= 10;
+    }
+
+    // Send in correct order
+    while (i > 0) {
+        uart_write_byte(uart, buffer[--i]);
+    }
+}
+
+void printuart_int32(uart_t* uart, int32_t data)
+{
+    // Handle negative numbers
+    if (data < 0) {
+        uart_write_byte(uart, '-');
+        data = -data;
+    }
+
+    char buffer[11]; // max "-2147483648" + '\0'
+    int i = 0;
+
+    // Special case for 0
+    if (data == 0) {
+        uart_write_byte(uart, '0');
+        return;
+    }
+
+    // Convert to ASCII
+    while (data > 0) {
+        buffer[i++] = (data % 10) + '0';
+        data /= 10;
+    }
+
+    // Send in correct order
+    while (i > 0) {
+        uart_write_byte(uart, buffer[--i]);
+    }
+}
 #endif // UART_H
