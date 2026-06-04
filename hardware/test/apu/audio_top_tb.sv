@@ -2,7 +2,7 @@
 
 import apu_pkg::*;
 
-module AudioTop2_tb;
+module AudioTop_tb;
 
     // -------------------------------------------------------------------------
     // Clock and Reset
@@ -55,7 +55,7 @@ module AudioTop2_tb;
     logic        we_b;
     logic [9:0]  addr_b;
     logic [7:0]  select_b;
-    logic        ram_we;
+    logic        ram_en;
     logic [31:0] ram_addr;
     logic [7:0]  mux_index;
     logic [1:0]  write_from;
@@ -68,7 +68,7 @@ module AudioTop2_tb;
     logic [31:0] audio_out;
     logic        lr_out;
     logic        enable_out;
-    logic        ram_we_out;
+    logic        ram_en_out;
     logic [31:0] ram_addr_out;
     logic [31:0] ram_out;
 
@@ -106,7 +106,7 @@ module AudioTop2_tb;
         .we_b(we_b),
         .addr_b(addr_b),
         .select_b(select_b),
-        .ram_we(ram_we),
+        .ram_en(ram_en),
         .ram_addr(ram_addr),
         .mux_index(mux_index),
         .write_from(write_from),
@@ -128,7 +128,7 @@ module AudioTop2_tb;
         .we_b(we_b),
         .addr_b(addr_b),
         .select_b(select_b),
-        .ram_we(ram_we),
+        .ram_en(ram_en),
         .ram_addr(ram_addr),
         .mux_index(mux_index),
         .write_from(write_from),
@@ -137,7 +137,7 @@ module AudioTop2_tb;
         .audio_out(audio_out),
         .lr_out(lr_out),
         .enable_out(enable_out),
-        .ram_we_out(ram_we_out),
+        .ram_en_out(ram_en_out),
         .ram_addr_out(ram_addr_out),
         .ram_out(ram_out)
     );
@@ -160,11 +160,13 @@ module AudioTop2_tb;
 
     always @(posedge clk) begin
         // If the CU requests an address between 1000 and 1007, return the mapped array value
-        if (ram_addr_out >= 32'd1000 && ram_addr_out <= 32'd1007) begin
-            // Offset the address by the base to get the index 0 through 7
-            ram_out <= mock_memory_array[ram_addr_out - 32'd1000];
-        end else begin
-            ram_out <= 32'h0;
+        if (ram_en_out == 1'd1) begin
+            if (ram_addr_out >= 32'd250 && ram_addr_out <= 32'd257) begin
+                // Offset the address by the base to get the index 0 through 7
+                ram_out <= mock_memory_array[ram_addr_out - 32'd250];
+            end else begin
+                ram_out <= 32'h0;
+            end
         end
     end
 

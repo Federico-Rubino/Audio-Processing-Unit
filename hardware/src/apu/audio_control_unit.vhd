@@ -168,7 +168,7 @@ begin
                 we_b <= '1';
                 addr_b <= address(9 downto 0);
                 select_b <= address(17 downto 10);
-                ram_en <= '0';
+                ram_en <= '1';
                 ram_addr <= ram_address;
                 write_from <= "00"; -- write from RAM
                 audio_out_enable <= '0';
@@ -231,7 +231,7 @@ begin
             when wait_pipeline =>   -- going to this state requires setting the 'counter' value
                 next_status(0) <= '1';
                 
-                -- Reset Output Signals (do not reset 'enable' and 'mode', they will be reset in idle state)
+                -- Reset Output Signals
                 we_a <= '0';
                 we_b <= '0';
                 ram_en <= '0';  -- TODO
