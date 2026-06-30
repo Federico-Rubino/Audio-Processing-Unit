@@ -5,250 +5,258 @@ use work.apu_opcode_pkg.all;
 use work.apu_internal_pkg.all;
 
 entity AudioCU is
+    Generic(
+        RAM_WORD_SIZE : integer := 32,
+        ARAM_ADDR_SIZE : integer := 10,
+        INSTR_SIZE : integer := 128     -- currently the max is 4*RAM_WORD_SIZE
+    );
     Port (
         clk, rst : in std_logic;
+        en, update : in std_logic;
+        prog_addr_start : in std_logic_vector(RAM_WORD_SIZE-1 downto 0);
 
-        -- Read Register File
-        opcode : in apu_opcode_t;                               -- Opcode: 0000 copy, 0001 out, ...
-        in_buffer1_start : in std_logic_vector(9 downto 0);     -- Address of the first input buffer in the BRAM block 0
-        in_buffer1_offset : in std_logic_vector(17 downto 0);   -- Where in the first input buffer to start the operation [bit 17: 0 for sample 15:0, 1 for sample 31:16;  bits 16-10: select the BRAM block;  bits 9-0: actual address in the BRAM block]
-        in_buffer2_start : in std_logic_vector(9 downto 0);     -- Address of the second input buffer in the BRAM block 0
-        in_buffer2_offset : in std_logic_vector(17 downto 0);   -- Where in the second input buffer to start the operation [bit 17: 0 for sample 15:0, 1 for sample 31:16;  bits 16-10: select the BRAM block;  bits 9-0: actual address in the BRAM block]
-        in_buffer3_start : in std_logic_vector(9 downto 0);     -- Address of the third input buffer in the BRAM block 0
-        in_buffer3_offset : in std_logic_vector(17 downto 0);   -- Where in the third input buffer to start the operation [bit 17: 0 for sample 15:0, 1 for sample 31:16;  bits 16-10: select the BRAM block;  bits 9-0: actual address in the BRAM block]
-        out_buffer1_start : in std_logic_vector(9 downto 0);    -- Address of the first output buffer in the BRAM block 0
-        out_buffer1_offset : in std_logic_vector(17 downto 0);  -- Where in the first output buffer to start the operation [bit 17: 0 for sample 15:0, 1 for sample 31:16;  bits 16-10: select the BRAM block;  bits 9-0: actual address in the BRAM block]
-        out_buffer2_start : in std_logic_vector(9 downto 0);    -- Address of the second output buffer in the BRAM block 0
-        out_buffer2_offset : in std_logic_vector(17 downto 0);  -- Where in the second output buffer to start the operation [bit 17: 0 for sample 15:0, 1 for sample 31:16;  bits 16-10: select the BRAM block;  bits 9-0: actual address in the BRAM block]
-        action_size : in std_logic_vector(17 downto 0);         -- On how many samples the operation should be applied (consider there are 2 samples for each memory access)
-        block_size : in std_logic_vector(9 downto 0);           -- Length of the buffer in BRAM block 0
-        param1 : in std_logic_vector(15 downto 0);              -- First 16 bit parameter used for an operation
-        param2 : in std_logic_vector(15 downto 0);              -- Second 16 bit parameter used for an operation
-        start_ram_address : in std_logic_vector(31 downto 0);   -- Starting address of the buffer in the RAM (for the 'copy' operation)
-        left_right : in std_logic;                              -- 0: left; 1: right
-        start : in std_logic;                                   -- 0: do nothing; 1: do the operation
-
-        -- Write Register File
-        next_status : out std_logic_vector(31 downto 0);        -- bits 31-16: result of the operation;  bit 15-1: reserved for future use; bit 0: 1 if it is ready to execute, 0 if it is executing some operation
+        -- ARAM Interfacing
+        unit_select : out apu_unit_t;
         
-        -- TODO not used by now
-        started : out std_logic;
+        -- RAM Interfacing
+        ram_we, ram_en : out std_logic;
+        ram_addr, ram_din : out std_logic_vector(RAM_WORD_SIZE-1 downto 0);
+        ram_dout : in std_logic_vector(RAM_WORD_SIZE-1 downto 0);
+        
+        -- Audio IO Interfacing
+        aio_new_grain, aio_end : in std_logic;
+        aio_en, aio_lr : out std_logic;
+        aio_bs, aio_bl, aio_os, aio_ol : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
 
-        -- Control Signals
-        enable : out std_logic;
-        mode : out std_logic_vector(1 downto 0);
-        we_a : out std_logic;
-        addr_a : out std_logic_vector(9 downto 0);        
-        select_a : out std_logic_vector(7 downto 0);
-        we_b : out std_logic;
-        addr_b : out std_logic_vector(9 downto 0);
-        select_b : out std_logic_vector(7 downto 0);
-        ram_en : out std_logic;
-        ram_addr : out std_logic_vector(31 downto 0);
-        mux_index : out std_logic_vector(7 downto 0);
-        write_from : out std_logic_vector(1 downto 0);
-        audio_out_enable : out std_logic;
-        audio_out_lr : out std_logic
+        -- FFT Unit Interfacing
+        fft_end : in std_logic;
+        fft_en, fft_size, fwd_inv : out std_logic;
+        fft_bsr, fft_blr, fft_osr, fft_olr : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        fft_bsw, fft_blw, fft_osw, fft_olw : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+
+        -- Parallel ALU Interfacing
+        vec_end : in std_logic;
+        vec_en : out std_logic;
+        vec_op : out vec_op_t;
+        vec_scalar : out std_logic_vector(15 downto 0);
+        vec_bsr1, vec_blr1, vec_osr1, vec_olr1 : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        vec_bsr2, vec_blr2, vec_osr2, vec_olr2 : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        vec_bsw, vec_blw, vec_osw, vec_olw : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0)
     );
 end AudioCU;
 
 architecture Behavioral of AudioCU is
-    type state is (idle, fetch, copy, audio_out, wait_pipeline);
-    signal cu_state : state;
-    signal op : apu_opcode_t;
-    signal error : std_logic;
-    signal counter : std_logic_vector(17 downto 0);
-    signal address : std_logic_vector(17 downto 0);
-    signal ram_address : std_logic_vector(31 downto 0);
-    signal upper_bound : std_logic_vector(9 downto 0);
-    signal lower_bound : std_logic_vector(9 downto 0);
-    signal last_result : std_logic_vector(15 downto 0);
-
-    signal next_cu_state : state;
-    signal next_op : apu_opcode_t;
-    signal next_error : std_logic;
-    signal next_counter : std_logic_vector(17 downto 0);
-    signal next_address : std_logic_vector(17 downto 0);
-    signal next_ram_address : std_logic_vector(31 downto 0);
-    signal next_upper_bound : std_logic_vector(9 downto 0);
-    signal next_lower_bound : std_logic_vector(9 downto 0);
-    signal next_last_result : std_logic_vector(15 downto 0);
+    type cu_state is (IDLE, FETCH, DECODE, EXECUTE);
+    signal state, next_state : cu_state;
+    signal lr, next_lr : std_logic; -- 0=left, 1=right
+    signal counter, next_counter : std_logic_vector(15 downto 0);
+    signal op, next_op : apu_code_t;
+    signal instr, next_instr : std_logic_vector(INSTR_SIZE-1 downto 0);
+    signal pc, next_pc : std_logic_vector(RAM_WORD_SIZE-1 downto 0);
 
 begin
 
-    error <= '0';
-    next_error <= '0';
-
+    -- Sequential Process
     process(clk, rst)
     begin
         if rst = '0' then
-            cu_state <= idle;                               
-            last_result <= (others => '0');
+            state <= IDLE;
+            lr <= '0';
+            counter <= (others => '0');
+            op <= APU_NOP;
+            instr <= (others => '0');
+            pc <= (others => '0');
         elsif rising_edge(clk) then
-            cu_state <= next_cu_state;
-            op <= next_op;
-            error <= next_error;
+            state <= next_state;
+            lr <= next_lr;
             counter <= next_counter;
-            address <= next_address;
-            ram_address <= next_ram_address;
-            lower_bound <= next_lower_bound;
-            upper_bound <= next_upper_bound;
-            last_result <= next_last_result;
+            op <= next_op;
+            instr <= next_instr;
+            pc <= next_pc;
         end if;
     end process;
 
-    process(
-        cu_state, op, counter, address, ram_address, upper_bound, lower_bound, last_result,
-        opcode, in_buffer1_start, in_buffer1_offset, in_buffer2_start, in_buffer2_offset, in_buffer3_start, in_buffer3_offset,
-        out_buffer1_start, out_buffer1_offset, out_buffer2_start, out_buffer2_offset,
-        action_size, block_size,
-        param1, param2, start_ram_address, left_right, start
-    )
+    -- Combinational Process
+    process(all)
     begin
-        next_last_result <= last_result;    -- default assignment
-        next_status(31 downto 16) <= last_result;
-        next_status(15 downto 0)  <= (others => '0');
-    
-        case cu_state is
-
-            when idle =>
-                -- State Transition
-                if start = '1' then
-                    next_cu_state <= fetch;
-                end if;
-
-                next_op <= opcode;
-                next_error <= '0';
-                next_counter <= (others => '0');
-                next_address <= (others => '0');
-                next_ram_address <= (others => '0');
-                next_lower_bound <= (others => '0');
-                next_upper_bound <= (others => '0');
-                
-                -- Outputs
-                enable <= '0';
-
-            when fetch =>
-                next_status(0) <= '1';
-
-                case op is
-                    when APU_OP_COPY =>
-                        next_cu_state <= copy;
-                        next_op <= APU_OP_COPY;
-                        next_lower_bound <= in_buffer1_start;
-                        next_upper_bound <= std_logic_vector(unsigned(in_buffer1_start) +
-                                                             unsigned(block_size));
-                        next_address     <= std_logic_vector(unsigned(in_buffer1_start) +
-                                                             unsigned(in_buffer1_offset));
-                        next_counter <= '0' & std_logic_vector(unsigned(action_size(17 downto 1)) - 1);
-                        next_ram_address <= "00" & start_ram_address(31 downto 2);
-                    when APU_OP_AUDIO_OUT =>
-                        next_cu_state <= audio_out;
-                        next_op <= APU_OP_AUDIO_OUT;
-                        next_lower_bound <= in_buffer1_start;
-                        next_upper_bound <= std_logic_vector(unsigned(in_buffer1_start) +
-                                                             unsigned(block_size));
-                        next_address     <= std_logic_vector(unsigned(in_buffer1_start) +
-                                                             unsigned(in_buffer1_offset));
-                        next_counter <= action_size;
-                        next_ram_address <= (others => '0');
-                    when others =>
-                        next_cu_state <= idle;
-                end case;
-
-            when copy =>
-                next_status(0) <= '1';
-                
-                -- Datapath Control Signals (Outputs)
-                enable <= '1';
-                mode <= "01";   -- Mixed Read/Write Mode
-                we_a <= '0';
-                addr_a <= (others => '0');
-                select_a <= broadcast;
-                we_b <= '1';
-                addr_b <= address(9 downto 0);
-                select_b <= address(17 downto 10);
-                ram_en <= '1';
-                ram_addr <= ram_address;
-                write_from <= "00"; -- write from RAM
-                audio_out_enable <= '0';
-                audio_out_lr <= '0';
+        if en = '1' then
+            -- Default assignments
+            next_state <= state;
+            next_lr <= lr;
+            next_counter <= counter;
+            next_op <= op;
+            next_instr <= instr;
+            next_pc <= pc;
             
-                -- Update Registers (State Transition)
-                if counter = std_logic_vector(to_unsigned(0, 18)) then
-                    next_cu_state <= wait_pipeline;
-                    next_counter <= std_logic_vector(to_unsigned(2, 18));   -- Wait 2 clock cycles
-                    next_address <= (others => '0');
-                    next_lower_bound <= (others => '0');
-                    next_upper_bound <= (others => '0');
-                else
-                    next_op <= opcode;
-                    next_counter <= std_logic_vector(unsigned(counter) - 1);
-                    if unsigned(address(17 downto 10)) = 109 then
-                        next_address(9 downto 0)   <= std_logic_vector(unsigned(next_address(9 downto 0)) + 1);
-                        next_address(17 downto 10) <= (others => '0');
-                    else
-                        next_address(17 downto 10) <= std_logic_vector(unsigned(next_address(17 downto 10)) + 1);
+            ram_en <= '0'; ram_we <= '0';
+            ram_addr <= (others => '0'); ram_din <= (others => '0');
+            unit_select <= APU_UNIT_NONE;
+            aio_en <= '0'; aio_lr <= lr;
+            aio_bs <= (others => '0'); aio_bl <= (others => '0'); aio_os <= (others => '0'); aio_ol <= (others => '0');
+            fft_en <= '0'; fft_size <= '0'; fwd_inv <= '0';
+            fft_bsr <= (others => '0'); fft_blr <= (others => '0'); fft_osr <= (others => '0'); fft_olr <= (others => '0');
+            fft_bsw <= (others => '0'); fft_blw <= (others => '0'); fft_osw <= (others => '0'); fft_olw <= (others => '0');
+            vec_en <= '0'; vec_op <= (others => '0');
+            vec_scalar <= (others => '0');
+            vec_bsr1 <= (others => '0'); vec_blr1 <= (others => '0'); vec_osr1 <= (others => '0'); vec_olr1 <= (others => '0');
+            vec_bsr2 <= (others => '0'); vec_blr2 <= (others => '0'); vec_osr2 <= (others => '0'); vec_olr2 <= (others => '0');
+            vec_bsw <= (others => '0'); vec_blw <= (others => '0'); vec_osw <= (others => '0'); vec_olw <= (others => '0');
+
+            case state is
+                when IDLE =>
+                    next_pc <= prog_addr_start;
+                    if update = '1' or aio_new_grain = '1' then
+                        next_state <= FETCH;
+                        next_counter <= (others => '0') & std_logic_vector(to_unsigned(INSTR_SIZE / RAM_WORD_SIZE - 1, 16)); 
+                        next_pc <= std_logic_vector(unsigned(prog_addr_start) + 1);
+
+                        ram_en <= '1'; ram_we <= '0';
+                        ram_addr <= prog_addr_start;
                     end if;
-                    next_ram_address <= std_logic_vector(unsigned(ram_address) + 1);
-                end if;
-                
-            when audio_out =>
-                next_status(0) <= '1';
-                
-                -- Datapath Control Signals (Outputs)
-                enable <= '1';
-                mode <= "01";   -- Mixed Read/Write Mode
-                we_a <= '0';
-                addr_a <= address(9 downto 0);
-                select_a <= address(17 downto 10);
-                we_b <= '0';
-                addr_b <= (others => '0');
-                select_b <= broadcast;
-                ram_en <= '0';
-                ram_addr <= ram_address;
-                write_from <= "00";
-                mux_index <= address(17 downto 10);
-                audio_out_enable <= '1';
-                audio_out_lr <= left_right;
 
-                if unsigned(counter) = 0 then
-                    next_counter <= std_logic_vector(to_unsigned(2, 18));
-                    next_cu_state <= wait_pipeline;
-                    next_address <= (others => '0');
-                    next_lower_bound <= (others => '0');
-                    next_upper_bound <= (others => '0');
-                else
+                when FETCH =>
                     next_counter <= std_logic_vector(unsigned(counter) - 1);
-                    if unsigned(address(17 downto 10)) = 109 then
-                        next_address(9 downto 0)   <= std_logic_vector(unsigned(next_address(9 downto 0)) + 1);
-                        next_address(17 downto 10) <= (others => '0');
-                    else
-                        next_address(17 downto 10) <= std_logic_vector(unsigned(next_address(17 downto 10)) + 1);
+                    next_pc <= std_logic_vector(unsigned(pc) + 1);
+                    ram_en <= '1'; ram_we <= '0';
+                    ram_addr <= pc;
+
+                    -- Load the correct part of the instruction
+                    if    unsigned(counter) = 0 then next_instr(RAM_WORD_SIZE-1 downto 0) <= ram_dout;
+                    elsif unsigned(counter) = 1 then next_instr(2*RAM_WORD_SIZE-1 downto RAM_WORD_SIZE) <= ram_dout;
+                    elsif unsigned(counter) = 2 then next_instr(3*RAM_WORD_SIZE-1 downto 2*RAM_WORD_SIZE) <= ram_dout;
+                    elsif unsigned(counter) = 3 then next_instr(4*RAM_WORD_SIZE-1 downto 3*RAM_WORD_SIZE) <= ram_dout;
                     end if;
-                end if;
-                
-            when wait_pipeline =>   -- going to this state requires setting the 'counter' value
-                next_status(0) <= '1';
-                
-                -- Reset Output Signals
-                we_a <= '0';
-                we_b <= '0';
-                ram_en <= '0';  -- TODO
-                audio_out_enable <= '0';
+                    
+                    if unsigned(counter) = 0 then
+                        next_state <= DECODE;
+                        ram_en <= '0';
+                    end if;
 
-                -- State Transition
-                if unsigned(counter) = 0 then
-                    next_cu_state <= idle;
-                else
-                    next_counter <= std_logic_vector(unsigned(counter) - 1);
-                    next_cu_state <= wait_pipeline;
-                end if;
+                when DECODE =>
+                    next_state <= EXECUTE;
+                    next_op <= instr(INSTR_SIZE-1 downto INSTR_SIZE-APU_OP_WIDTH);
 
-            when others =>
-                next_cu_state <= idle;
-                next_error <= '1';
-        end case;
+                    if instr(INSTR_SIZE-1 downto INSTR_SIZE-APU_OP_WIDTH) = APU_OP_STOP then
+                        if lr = '0' then    -- last channel was left, going to execute right
+                            next_state <= FETCH;
+                            next_lr <= '1';
+                        else                -- last channel was right, going to idle
+                            next_state <= IDLE;
+                            next_lr <= '0';
+                        end if;
+                    end if;
+                
+                when EXECUTE =>
+                    case op is
+                        -- Audio IO
+                        when APU_OP_AUDIO_IN | APU_OP_AUDIO_OUT =>
+                            unit_select <= APU_UNIT_AUDIO_IO;
+                            aio_en <= '1';
+                            aio_bs <= instr(123 downto 114);
+                            aio_bl <= instr(113 downto 104);
+                            aio_os <= instr(103 downto 94);
+                            aio_ol <= instr(93 downto 84);
+
+                            if aio_end = '1' then
+                                next_state <= FETCH;
+                            end if;
+
+                        -- FFT/IFFT
+                        when APU_OP_FFT | APU_OP_IFFT =>
+                            unit_select <= APU_UNIT_FFT;
+                            fft_en <= '1';
+                            fwd_inv <= '1' when (op = APU_OP_FFT) else '0';
+                            fft_size <= instr(123);
+                            fft_bsr <= instr(122 downto 113);
+                            fft_blr <= instr(112 downto 103);
+                            fft_osr <= instr(102 downto 93);
+                            fft_olr <= instr(92 downto 83);
+                            fft_bsw <= instr(82 downto 73);
+                            fft_blw <= instr(72 downto 63);
+                            fft_osw <= instr(62 downto 53);
+                            fft_olw <= instr(52 downto 43);
+
+                            if fft_end = '1' then
+                                next_state <= FETCH;
+                            end if;
+
+                        -- Vector/Scalar Parallel Operations
+                        when APU_OP_ADD_VECTOR | APU_OP_ADD_SCALAR | 
+                             APU_OP_SUB_VECTOR | APU_OP_SUB_SCALAR | 
+                             APU_OP_MUL_VECTOR | APU_OP_MUL_SCALAR | 
+                             APU_OP_MULC_VECTOR =>
+                             
+                            unit_select <= APU_UNIT_VEC;
+                            vec_en <= '1';
+                            
+                            case op is
+                                when APU_OP_ADD_SCALAR  => vec_op <= VEC_OP_ADDS;
+                                when APU_OP_ADD_VECTOR  => vec_op <= VEC_OP_ADDV;
+                                when APU_OP_SUB_SCALAR  => vec_op <= VEC_OP_SUBS;
+                                when APU_OP_SUB_VECTOR  => vec_op <= VEC_OP_SUBV;
+                                when APU_OP_MUL_SCALAR  => vec_op <= VEC_OP_MULS;
+                                when APU_OP_MUL_VECTOR  => vec_op <= VEC_OP_MULV;
+                                when APU_OP_MULC_VECTOR => vec_op <= VEC_OP_MULCV;
+                                when others             => vec_op <= (others => '0');
+                            end case;
+
+                            vec_bsr1 <= instr(123 downto 114);
+                            vec_blr1 <= instr(113 downto 104);
+                            vec_osr1 <= instr(103 downto 94);
+                            vec_olr1 <= instr(93 downto 84);
+                            vec_bsw <= instr(43 downto 34);
+                            vec_blw <= instr(33 downto 24);
+                            vec_osw <= instr(23 downto 14);
+                            vec_olw <= instr(13 downto 4);
+
+                            if (op = APU_OP_ADD_SCALAR or op = APU_OP_SUB_SCALAR or op = APU_OP_MUL_SCALAR) then
+                                vec_scalar <= instr(83 downto 68);
+                                vec_bsr2 <= (others => '0');
+                                vec_blr2 <= (others => '0');
+                                vec_osr2 <= (others => '0');
+                                vec_olr2 <= (others => '0');
+                            else
+                                vec_scalar <= (others => '0');
+                                vec_bsr2 <= instr(83 downto 74);
+                                vec_blr2 <= instr(73 downto 64);
+                                vec_osr2 <= instr(63 downto 54);
+                                vec_olr2 <= instr(53 downto 44);
+                            end if;
+
+                            if vec_end = '1' then
+                                next_state <= FETCH;
+                            end if;
+
+                        when others =>
+                            next_state <= FETCH;
+                    end case;
+
+                when others =>
+                    next_state <= IDLE;
+            end case;
+
+        else    -- en = '0' reset every register
+            next_state <= IDLE;
+            next_lr <= '0';
+            next_counter <= (others => '0');
+            next_op <= APU_NOP;
+            next_instr <= (others => '0');
+            next_pc <= prog_addr_start;
+            
+            ram_en <= '0'; ram_we <= '0';
+            ram_addr <= (others => '0'); ram_din <= (others => '0');
+            unit_select <= APU_UNIT_NONE;
+            aio_en <= '0'; aio_lr <= '0';
+            aio_bs <= (others => '0'); aio_bl <= (others => '0'); aio_os <= (others => '0'); aio_ol <= (others => '0');
+            fft_en <= '0'; fft_size <= '0'; fwd_inv <= '0';
+            fft_bsr <= (others => '0'); fft_blr <= (others => '0'); fft_osr <= (others => '0'); fft_olr <= (others => '0');
+            fft_bsw <= (others => '0'); fft_blw <= (others => '0'); fft_osw <= (others => '0'); fft_olw <= (others => '0');
+            vec_bsr1 <= (others => '0'); vec_blr1 <= (others => '0'); vec_osr1 <= (others => '0'); vec_olr1 <= (others => '0');
+            vec_bsr2 <= (others => '0'); vec_blr2 <= (others => '0'); vec_osr2 <= (others => '0'); vec_olr2 <= (others => '0');
+            vec_bsw <= (others => '0'); vec_blw <= (others => '0'); vec_osw <= (others => '0'); vec_olw <= (others => '0');
+            vec_en <= '0'; vec_op <= (others => '0');
+            vec_scalar <= (others => '0');
+        end if;
     end process;
 
 end Behavioral;
