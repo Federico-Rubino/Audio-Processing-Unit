@@ -4,7 +4,7 @@ use IEEE.STD_LOGIC_1164.all;
 package apu_opcode_pkg is
 
     constant APU_OP_WIDTH : integer := 4;
-    subtype apu_code_t is std_logic_vector(OP_WIDTH-1 downto 0);
+    subtype apu_code_t is std_logic_vector(APU_OP_WIDTH-1 downto 0);
 
     constant APU_NOP            : apu_code_t := "0000";
     constant APU_OP_FFT         : apu_code_t := "0001";

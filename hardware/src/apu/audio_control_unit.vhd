@@ -6,8 +6,8 @@ use work.apu_internal_pkg.all;
 
 entity AudioCU is
     Generic(
-        RAM_WORD_SIZE : integer := 32,
-        ARAM_ADDR_SIZE : integer := 10,
+        RAM_WORD_SIZE : integer := 32;
+        ARAM_ADDR_SIZE : integer := 10;
         INSTR_SIZE : integer := 128     -- currently the max is 4*RAM_WORD_SIZE
     );
     Port (
@@ -107,7 +107,7 @@ begin
                     next_pc <= prog_addr_start;
                     if update = '1' or aio_new_grain = '1' then
                         next_state <= FETCH;
-                        next_counter <= (others => '0') & std_logic_vector(to_unsigned(INSTR_SIZE / RAM_WORD_SIZE - 1, 16)); 
+                        next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / RAM_WORD_SIZE - 1, 16)); 
                         next_pc <= std_logic_vector(unsigned(prog_addr_start) + 1);
 
                         ram_en <= '1'; ram_we <= '0';
@@ -159,6 +159,7 @@ begin
 
                             if aio_end = '1' then
                                 next_state <= FETCH;
+                                next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / RAM_WORD_SIZE - 1, 16));
                             end if;
 
                         -- FFT/IFFT
@@ -178,6 +179,7 @@ begin
 
                             if fft_end = '1' then
                                 next_state <= FETCH;
+                                next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / RAM_WORD_SIZE - 1, 16));
                             end if;
 
                         -- Vector/Scalar Parallel Operations
@@ -225,10 +227,11 @@ begin
 
                             if vec_end = '1' then
                                 next_state <= FETCH;
+                                next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / RAM_WORD_SIZE - 1, 16));
                             end if;
 
                         when others =>
-                            next_state <= FETCH;
+                            next_state <= IDLE;
                     end case;
 
                 when others =>
