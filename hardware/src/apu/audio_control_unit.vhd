@@ -108,7 +108,7 @@ begin
                     if update = '1' or aio_new_grain = '1' then
                         next_state <= FETCH;
                         next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / RAM_WORD_SIZE - 1, 16)); 
-                        next_pc <= std_logic_vector(unsigned(pc) + to_unsigned(RAM_WORD_SIZE/8, RAM_WORD_SIZE));
+                        next_pc <= std_logic_vector(unsigned(pc) + 1);
 
                         ram_en <= '1'; ram_we <= '0';
                         ram_addr <= prog_addr_start;
@@ -116,7 +116,7 @@ begin
 
                 when FETCH =>
                     next_counter <= std_logic_vector(unsigned(counter) - 1);
-                    next_pc <= std_logic_vector(unsigned(pc) + to_unsigned(RAM_WORD_SIZE/8, RAM_WORD_SIZE));
+                    next_pc <= std_logic_vector(unsigned(pc) + 1);
                     ram_en <= '1'; ram_we <= '0';
                     ram_addr <= pc;
 
@@ -160,7 +160,9 @@ begin
 
                             if aio_end = '1' then
                                 next_state <= FETCH;
-                                next_pc <= std_logic_vector(unsigned(pc) + to_unsigned(RAM_WORD_SIZE/8, RAM_WORD_SIZE));
+                                ram_en <= '1'; ram_we <= '0';
+                                ram_addr <= pc;
+                                next_pc <= std_logic_vector(unsigned(pc) + 1);
                                 next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / RAM_WORD_SIZE - 1, 16));
                             end if;
 
@@ -181,7 +183,9 @@ begin
 
                             if fft_end = '1' then
                                 next_state <= FETCH;
-                                next_pc <= std_logic_vector(unsigned(pc) + to_unsigned(RAM_WORD_SIZE/8, RAM_WORD_SIZE));
+                                ram_en <= '1'; ram_we <= '0';
+                                ram_addr <= pc;
+                                next_pc <= std_logic_vector(unsigned(pc) + 1);
                                 next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / RAM_WORD_SIZE - 1, 16));
                             end if;
 
@@ -230,7 +234,9 @@ begin
 
                             if vec_end = '1' then
                                 next_state <= FETCH;
-                                next_pc <= std_logic_vector(unsigned(pc) + to_unsigned(RAM_WORD_SIZE/8, RAM_WORD_SIZE));
+                                ram_en <= '1'; ram_we <= '0';
+                                ram_addr <= pc;
+                                next_pc <= std_logic_vector(unsigned(pc) + 1);
                                 next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / RAM_WORD_SIZE - 1, 16));
                             end if;
 
