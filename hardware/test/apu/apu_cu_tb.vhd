@@ -271,7 +271,6 @@ begin
         -- TEST CASE 1: AUDIO INPUT INSTRUCTION MAPPING
         -- --------------------------------------------------------
         report "[TEST] Launching Audio Input Core Validation...";
-        prog_addr_start <= std_logic_vector(to_unsigned(0, RAM_WORD_SIZE));
         wait until rising_edge(clk);
         update <= '1';
         wait until rising_edge(clk);
@@ -294,7 +293,6 @@ begin
         -- TEST CASE 2: FFT UNIT PARAMETER GENERATOR
         -- --------------------------------------------------------
         report "[TEST] Launching FFT Co-Processor Parameter Routing...";
-        prog_addr_start <= std_logic_vector(to_unsigned(4, RAM_WORD_SIZE));
         wait until rising_edge(clk);
         update <= '1';
         wait until rising_edge(clk);
@@ -318,7 +316,6 @@ begin
         -- TEST CASE 3: PARALLEL VECTOR UNIT EXECUTION
         -- --------------------------------------------------------
         report "[TEST] Launching Parallel SIMD Vector Instruction Mapping...";
-        prog_addr_start <= std_logic_vector(to_unsigned(8, RAM_WORD_SIZE));
         wait until rising_edge(clk);
         update <= '1';
         wait until rising_edge(clk);
@@ -342,7 +339,6 @@ begin
         -- TEST CASE 4: IMMEDIATE SCALAR FIELD ISOLATION
         -- --------------------------------------------------------
         report "[TEST] Launching Scalar Immediate Value Routing & Bus Isolation Checks...";
-        prog_addr_start <= std_logic_vector(to_unsigned(12, RAM_WORD_SIZE));
         wait until rising_edge(clk);
         update <= '1';
         wait until rising_edge(clk);
@@ -365,7 +361,6 @@ begin
         -- TEST CASE 5: STEREO PING-PONG HANDSHAKE (STOP COMMAND)
         -- --------------------------------------------------------
         report "[TEST] Testing Stereo Interleaved Channel Sync (STOP Ping-Pong)...";
-        prog_addr_start <= std_logic_vector(to_unsigned(16, RAM_WORD_SIZE));
         
         -- System starts default tracking set to Left Channel (0)
         assert (aio_lr = '0') report "System failed default Left audio channel alignment assertion" severity failure;
@@ -375,15 +370,38 @@ begin
         wait until rising_edge(clk);
         update <= '0';
 
-        -- Await target parsing loop return jump inside the control engine
-        wait for CLK_PERIOD * 6; 
+        -- Wait for STOP command to flip channel pointer to Right ('1')
+        wait until aio_lr = '1';
         wait for 1 ns;
-
-        -- Channel pointer must flip to Right channel ('1') and re-enter processing matrix loops
         assert (aio_lr = '1') report "Channel pointer failed to transition to Right channel track processing" severity failure;
+
+        -- --- SECOND PASS (RIGHT CHANNEL): CLEAR PIPELINE ---
+
+        -- 1. Trigger & Clear Audio IO
+        wait until rising_edge(clk); update <= '1'; wait until rising_edge(clk); update <= '0';
+        wait until aio_en = '1';
+        wait until rising_edge(clk); aio_end <= '1'; wait until rising_edge(clk); aio_end <= '0';
+
+        -- 2. Trigger & Clear FFT
+        wait until rising_edge(clk); update <= '1'; wait until rising_edge(clk); update <= '0';
+        wait until fft_en = '1';
+        wait until rising_edge(clk); fft_end <= '1'; wait until rising_edge(clk); fft_end <= '0';
+
+        -- 3. Trigger & Clear Vector ADD
+        wait until rising_edge(clk); update <= '1'; wait until rising_edge(clk); update <= '0';
+        wait until vec_en = '1';
+        wait until rising_edge(clk); vec_end <= '1'; wait until rising_edge(clk); vec_end <= '0';
+
+        -- 4. Trigger & Clear Vector MUL
+        wait until rising_edge(clk); update <= '1'; wait until rising_edge(clk); update <= '0';
+        wait until vec_en = '1';
+        wait until rising_edge(clk); vec_end <= '1'; wait until rising_edge(clk); vec_end <= '0';
+
+        -- 5. Trigger the final STOP command to exit
+        wait until rising_edge(clk); update <= '1'; wait until rising_edge(clk); update <= '0';
         
-        -- Let the second iteration run through FETCH and decode the same STOP instruction
-        wait for CLK_PERIOD * 6;
+        -- Wait for system to safely return to Left channel tracking (IDLE state)
+        wait until aio_lr = '0';
         wait for 1 ns;
 
         -- System finishes second phase loop: returns safely to '0' tracking status inside IDLE block state

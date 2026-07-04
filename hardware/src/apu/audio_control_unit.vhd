@@ -141,6 +141,12 @@ begin
                         if lr = '0' then    -- last channel was left, going to execute right
                             next_state <= FETCH;
                             next_lr <= '1';
+
+                            next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / RAM_WORD_SIZE - 1, 16)); 
+                            next_pc <= std_logic_vector(unsigned(prog_addr_start) + 1);
+
+                            ram_en <= '1'; ram_we <= '0';
+                            ram_addr <= prog_addr_start;
                         else                -- last channel was right, going to idle
                             next_state <= IDLE;
                             next_lr <= '0';
