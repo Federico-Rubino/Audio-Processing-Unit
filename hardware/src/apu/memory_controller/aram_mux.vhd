@@ -1,6 +1,7 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
+use work.apu_internal_pkg.all;
 
 entity aram_mux is
     generic (
@@ -8,7 +9,7 @@ entity aram_mux is
         BUFFER_SIZE_BITS  : integer := 18
   );
     port (
-        unit_select : in std_logic_vector(2 downto 0);
+        unit_select : in apu_unit_t;
 
         --audio in unit
 
@@ -296,14 +297,6 @@ entity aram_mux is
 end aram_mux;
 
 architecture Behavioral of aram_mux is
-    -- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!USE PACKAGE WHEN MERGE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    constant APU_UNIT_NONE      : std_logic_vector(2 downto 0) := "000";
-    constant APU_UNIT_AUDIO_IN  : std_logic_vector(2 downto 0) := "001";
-    constant APU_UNIT_AUDIO_OUT : std_logic_vector(2 downto 0) := "010";
-    constant APU_UNIT_FFT       : std_logic_vector(2 downto 0) := "011";
-    constant APU_UNIT_VEC       : std_logic_vector(2 downto 0) := "100";
-    constant APU_UNIT_PITCH     : std_logic_vector(2 downto 0) := "101";
-
 begin
 
     process(all)

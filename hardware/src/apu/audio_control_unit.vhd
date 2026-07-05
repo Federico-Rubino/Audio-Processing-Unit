@@ -31,9 +31,11 @@ entity AudioCU is
         idata_out : in  std_logic_vector(31 downto 0);
         
         -- Audio IO Interfacing
-        aio_new_grain, aio_end : in std_logic;
-        aio_en, aio_lr : out std_logic;
-        aio_bs, aio_bl, aio_os, aio_ol : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        aio_new_grain, aio_in_end, aio_out_end : in std_logic;
+        aio_in_en, aio_in_lr : out std_logic;
+        aio_in_bs, aio_in_bl, aio_in_os, aio_in_ol : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        aio_out_en, aio_out_lr : out std_logic;
+        aio_out_bs, aio_out_bl, aio_out_os, aio_out_ol : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
 
         -- FFT Unit Interfacing
         fft_end : in std_logic;
@@ -98,8 +100,10 @@ begin
             ram_en <= '0'; ram_we <= '0';
             ram_addr <= (others => '0'); ram_din <= (others => '0');
             unit_select <= APU_UNIT_NONE;
-            aio_en <= '0'; aio_lr <= lr;
-            aio_bs <= (others => '0'); aio_bl <= (others => '0'); aio_os <= (others => '0'); aio_ol <= (others => '0');
+            aio_in_en <= '0'; aio_in_lr <= lr;
+            aio_in_bs <= (others => '0'); aio_in_bl <= (others => '0'); aio_in_os <= (others => '0'); aio_in_ol <= (others => '0');
+            aio_out_en <= '0'; aio_out_lr <= lr;
+            aio_out_bs <= (others => '0'); aio_out_bl <= (others => '0'); aio_out_os <= (others => '0'); aio_out_ol <= (others => '0');
             fft_en <= '0'; fft_size <= '0'; fwd_inv <= '0';
             fft_bsr <= (others => '0'); fft_blr <= (others => '0'); fft_osr <= (others => '0'); fft_olr <= (others => '0');
             fft_bsw <= (others => '0'); fft_blw <= (others => '0'); fft_osw <= (others => '0'); fft_olw <= (others => '0');
@@ -172,16 +176,33 @@ begin
                 
                 when EXECUTE =>
                     case op is
-                        -- Audio IO
-                        when APU_OP_AUDIO_IN | APU_OP_AUDIO_OUT =>
-                            unit_select <= APU_UNIT_AUDIO_IO;
-                            aio_en <= '1';
-                            aio_bs <= instr(123 downto 114);
-                            aio_bl <= instr(113 downto 104);
-                            aio_os <= instr(103 downto 94);
-                            aio_ol <= instr(93 downto 84);
+                        -- Audio In
+                        when APU_OP_AUDIO_IN =>
+                            unit_select <= APU_UNIT_AUDIO_IN;
+                            aio_in_en <= '1';
+                            aio_in_bs <= instr(123 downto 114);
+                            aio_in_bl <= instr(113 downto 104);
+                            aio_in_os <= instr(103 downto 94);
+                            aio_in_ol <= instr(93 downto 84);
 
-                            if aio_end = '1' then
+                            if aio_in_end = '1' then
+                                next_state <= FETCH;
+                                ram_en <= '1'; ram_we <= '0';
+                                ram_addr <= pc;
+                                next_pc <= std_logic_vector(unsigned(pc) + 1);
+                                next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / RAM_WORD_SIZE - 1, COUNTER_SIZE));
+                            end if;
+
+                        -- Audio Out
+                        when APU_OP_AUDIO_OUT =>
+                            unit_select <= APU_UNIT_AUDIO_OUT;
+                            aio_out_en <= '1';
+                            aio_out_bs <= instr(123 downto 114);
+                            aio_out_bl <= instr(113 downto 104);
+                            aio_out_os <= instr(103 downto 94);
+                            aio_out_ol <= instr(93 downto 84);
+
+                            if aio_out_end = '1' then
                                 next_state <= FETCH;
                                 ram_en <= '1'; ram_we <= '0';
                                 ram_addr <= pc;
@@ -282,8 +303,10 @@ begin
             ram_en <= '0'; ram_we <= '0';
             ram_addr <= (others => '0'); ram_din <= (others => '0');
             unit_select <= APU_UNIT_NONE;
-            aio_en <= '0'; aio_lr <= '0';
-            aio_bs <= (others => '0'); aio_bl <= (others => '0'); aio_os <= (others => '0'); aio_ol <= (others => '0');
+            aio_in_en <= '0'; aio_in_lr <= '0';
+            aio_in_bs <= (others => '0'); aio_in_bl <= (others => '0'); aio_in_os <= (others => '0'); aio_in_ol <= (others => '0');
+            aio_out_en <= '0'; aio_out_lr <= '0';
+            aio_out_bs <= (others => '0'); aio_out_bl <= (others => '0'); aio_out_os <= (others => '0'); aio_out_ol <= (others => '0');
             fft_en <= '0'; fft_size <= '0'; fwd_inv <= '0';
             fft_bsr <= (others => '0'); fft_blr <= (others => '0'); fft_osr <= (others => '0'); fft_olr <= (others => '0');
             fft_bsw <= (others => '0'); fft_blw <= (others => '0'); fft_osw <= (others => '0'); fft_olw <= (others => '0');
