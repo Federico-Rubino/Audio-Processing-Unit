@@ -230,7 +230,7 @@ begin
                             iaddr <= (others => '0');
                             iaddr(UPARAM_SIZE+1) <= '1';
                             iaddr(UPARAM_SIZE) <= lr;
-                            iaddr(UPARAM_SIZE-1 downto 0) <= instr(4*UPARAM_SIZE-1 downto 3*UPARAM_SIZE);
+                            iaddr(UPARAM_SIZE-1 downto 0) <= instr(10*UPARAM_SIZE-1 downto 9*UPARAM_SIZE);
 
                         when APU_OP_ADD_VECTOR | APU_OP_SUB_VECTOR | APU_OP_MUL_VECTOR | APU_OP_MULC_VECTOR |
                              APU_OP_ADD_SCALAR | APU_OP_SUB_SCALAR | APU_OP_MUL_SCALAR =>
@@ -239,7 +239,7 @@ begin
                             iaddr <= (others => '0');
                             iaddr(UPARAM_SIZE+1) <= '1';
                             iaddr(UPARAM_SIZE) <= lr;
-                            iaddr(UPARAM_SIZE-1 downto 0) <= instr(4*UPARAM_SIZE-1 downto 3*UPARAM_SIZE);
+                            iaddr(UPARAM_SIZE-1 downto 0) <= instr(10*UPARAM_SIZE-1 downto 9*UPARAM_SIZE);
 
                         when APU_OP_LOAD =>
                             -- TODO save immediate parameters
@@ -259,8 +259,12 @@ begin
                 next_counter <= std_logic_vector(unsigned(counter) - 1);
                 iwe <= '0'; ien <= '1';
                 iaddr <= (others => '0');
-                iaddr(UPARAM_SIZE-1 downto 0) <= instr((to_integer(unsigned(counter)) + 1) * UPARAM_SIZE - 1 downto to_integer(unsigned(counter)) * UPARAM_SIZE);
-
+                if unsigned(counter) > 0 then
+                    iaddr(UPARAM_SIZE+1) <= '1';
+                    iaddr(UPARAM_SIZE) <= lr;
+                    iaddr(UPARAM_SIZE-1 downto 0) <= instr(to_integer(unsigned(counter)) * UPARAM_SIZE - 1 downto (to_integer(unsigned(counter)) - 1) * UPARAM_SIZE);
+                end if;
+                
                 -- Unified parameter mapping
                 if    unsigned(counter) = 9 then next_buf3(ARAM_ADDR_SIZE*1-1 downto 0)                <= idata_out(ARAM_ADDR_SIZE-1 downto 0); -- out_bs
                 elsif unsigned(counter) = 8 then next_buf3(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1) <= idata_out(ARAM_ADDR_SIZE-1 downto 0); -- out_bl
@@ -276,6 +280,7 @@ begin
 
                 if unsigned(counter) = 0 then
                     next_state <= EXECUTE;
+                    ien <= '0';
                 end if;
             
             when EXECUTE =>

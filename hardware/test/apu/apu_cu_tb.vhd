@@ -349,6 +349,10 @@ begin
         report "----------------------------------------------------";
         report "[PASSED] ALL POINTER DEREFERENCING TEST CASES CLEAR!";
         report "----------------------------------------------------";
+
+        -- Reset 'start' flag to 0
+        wait for 2000 ns;
+        write_bram(1, std_logic_vector(to_unsigned(2, ARAM_WORD_SIZE)));
         
         wait; -- Suspension ends simulation run
     end process;
