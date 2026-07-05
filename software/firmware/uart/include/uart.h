@@ -43,6 +43,23 @@ uint8_t uart_read_byte(uart_t* uart){
     return (uint8_t)(uart->rx & 0xFF);
 }
 
+//non-blocking: 1 if a byte is waiting, 0 otherwise
+uint32_t uart_has_data(uart_t* uart){
+    return (uart->status & UART_STATUS_RX_VALID) != 0;
+}
+
+//bounded wait: 1 if a byte showed up within max_spins, 0 on timeout.
+//spin-count based -- this core has no hardware timer to measure real time.
+uint32_t uart_wait_data(uart_t* uart, uint32_t max_spins){
+    uint32_t spins = 0;
+    while (!uart_has_data(uart)) {
+        if (++spins > max_spins) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 void uart_write_byte(uart_t* uart, uint8_t data){
     while(uart->status & UART_STATUS_TX_FULL);
     uart->tx = (uint32_t)data;

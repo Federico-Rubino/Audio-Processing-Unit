@@ -4,3 +4,4 @@
 **/.vscode/
 **/.vscode-test/
 **/bin/
+**/__pycache__/
