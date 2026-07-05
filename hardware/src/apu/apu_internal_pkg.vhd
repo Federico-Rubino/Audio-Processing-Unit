@@ -20,9 +20,10 @@ package apu_internal_pkg is
     subtype apu_unit_t is std_logic_vector(APU_UNIT_WIDTH-1 downto 0);
 
     constant APU_UNIT_NONE      : apu_unit_t := "000";
-    constant APU_UNIT_AUDIO_IO  : apu_unit_t := "001";
-    constant APU_UNIT_FFT       : apu_unit_t := "010";
-    constant APU_UNIT_VEC       : apu_unit_t := "011";
+    constant APU_UNIT_AUDIO_IN  : apu_unit_t := "001";
+    constant APU_UNIT_AUDIO_OUT : apu_unit_t := "010";
+    constant APU_UNIT_FFT       : apu_unit_t := "011";
+    constant APU_UNIT_VEC       : apu_unit_t := "100";
 
     -- Utilities
     type logic_aoa is array (natural range <>) of std_logic_vector;

@@ -8,7 +8,8 @@ entity AudioCU is
     Generic(
         RAM_WORD_SIZE : integer := 32;
         ARAM_ADDR_SIZE : integer := 10;
-        INSTR_SIZE : integer := 128     -- currently the max is 4*RAM_WORD_SIZE
+        INSTR_SIZE : integer := 128;     -- currently the max is 4*RAM_WORD_SIZE
+        COUNTER_SIZE : integer := 16
     );
     Port (
         clk, rst : in std_logic;
@@ -22,6 +23,12 @@ entity AudioCU is
         ram_we, ram_en : out std_logic;
         ram_addr, ram_din : out std_logic_vector(RAM_WORD_SIZE-1 downto 0);
         ram_dout : in std_logic_vector(RAM_WORD_SIZE-1 downto 0);
+
+        -- Instr RAM Interfacing
+        iwe, ien  : out std_logic;
+        iaddr     : out std_logic_vector(10 downto 0);
+        idata_in  : out std_logic_vector(31 downto 0);
+        idata_out : in  std_logic_vector(31 downto 0);
         
         -- Audio IO Interfacing
         aio_new_grain, aio_end : in std_logic;
@@ -46,10 +53,10 @@ entity AudioCU is
 end AudioCU;
 
 architecture Behavioral of AudioCU is
-    type cu_state is (IDLE, FETCH, DECODE, EXECUTE);
+    type cu_state is (IDLE, FETCH, DECODE, LOAD, EXECUTE);
     signal state, next_state : cu_state;
     signal lr, next_lr : std_logic; -- 0=left, 1=right
-    signal counter, next_counter : std_logic_vector(15 downto 0);
+    signal counter, next_counter : std_logic_vector(COUNTER_SIZE-1 downto 0);
     signal op, next_op : apu_code_t;
     signal instr, next_instr : std_logic_vector(INSTR_SIZE-1 downto 0);
     signal pc, next_pc : std_logic_vector(RAM_WORD_SIZE-1 downto 0);
@@ -107,7 +114,7 @@ begin
                     next_pc <= prog_addr_start;
                     if update = '1' or aio_new_grain = '1' then
                         next_state <= FETCH;
-                        next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / RAM_WORD_SIZE - 1, 16)); 
+                        next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / RAM_WORD_SIZE - 1, COUNTER_SIZE)); 
                         next_pc <= std_logic_vector(unsigned(pc) + 1);
 
                         ram_en <= '1'; ram_we <= '0';
@@ -134,15 +141,16 @@ begin
                     end if;
 
                 when DECODE =>
-                    next_state <= EXECUTE;
                     next_op <= instr(INSTR_SIZE-1 downto INSTR_SIZE-APU_OP_WIDTH);
+                    next_counter <= std_logic_vector(unsigned(counter) - 1);
 
+                    -- if op is stop, then execute go to idle or to the other channel, otherwise load all the needed parameters
                     if instr(INSTR_SIZE-1 downto INSTR_SIZE-APU_OP_WIDTH) = APU_OP_STOP then
                         if lr = '0' then    -- last channel was left, going to execute right
                             next_state <= FETCH;
                             next_lr <= '1';
 
-                            next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / RAM_WORD_SIZE - 1, 16)); 
+                            next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / RAM_WORD_SIZE - 1, COUNTER_SIZE)); 
                             next_pc <= std_logic_vector(unsigned(prog_addr_start) + 1);
 
                             ram_en <= '1'; ram_we <= '0';
@@ -151,6 +159,15 @@ begin
                             next_state <= IDLE;
                             next_lr <= '0';
                         end if;
+
+                    else
+                        case instr(INSTR_SIZE-1 downto INSTR_SIZE-APU_OP_WIDTH) is
+                            when APU_OP_AUDIO_IN | APU_OP_AUDIO_OUT =>
+                                next_counter <= std_logic_vector(unsigned(3));
+
+                            when others =>
+                        end case;
+
                     end if;
                 
                 when EXECUTE =>
@@ -169,7 +186,7 @@ begin
                                 ram_en <= '1'; ram_we <= '0';
                                 ram_addr <= pc;
                                 next_pc <= std_logic_vector(unsigned(pc) + 1);
-                                next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / RAM_WORD_SIZE - 1, 16));
+                                next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / RAM_WORD_SIZE - 1, COUNTER_SIZE));
                             end if;
 
                         -- FFT/IFFT
@@ -192,7 +209,7 @@ begin
                                 ram_en <= '1'; ram_we <= '0';
                                 ram_addr <= pc;
                                 next_pc <= std_logic_vector(unsigned(pc) + 1);
-                                next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / RAM_WORD_SIZE - 1, 16));
+                                next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / RAM_WORD_SIZE - 1, COUNTER_SIZE));
                             end if;
 
                         -- Vector/Scalar Parallel Operations
@@ -243,7 +260,7 @@ begin
                                 ram_en <= '1'; ram_we <= '0';
                                 ram_addr <= pc;
                                 next_pc <= std_logic_vector(unsigned(pc) + 1);
-                                next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / RAM_WORD_SIZE - 1, 16));
+                                next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / RAM_WORD_SIZE - 1, COUNTER_SIZE));
                             end if;
 
                         when others =>
