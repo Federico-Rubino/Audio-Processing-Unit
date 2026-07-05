@@ -39,3 +39,6 @@ Thumbs.db
 
 # Simulation files
 *.ghw
+
+# Auxiliary files
+*/bo.vhd
