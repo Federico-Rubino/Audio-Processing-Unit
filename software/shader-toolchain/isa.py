@@ -41,14 +41,22 @@ class ISA:
         self.opcode_field = Field("opcode", spec["opcode_field"]["msb"], spec["opcode_field"]["lsb"])
 
         self.opcodes = {}
+        self.by_value = {}
         for name, entry in spec["opcodes"].items():
             fields = [Field(f["name"], f["msb"], f["lsb"]) for f in entry.get("fields", [])]
-            self.opcodes[name] = Opcode(
+            opcode = Opcode(
                 name=name,
                 value=entry["value"],
                 fields=fields,
                 implemented=entry.get("implemented", True),
             )
+            self.opcodes[name] = opcode
+            if opcode.value in self.by_value:
+                raise AssemblerError(
+                    f"opcodes '{self.by_value[opcode.value].name}' and '{name}' "
+                    f"both use value 0x{opcode.value:x}"
+                )
+            self.by_value[opcode.value] = opcode
 
     def get(self, mnemonic, line=None):
         opcode = self.opcodes.get(mnemonic)
@@ -59,3 +67,6 @@ class ISA:
                 f"opcode '{mnemonic}' is not implemented yet (marked implemented: false in isa.yaml)", line
             )
         return opcode
+
+    def get_by_value(self, value):
+        return self.by_value.get(value)
