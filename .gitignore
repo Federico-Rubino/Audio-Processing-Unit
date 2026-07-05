@@ -1,5 +1,6 @@
 *.jou
 *.log
+*.plan
 
 **/.vscode/
 **/.vscode-test/

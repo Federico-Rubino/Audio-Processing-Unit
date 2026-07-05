@@ -50,6 +50,7 @@ entity AudioCU is
 end AudioCU;
 
 architecture Behavioral of AudioCU is
+    -- TODO implement load operation with a STORE stage
     type cu_state is (IDLE, SETUP, FETCH, DECODE, LOAD, EXECUTE);
     signal state, next_state : cu_state;
     signal lr, next_lr : std_logic; -- 0=left, 1=right
@@ -264,7 +265,7 @@ begin
                     iaddr(UPARAM_SIZE) <= lr;
                     iaddr(UPARAM_SIZE-1 downto 0) <= instr(to_integer(unsigned(counter)) * UPARAM_SIZE - 1 downto (to_integer(unsigned(counter)) - 1) * UPARAM_SIZE);
                 end if;
-                
+
                 -- Unified parameter mapping
                 if    unsigned(counter) = 9 then next_buf3(ARAM_ADDR_SIZE*1-1 downto 0)                <= idata_out(ARAM_ADDR_SIZE-1 downto 0); -- out_bs
                 elsif unsigned(counter) = 8 then next_buf3(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1) <= idata_out(ARAM_ADDR_SIZE-1 downto 0); -- out_bl

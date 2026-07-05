@@ -270,89 +270,115 @@ begin
 
         report "--- STARTING AUDIO CONTROL UNIT VHDL TESTBENCH RUN ---";
 
-        -- Trigger start flag + assign start_address=3 to addr 1
-        write_bram(1, std_logic_vector(to_unsigned(3, ARAM_WORD_SIZE)));
+        -- Loop the entire execution sequence 50 times
+        for iteration in 1 to 5 loop
+            report "=== STARTING ITERATION " & integer'image(iteration) & " ===";
 
-        -- ====================================================================
-        -- PHASE 1: LEFT CHANNEL VALIDATION (Should dereference from 1024+)
-        -- ====================================================================
-        
-        -- 1. AUDIO_IN (Expected Left Values: 0x100 to 0x103)
-        wait until aio_in_en = '1'; wait for 1 ns;
-        assert (unit_select = APU_UNIT_AUDIO_IN) report "Wrong unit selection for Audio In" severity failure;
-        assert (aio_in_bs = std_logic_vector(to_unsigned(16#100#, ARAM_ADDR_SIZE))) report "Left Deref Failed: aio_in_bs" severity failure;
-        assert (aio_in_bl = std_logic_vector(to_unsigned(16#101#, ARAM_ADDR_SIZE))) report "Left Deref Failed: aio_in_bl" severity failure;
-        assert (aio_in_os = std_logic_vector(to_unsigned(16#102#, ARAM_ADDR_SIZE))) report "Left Deref Failed: aio_in_os" severity failure;
-        assert (aio_in_ol = std_logic_vector(to_unsigned(16#103#, ARAM_ADDR_SIZE))) report "Left Deref Failed: aio_in_ol" severity failure;
-        wait until rising_edge(clk); aio_in_end <= '1'; wait until rising_edge(clk); aio_in_end <= '0';
+            -- Trigger start flag + assign start_address=3 to addr 1 (Combined value = 3)
+            write_bram(1, std_logic_vector(to_unsigned(3, ARAM_WORD_SIZE)));
 
-        -- 2. FFT (Expected Left Values: 0x104 to 0x10A)
-        wait until fft_en = '1'; wait for 1 ns;
-        assert (fft_bsw = std_logic_vector(to_unsigned(16#104#, ARAM_ADDR_SIZE))) report "Left Deref Failed: fft_bsw" severity failure;
-        assert (fft_bsr = std_logic_vector(to_unsigned(16#107#, ARAM_ADDR_SIZE))) report "Left Deref Failed: fft_bsr" severity failure;
-        wait until rising_edge(clk); fft_end <= '1'; wait until rising_edge(clk); fft_end <= '0';
+            -- Wait 3 clock cycles (Fast enough to not miss the hardware execution)
+            for i in 0 to 2 loop
+                wait until rising_edge(clk);
+            end loop;
 
-        -- 3. VEC_ADD (Expected Left Values: 0x10B to 0x114)
-        wait until vec_en = '1'; wait for 1 ns;
-        assert (vec_bsw = std_logic_vector(to_unsigned(16#10B#, ARAM_ADDR_SIZE))) report "Left Deref Failed: vec_bsw" severity failure;
-        assert (vec_bsr2 = std_logic_vector(to_unsigned(16#10E#, ARAM_ADDR_SIZE))) report "Left Deref Failed: vec_bsr2" severity failure;
-        assert (vec_bsr1 = std_logic_vector(to_unsigned(16#111#, ARAM_ADDR_SIZE))) report "Left Deref Failed: vec_bsr1" severity failure;
-        wait until rising_edge(clk); vec_end <= '1'; wait until rising_edge(clk); vec_end <= '0';
+            -- Clear the start bit (Bit 0 = 0, keeping address bits -> value 2)
+            write_bram(1, std_logic_vector(to_unsigned(2, ARAM_WORD_SIZE)));
 
-        -- 4. VEC_MUL_SCALAR (Expected Left Values: 0x115 to 0x11B)
-        wait until vec_en = '1'; wait for 1 ns;
-        assert (vec_scalar = X"DEAD") report "Immediate scalar payload mapping missed" severity failure;
-        assert (vec_bsw = std_logic_vector(to_unsigned(16#115#, ARAM_ADDR_SIZE))) report "Left Deref Failed: vec_bsw (scalar)" severity failure;
-        assert (vec_bsr1 = std_logic_vector(to_unsigned(16#118#, ARAM_ADDR_SIZE))) report "Left Deref Failed: vec_bsr1 (scalar)" severity failure;
-        wait until rising_edge(clk); vec_end <= '1'; wait until rising_edge(clk); vec_end <= '0';
+            -- ====================================================================
+            -- PHASE 1: LEFT CHANNEL VALIDATION (Should dereference from 1024+)
+            -- ====================================================================
+            
+            -- 1. AUDIO_IN 
+            wait until aio_in_en = '1'; wait for 1 ns;
+            assert (unit_select = APU_UNIT_AUDIO_IN) report "Wrong unit selection for Audio In" severity failure;
+            assert (aio_in_bs = std_logic_vector(to_unsigned(16#100#, ARAM_ADDR_SIZE))) report "Left Deref Failed: aio_in_bs" severity failure;
+            assert (aio_in_bl = std_logic_vector(to_unsigned(16#101#, ARAM_ADDR_SIZE))) report "Left Deref Failed: aio_in_bl" severity failure;
+            assert (aio_in_os = std_logic_vector(to_unsigned(16#102#, ARAM_ADDR_SIZE))) report "Left Deref Failed: aio_in_os" severity failure;
+            assert (aio_in_ol = std_logic_vector(to_unsigned(16#103#, ARAM_ADDR_SIZE))) report "Left Deref Failed: aio_in_ol" severity failure;
+            wait until rising_edge(clk); aio_in_end <= '1'; wait until rising_edge(clk); aio_in_end <= '0';
 
-        -- Wait for STOP command to flip the internal channel tracking to Right
-        wait until aio_in_lr = '1'; 
-        wait for 1 ns;
+            -- 2. FFT 
+            wait until fft_en = '1'; wait for 1 ns;
+            assert (fft_bsw = std_logic_vector(to_unsigned(16#104#, ARAM_ADDR_SIZE))) report "Left Deref Failed: fft_bsw" severity failure;
+            assert (fft_bsr = std_logic_vector(to_unsigned(16#107#, ARAM_ADDR_SIZE))) report "Left Deref Failed: fft_bsr" severity failure;
+            wait until rising_edge(clk); fft_end <= '1'; wait until rising_edge(clk); fft_end <= '0';
 
-        -- ====================================================================
-        -- PHASE 2: RIGHT CHANNEL VALIDATION (Should dereference from 1536+)
-        -- ====================================================================
-        report "[PASS] Left Channel Cleared. Beginning Right Channel Dereferencing Validation...";
+            -- 3. VEC_ADD 
+            wait until vec_en = '1'; wait for 1 ns;
+            assert (vec_bsw = std_logic_vector(to_unsigned(16#10B#, ARAM_ADDR_SIZE))) report "Left Deref Failed: vec_bsw" severity failure;
+            assert (vec_bsr2 = std_logic_vector(to_unsigned(16#10E#, ARAM_ADDR_SIZE))) report "Left Deref Failed: vec_bsr2" severity failure;
+            assert (vec_bsr1 = std_logic_vector(to_unsigned(16#111#, ARAM_ADDR_SIZE))) report "Left Deref Failed: vec_bsr1" severity failure;
+            wait until rising_edge(clk); vec_end <= '1'; wait until rising_edge(clk); vec_end <= '0';
 
-        -- 1. AUDIO_IN (Expected Right Values: 0x200 to 0x203)
-        wait until aio_in_en = '1'; wait for 1 ns;
-        assert (aio_in_bs = std_logic_vector(to_unsigned(16#200#, ARAM_ADDR_SIZE))) report "Right Deref Failed: aio_in_bs" severity failure;
-        assert (aio_in_bl = std_logic_vector(to_unsigned(16#201#, ARAM_ADDR_SIZE))) report "Right Deref Failed: aio_in_bl" severity failure;
-        assert (aio_in_os = std_logic_vector(to_unsigned(16#202#, ARAM_ADDR_SIZE))) report "Right Deref Failed: aio_in_os" severity failure;
-        assert (aio_in_ol = std_logic_vector(to_unsigned(16#203#, ARAM_ADDR_SIZE))) report "Right Deref Failed: aio_in_ol" severity failure;
-        wait until rising_edge(clk); aio_in_end <= '1'; wait until rising_edge(clk); aio_in_end <= '0';
+            -- 4. VEC_MUL_SCALAR 
+            wait until vec_en = '1'; wait for 1 ns;
+            assert (vec_scalar = X"DEAD") report "Immediate scalar payload mapping missed" severity failure;
+            assert (vec_bsw = std_logic_vector(to_unsigned(16#115#, ARAM_ADDR_SIZE))) report "Left Deref Failed: vec_bsw (scalar)" severity failure;
+            assert (vec_bsr1 = std_logic_vector(to_unsigned(16#118#, ARAM_ADDR_SIZE))) report "Left Deref Failed: vec_bsr1 (scalar)" severity failure;
+            wait until rising_edge(clk); vec_end <= '1'; wait until rising_edge(clk); vec_end <= '0';
 
-        -- 2. FFT (Expected Right Values: 0x204 to 0x20A)
-        wait until fft_en = '1'; wait for 1 ns;
-        assert (fft_bsw = std_logic_vector(to_unsigned(16#204#, ARAM_ADDR_SIZE))) report "Right Deref Failed: fft_bsw" severity failure;
-        assert (fft_bsr = std_logic_vector(to_unsigned(16#207#, ARAM_ADDR_SIZE))) report "Right Deref Failed: fft_bsr" severity failure;
-        wait until rising_edge(clk); fft_end <= '1'; wait until rising_edge(clk); fft_end <= '0';
+            -- Wait for STOP command to flip the internal channel tracking to Right
+            wait until aio_in_lr = '1'; 
+            wait for 1 ns;
 
-        -- 3. VEC_ADD (Expected Right Values: 0x20B to 0x214)
-        wait until vec_en = '1'; wait for 1 ns;
-        assert (vec_bsw = std_logic_vector(to_unsigned(16#20B#, ARAM_ADDR_SIZE))) report "Right Deref Failed: vec_bsw" severity failure;
-        assert (vec_bsr2 = std_logic_vector(to_unsigned(16#20E#, ARAM_ADDR_SIZE))) report "Right Deref Failed: vec_bsr2" severity failure;
-        assert (vec_bsr1 = std_logic_vector(to_unsigned(16#211#, ARAM_ADDR_SIZE))) report "Right Deref Failed: vec_bsr1" severity failure;
-        wait until rising_edge(clk); vec_end <= '1'; wait until rising_edge(clk); vec_end <= '0';
+            -- ====================================================================
+            -- PHASE 2: RIGHT CHANNEL VALIDATION (Should dereference from 1536+)
+            -- ====================================================================
+            
+            -- 1. AUDIO_IN 
+            wait until aio_in_en = '1'; wait for 1 ns;
+            assert (aio_in_bs = std_logic_vector(to_unsigned(16#200#, ARAM_ADDR_SIZE))) report "Right Deref Failed: aio_in_bs" severity failure;
+            assert (aio_in_bl = std_logic_vector(to_unsigned(16#201#, ARAM_ADDR_SIZE))) report "Right Deref Failed: aio_in_bl" severity failure;
+            assert (aio_in_os = std_logic_vector(to_unsigned(16#202#, ARAM_ADDR_SIZE))) report "Right Deref Failed: aio_in_os" severity failure;
+            assert (aio_in_ol = std_logic_vector(to_unsigned(16#203#, ARAM_ADDR_SIZE))) report "Right Deref Failed: aio_in_ol" severity failure;
+            wait until rising_edge(clk); aio_in_end <= '1'; wait until rising_edge(clk); aio_in_end <= '0';
 
-        -- 4. VEC_MUL_SCALAR (Expected Right Values: 0x215 to 0x21B)
-        wait until vec_en = '1'; wait for 1 ns;
-        assert (vec_bsw = std_logic_vector(to_unsigned(16#215#, ARAM_ADDR_SIZE))) report "Right Deref Failed: vec_bsw (scalar)" severity failure;
-        assert (vec_bsr1 = std_logic_vector(to_unsigned(16#218#, ARAM_ADDR_SIZE))) report "Right Deref Failed: vec_bsr1 (scalar)" severity failure;
-        wait until rising_edge(clk); vec_end <= '1'; wait until rising_edge(clk); vec_end <= '0';
-        
-        -- Wait for system to safely return to Left channel tracking (and back into IDLE state)
-        wait until aio_in_lr = '0';
-        wait for 1 ns;
-        
+            -- 2. FFT 
+            wait until fft_en = '1'; wait for 1 ns;
+            assert (fft_bsw = std_logic_vector(to_unsigned(16#204#, ARAM_ADDR_SIZE))) report "Right Deref Failed: fft_bsw" severity failure;
+            assert (fft_bsr = std_logic_vector(to_unsigned(16#207#, ARAM_ADDR_SIZE))) report "Right Deref Failed: fft_bsr" severity failure;
+            wait until rising_edge(clk); fft_end <= '1'; wait until rising_edge(clk); fft_end <= '0';
+
+            -- 3. VEC_ADD 
+            wait until vec_en = '1'; wait for 1 ns;
+            assert (vec_bsw = std_logic_vector(to_unsigned(16#20B#, ARAM_ADDR_SIZE))) report "Right Deref Failed: vec_bsw" severity failure;
+            assert (vec_bsr2 = std_logic_vector(to_unsigned(16#20E#, ARAM_ADDR_SIZE))) report "Right Deref Failed: vec_bsr2" severity failure;
+            assert (vec_bsr1 = std_logic_vector(to_unsigned(16#211#, ARAM_ADDR_SIZE))) report "Right Deref Failed: vec_bsr1" severity failure;
+            wait until rising_edge(clk); vec_end <= '1'; wait until rising_edge(clk); vec_end <= '0';
+
+            -- 4. VEC_MUL_SCALAR 
+            wait until vec_en = '1'; wait for 1 ns;
+            assert (vec_bsw = std_logic_vector(to_unsigned(16#215#, ARAM_ADDR_SIZE))) report "Right Deref Failed: vec_bsw (scalar)" severity failure;
+            assert (vec_bsr1 = std_logic_vector(to_unsigned(16#218#, ARAM_ADDR_SIZE))) report "Right Deref Failed: vec_bsr1 (scalar)" severity failure;
+            wait until rising_edge(clk); vec_end <= '1'; wait until rising_edge(clk); vec_end <= '0';
+            
+            -- Wait for system to safely return to Left channel tracking (and back into IDLE state)
+            wait until aio_in_lr = '0';
+            wait for 1 ns;
+            
+            report "[PASS] Iteration " & integer'image(iteration) & " complete.";
+        end loop;
+
         report "----------------------------------------------------";
-        report "[PASSED] ALL POINTER DEREFERENCING TEST CASES CLEAR!";
+        report "[PASSED] ALL MULTIPLE-ITERATION TEST CASES CLEAR!";
         report "----------------------------------------------------";
 
-        -- Reset 'start' flag to 0
-        wait for 2000 ns;
+        -- Ensure start bit is strictly 0 (Address 1, Bit 0 = 0. Keeping address bits = 2)
         write_bram(1, std_logic_vector(to_unsigned(2, ARAM_WORD_SIZE)));
+
+        -- Wait for 100 clock cycles and verify no execution units wake up
+        for i in 0 to 20 loop
+            wait until rising_edge(clk);
+            
+            -- Assert that all unit enable signals safely remain 0
+            assert (aio_in_en = '0' and aio_out_en = '0' and fft_en = '0' and vec_en = '0') 
+                report "FATAL: Hardware woke up and executed instructions without start bit!" severity failure;
+        end loop;
+
+        report "----------------------------------------------------";
+        report "[PASSED] ALL MULTIPLE-ITERATION & IDLE TEST CASES CLEAR!";
+        report "----------------------------------------------------";
         
         wait; -- Suspension ends simulation run
     end process;
