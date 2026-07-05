@@ -20,22 +20,31 @@ puts "--- Working Directory: $proj_dir"
 # The project files are kept in 'vivado-data' which should be git-ignored
 create_project $proj_name $proj_dir -part $my_part -force
 
-# 4. Add RTL Sources (src/audioIO)
-set rtl_files [glob -nocomplain "$repo_root/src/audioIO/*.{v,vhd,sv}"]
+# 4. Add RTL Sources (src/apu/audioIO)
+set rtl_files [glob -nocomplain "$repo_root/src/apu/audioIO/*.{v,vhd,sv}"]
 if {[llength $rtl_files] > 0} {
     add_files $rtl_files
     puts "Added [llength $rtl_files] RTL files."
 } else {
-    puts "Warning: No RTL files found in $repo_root/src/audioIO/"
+    puts "Warning: No RTL files found in $repo_root/src/apu/audioIO/"
 }
 
-# 4. Add RTL Sources (src/audioIO/zedboard_audio/hdl/)
-set rtl_files [glob -nocomplain "$repo_root/src/audioIO/zedboard_audio/hdl/*.{v,vhd,sv}"]
+# 4. Add RTL Sources (src/apu/audioIO/zedboard_audio/hdl/)
+set rtl_files [glob -nocomplain "$repo_root/src/apu/audioIO/zedboard_audio/hdl/*.{v,vhd,sv}"]
 if {[llength $rtl_files] > 0} {
     add_files $rtl_files
     puts "Added [llength $rtl_files] RTL files."
 } else {
-    puts "Warning: No RTL files found in $repo_root/src/audioIO/zedboard_audio/hdl/"
+    puts "Warning: No RTL files found in $repo_root/src/apu/audioIO/zedboard_audio/hdl/"
+}
+
+# 4. Add RTL Sources (src/apu/memory_controller) -- audio_in_unit/audio_out_unit depend on the BMU
+set rtl_files [glob -nocomplain "$repo_root/src/apu/memory_controller/*.vhd" "$repo_root/src/apu/memory_controller/bmu/*.vhd"]
+if {[llength $rtl_files] > 0} {
+    add_files $rtl_files
+    puts "Added [llength $rtl_files] RTL files."
+} else {
+    puts "Warning: No RTL files found in $repo_root/src/apu/memory_controller/"
 }
 
 # 5. Add IP Cores (ip/audioIO)
@@ -57,20 +66,27 @@ if {[llength $xdc_files] > 0} {
     puts "Added [llength $xdc_files] constraint files."
 }
 
-# 7. Add Testbenches & Simulation Assets (test/audioIO)
-set sim_files [glob -nocomplain "$repo_root/test/audioIO/*.{v,vhd,sv}"]
+# 7. Add Testbenches & Simulation Assets (test/apu/audioIO)
+set sim_files [glob -nocomplain "$repo_root/test/apu/audioIO/*.{v,vhd,sv}"]
 if {[llength $sim_files] > 0} {
     add_files -fileset sim_1 $sim_files
     puts "Added [llength $sim_files] simulation files."
 }
 
 # Add Memory Initialization files (.coe) to simulation fileset
-set coe_files [glob -nocomplain "$repo_root/test/audioIO/coe/*.coe"]
+set coe_files [glob -nocomplain "$repo_root/test/apu/audioIO/coe/*.coe"]
 if {[llength $coe_files] > 0} {
     add_files -fileset sim_1 $coe_files
 }
 
-# 8. Cleanup and Finalize
+# 8. Force all VHDL files in the project to use VHDL 2008
+set vhdl_sources [get_files -filter {FILE_TYPE == "VHDL"}]
+if {[llength $vhdl_sources] > 0} {
+    set_property FILE_TYPE "VHDL 2008" $vhdl_sources
+    puts "Changed [llength $vhdl_sources] VHDL files to VHDL 2008."
+}
+
+# 9. Cleanup and Finalize
 update_compile_order -fileset sources_1
 update_compile_order -fileset sim_1
 

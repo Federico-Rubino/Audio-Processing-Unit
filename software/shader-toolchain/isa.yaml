@@ -1,0 +1,125 @@
+# APU shader ISA specification
+#Source to copy the real layout from:
+#   hardware/src/apu/apu_opcode_pkg.vhd        (opcode values)
+#   hardware/src/apu/audio_control_unit.vhd    (EXECUTE case: instr bit -> field decode)
+
+instruction_bits: 128
+word_bits: 32
+word_order: msb_first
+
+opcode_field: {msb: 127, lsb: 124}   #equal width and position for all opcodes
+
+opcodes:
+
+  #Stop opcode, end the shader program.
+  STOP:
+    value: 0xF
+    fields: []
+
+  NOP:
+    value: 0x0
+    fields: []
+
+  AUDIO_IN:
+    value: 0xC
+    fields: &audio_io_fields
+      - {name: buffer_start_reg,  msb: 35, lsb: 27}
+      - {name: buffer_length_reg, msb: 26, lsb: 18}
+      - {name: operation_start_reg, msb: 17, lsb: 9}
+      - {name: operation_length_reg, msb: 8, lsb: 0}
+
+  AUDIO_OUT:
+    value: 0xD
+    fields: *audio_io_fields
+
+  LOAD:
+    value: 0xB
+    fields:
+      - {name: instr_ram_start_addr, msb: 45, lsb: 36}
+      - {name: buffer_start_reg, msb: 35, lsb: 27}
+      - {name: buffer_length_reg, msb: 26, lsb: 18}
+      - {name: operation_start_reg, msb: 17, lsb: 9}
+      - {name: operation_length_reg, msb: 8, lsb: 0}
+
+  ADD_VEC:
+    value: 0x3
+    fields:
+      - {name: output_buffer_start_reg, msb: 89, lsb: 81}
+      - {name: output_buffer_length_reg, msb: 80, lsb: 72}
+      - {name: output_operation_start_reg, msb: 71, lsb: 63}
+      - {name: input_buffer_2_start_reg, msb: 62, lsb: 54}
+      - {name: input_buffer_2_length_reg, msb: 53, lsb: 45}
+      - {name: input_operation_2_start_reg, msb: 44, lsb: 36}
+      - {name: input_buffer_1_start_reg, msb: 35, lsb: 27}
+      - {name: input_buffer_1_length_reg, msb: 26, lsb: 18}
+      - {name: input_operation_1_start_reg, msb: 17, lsb: 9}
+      - {name: operation_length_reg, msb: 8, lsb: 0}
+
+  ADD_SCALAR:
+    value: 0x4
+    fields:
+      - {name: output_buffer_start_reg, msb: 89, lsb: 81}
+      - {name: output_buffer_length_reg, msb: 80, lsb: 72}
+      - {name: output_operation_start_reg, msb: 71, lsb: 63}
+      # bits 62:52 unused
+      - {name: scalar_parameter, msb: 51, lsb: 36}
+      - {name: input_buffer_1_start_reg, msb: 35, lsb: 27}
+      - {name: input_buffer_1_length_reg, msb: 26, lsb: 18}
+      - {name: input_operation_1_start_reg, msb: 17, lsb: 9}
+      - {name: operation_length_reg, msb: 8, lsb: 0}
+
+  FFT:
+    value: 0x1
+    fields:
+      - {name: forward_inverse, msb: 123, lsb: 123}
+      - {name: size_256_512, msb: 122, lsb: 122}
+      # bits 121:90 unused
+      - {name: output_buffer_start_reg, msb: 89, lsb: 81}
+      - {name: output_buffer_length_reg, msb: 80, lsb: 72}
+      - {name: output_operation_start_reg, msb: 71, lsb: 63}
+      # bits 62:36 unused
+      - {name: input_buffer_1_start_reg, msb: 35, lsb: 27}
+      - {name: input_buffer_1_length_reg, msb: 26, lsb: 18}
+      - {name: input_operation_1_start_reg, msb: 17, lsb: 9}
+      - {name: operation_length_reg, msb: 8, lsb: 0}
+
+  # To add in future
+  IFFT:
+    value: 0x2
+    implemented: false
+    fields: []
+
+  SUB_VECTOR:
+    value: 0x5
+    implemented: false
+    fields: []
+
+  SUB_SCALAR:
+    value: 0x6
+    implemented: false
+    fields: []
+
+  MUL_VECTOR:
+    value: 0x7
+    implemented: false
+    fields: []
+
+  MUL_SCALAR:
+    value: 0x8
+    implemented: false
+    fields: []
+
+  PITCH_SHIFT:
+    value: 0x9
+    implemented: false
+    fields: []
+
+  FOND_FREQ:
+    value: 0xA
+    implemented: false
+    fields: []
+
+  MULC_VECTOR:
+    value: 0xE
+    implemented: false
+    fields: []

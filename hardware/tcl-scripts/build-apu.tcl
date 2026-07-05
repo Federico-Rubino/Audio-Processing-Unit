@@ -20,8 +20,14 @@ puts "--- Working Directory: $proj_dir"
 # The project files are kept in 'vivado-data' which should be git-ignored
 create_project $proj_name $proj_dir -part $my_part -force
 
-# 4. Add RTL Sources (src/apu)
-set rtl_files [glob -nocomplain "$repo_root/src/apu/*.{v,vhd}"]
+# 4. Add RTL Sources (src/apu + audioIO/, audioIO/zedboard_audio/hdl/, memory_controller/, memory_controller/bmu/)
+set rtl_files [glob -nocomplain \
+    "$repo_root/src/apu/*.{v,vhd}" \
+    "$repo_root/src/apu/audioIO/*.{v,vhd}" \
+    "$repo_root/src/apu/audioIO/zedboard_audio/hdl/*.{v,vhd}" \
+    "$repo_root/src/apu/memory_controller/*.{v,vhd}" \
+    "$repo_root/src/apu/memory_controller/bmu/*.{v,vhd}" \
+]
 if {[llength $rtl_files] > 0} {
     add_files $rtl_files
     puts "Added [llength $rtl_files] RTL files."
@@ -48,8 +54,12 @@ if {[llength $xdc_files] > 0} {
     puts "Added [llength $xdc_files] constraint files."
 }
 
-# 7. Add Testbenches & Simulation Assets (test/apu)
-set sim_files [glob -nocomplain "$repo_root/test/apu/*.{v,vhd,sv}"]
+# 7. Add Testbenches & Simulation Assets (test/apu + audioIO/, bmu/)
+set sim_files [glob -nocomplain \
+    "$repo_root/test/apu/*.{v,vhd,sv}" \
+    "$repo_root/test/apu/audioIO/*.{v,vhd,sv}" \
+    "$repo_root/test/apu/bmu/*.{v,vhd,sv}" \
+]
 if {[llength $sim_files] > 0} {
     add_files -fileset sim_1 $sim_files
     puts "Added [llength $sim_files] simulation files."

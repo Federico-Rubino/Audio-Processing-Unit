@@ -42,9 +42,10 @@ architecture sim of AudioCU_tb is
     signal host_data : std_logic_vector(31 downto 0) := (others => '0');
     
     -- Audio IO Interfacing
-    signal aio_new_grain, aio_end : std_logic := '0';
-    signal aio_en, aio_lr : std_logic;
-    signal aio_bs, aio_bl, aio_os, aio_ol : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal aio_new_grain, aio_in_end, aio_out_end : std_logic := '0';
+    signal aio_in_en, aio_in_lr, aio_out_en, aio_out_lr : std_logic;
+    signal aio_in_bs, aio_in_bl, aio_in_os, aio_in_ol : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal aio_out_bs, aio_out_bl, aio_out_os, aio_out_ol : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
 
     -- FFT Unit Interfacing
     signal fft_end : std_logic := '0';
@@ -93,13 +94,20 @@ begin
             idata_in        => idata_in,
             idata_out       => idata_out,
             aio_new_grain   => aio_new_grain,
-            aio_end         => aio_end,
-            aio_en          => aio_en,
-            aio_lr          => aio_lr,
-            aio_bs          => aio_bs,
-            aio_bl          => aio_bl,
-            aio_os          => aio_os,
-            aio_ol          => aio_ol,
+            aio_in_end      => aio_in_end,
+            aio_out_end     => aio_out_end,
+            aio_in_en       => aio_in_en,
+            aio_in_lr       => aio_in_lr,
+            aio_in_bs       => aio_in_bs,
+            aio_in_bl       => aio_in_bl,
+            aio_in_os       => aio_in_os,
+            aio_in_ol       => aio_in_ol,
+            aio_out_en      => aio_out_en,
+            aio_out_lr      => aio_out_lr,
+            aio_out_bs      => aio_out_bs,
+            aio_out_bl      => aio_out_bl,
+            aio_out_os      => aio_out_os,
+            aio_out_ol      => aio_out_ol,
             fft_end         => fft_end,
             fft_en          => fft_en,
             fft_size        => fft_size,
@@ -203,7 +211,8 @@ begin
         -- Initial Pipeline Holds
         rst             <= '0';
         aio_new_grain   <= '0';
-        aio_end         <= '0';
+        aio_in_end      <= '0';
+        aio_out_end     <= '0';
         fft_end         <= '0';
         vec_end         <= '0';
         wait for CLK_PERIOD * 2;
@@ -292,17 +301,17 @@ begin
         -- --------------------------------------------------------
         report "[TEST] Launching Audio Input Core Validation...";
         
-        wait until aio_en = '1';
+        wait until aio_in_en = '1';
         wait for 1 ns; -- Safe margin away from clock edge for sampling
 
         assert (unit_select = APU_UNIT_AUDIO_IN) report "Wrong unit selection for Audio In" severity failure;
-        assert (aio_bs = "0100100011") report "AIO Base Address structural extraction failed" severity failure;
-        assert (aio_bl = "0001011010") report "AIO Block Length structural extraction failed" severity failure;
+        assert (aio_in_bs = "0100100011") report "AIO Base Address structural extraction failed" severity failure;
+        assert (aio_in_bl = "0001011010") report "AIO Block Length structural extraction failed" severity failure;
         
         wait until rising_edge(clk);
-        aio_end <= '1';
+        aio_in_end <= '1';
         wait until rising_edge(clk);
-        aio_end <= '0';
+        aio_in_end <= '0';
 
         -- --------------------------------------------------------
         -- TEST CASE 2: FFT UNIT PARAMETER GENERATOR
@@ -368,19 +377,19 @@ begin
         report "[TEST] Testing Stereo Interleaved Channel Sync (STOP Ping-Pong)...";
         
         -- System starts default tracking set to Left Channel (0)
-        assert (aio_lr = '0') report "System failed default Left audio channel alignment assertion" severity failure;
+        assert (aio_in_lr = '0') report "System failed default Left audio channel alignment assertion" severity failure;
         
         -- Wait for STOP command to flip channel pointer to Right Channel ('1')
-        wait until aio_lr = '1';
+        wait until aio_in_lr = '1';
         wait for 1 ns;
-        assert (aio_lr = '1') report "Channel pointer failed to transition to Right channel track processing" severity failure;
+        assert (aio_in_lr = '1') report "Channel pointer failed to transition to Right channel track processing" severity failure;
         
         -- --- SECOND PASS (RIGHT CHANNEL): CLEAR PIPELINE INTERLEAVE ---
 
         -- 1. Trigger & Clear Audio IO
-        wait until aio_en = '1';
-        wait until rising_edge(clk); aio_end <= '1';
-        wait until rising_edge(clk); aio_end <= '0';
+        wait until aio_in_en = '1';
+        wait until rising_edge(clk); aio_in_end <= '1';
+        wait until rising_edge(clk); aio_in_end <= '0';
 
         -- 2. Trigger & Clear FFT
         wait until fft_en = '1';
@@ -398,11 +407,11 @@ begin
         wait until rising_edge(clk); vec_end <= '0';
         
         -- Wait for system to safely return to Left channel tracking (and back into IDLE state)
-        wait until aio_lr = '0';
+        wait until aio_in_lr = '0';
         wait for 1 ns;
 
         -- System finishes channel pass 2 loops: clears back to zero status safely inside IDLE block state boundary
-        assert (aio_lr = '0') report "Reset sequence to Left channel failed at frame exit path boundaries" severity failure;
+        assert (aio_in_lr = '0') report "Reset sequence to Left channel failed at frame exit path boundaries" severity failure;
         
         report "----------------------------------------------------";
         report "[PASSED] ALL AUDIO CONTROL UNIT TEST CASES CLEAR!";

@@ -38,17 +38,14 @@ if {[llength $rtl_files] > 0} {
     puts "Warning: No RTL files found in $repo_root/src/rv32i/"
 }
 
-# 4. Add RTL Sources (src/audioIO)
-set rtl_files [glob -nocomplain "$repo_root/src/audioIO/*.{v,vhd,sv}"]
-if {[llength $rtl_files] > 0} {
-    add_files $rtl_files
-    puts "Added [llength $rtl_files] RTL files."
-} else {
-    puts "Warning: No RTL files found in $repo_root/src/audioIO/"
-}
-
-# 4. Add RTL Sources (src/apu)
-set rtl_files [glob -nocomplain "$repo_root/src/apu/*.{v,vhd,sv}"]
+# 4. Add RTL Sources (src/apu + audioIO/, audioIO/zedboard_audio/hdl/, memory_controller/, memory_controller/bmu/)
+set rtl_files [glob -nocomplain \
+    "$repo_root/src/apu/*.{v,vhd,sv}" \
+    "$repo_root/src/apu/audioIO/*.{v,vhd,sv}" \
+    "$repo_root/src/apu/audioIO/zedboard_audio/hdl/*.{v,vhd,sv}" \
+    "$repo_root/src/apu/memory_controller/*.{v,vhd,sv}" \
+    "$repo_root/src/apu/memory_controller/bmu/*.{v,vhd,sv}" \
+]
 if {[llength $rtl_files] > 0} {
     add_files $rtl_files
     foreach f $rtl_files {
