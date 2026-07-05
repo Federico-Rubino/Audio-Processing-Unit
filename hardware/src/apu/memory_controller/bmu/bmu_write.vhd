@@ -2,7 +2,7 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
-entity bmu_read is  -- buffer management unit: input buffer
+entity bmu_write is  -- buffer management unit: output buffer
     generic (
         BUFFER_ADDR_WIDTH : integer := 10; -- width of the address bus for the BRAM blocks
         BUFFER_SIZE_BITS  : integer := 18; -- width of the size bus for the buffers
@@ -68,23 +68,26 @@ entity bmu_read is  -- buffer management unit: input buffer
         bram2_port1_data_out : in std_logic_vector(31 downto 0);
         bram3_port1_data_out : in std_logic_vector(31 downto 0);
 
-        data_out_0 : out std_logic_vector(31 downto 0);
-        data_out_1 : out std_logic_vector(31 downto 0);
-        data_out_2 : out std_logic_vector(31 downto 0);
-        data_out_3 : out std_logic_vector(31 downto 0);
-        data_out_4 : out std_logic_vector(31 downto 0);
-        data_out_5 : out std_logic_vector(31 downto 0);
-        data_out_6 : out std_logic_vector(31 downto 0);
-        data_out_7 : out std_logic_vector(31 downto 0);
+        data_in_0 : in std_logic_vector(31 downto 0);
+        data_in_1 : in std_logic_vector(31 downto 0);
+        data_in_2 : in std_logic_vector(31 downto 0);
+        data_in_3 : in std_logic_vector(31 downto 0);
+        data_in_4 : in std_logic_vector(31 downto 0);
+        data_in_5 : in std_logic_vector(31 downto 0);
+        data_in_6 : in std_logic_vector(31 downto 0);
+        data_in_7 : in std_logic_vector(31 downto 0);
 
         done : out std_logic
     );
-end bmu_read;
+end bmu_write;
 
-architecture Behavioral of bmu_read is
+architecture Behavioral of bmu_write is
 
-    signal lane_sel   : std_logic_vector(1 downto 0);
-    signal lane_sel_d : std_logic_vector(1 downto 0) := (others => '0'); -- data_out lags addr/en by 1 cycle (sync BRAM read latency)
+    signal lane_sel : std_logic_vector(1 downto 0);
+
+    -- copies of addr_gen's enables ('out' ports can't be read back)
+    signal en0_p0, en1_p0, en2_p0, en3_p0 : std_logic;
+    signal en0_p1, en1_p1, en2_p1, en3_p1 : std_logic;
 
 begin
 
@@ -107,55 +110,47 @@ begin
             bram0_port1_addr => bram0_port1_addr, bram1_port1_addr => bram1_port1_addr,
             bram2_port1_addr => bram2_port1_addr, bram3_port1_addr => bram3_port1_addr,
 
-            bram0_port0_en => bram0_port0_en, bram1_port0_en => bram1_port0_en,
-            bram2_port0_en => bram2_port0_en, bram3_port0_en => bram3_port0_en,
-            bram0_port1_en => bram0_port1_en, bram1_port1_en => bram1_port1_en,
-            bram2_port1_en => bram2_port1_en, bram3_port1_en => bram3_port1_en,
+            bram0_port0_en => en0_p0, bram1_port0_en => en1_p0,
+            bram2_port0_en => en2_p0, bram3_port0_en => en3_p0,
+            bram0_port1_en => en0_p1, bram1_port1_en => en1_p1,
+            bram2_port1_en => en2_p1, bram3_port1_en => en3_p1,
 
             lane_sel => lane_sel,
             done     => done
         );
 
-    -- read-only: never writes
-    bram0_port0_we <= '0'; bram1_port0_we <= '0'; bram2_port0_we <= '0'; bram3_port0_we <= '0';
-    bram0_port1_we <= '0'; bram1_port1_we <= '0'; bram2_port1_we <= '0'; bram3_port1_we <= '0';
+    -- we follows en: only enabled lanes get written
+    bram0_port0_en <= en0_p0; bram0_port0_we <= en0_p0;
+    bram1_port0_en <= en1_p0; bram1_port0_we <= en1_p0;
+    bram2_port0_en <= en2_p0; bram2_port0_we <= en2_p0;
+    bram3_port0_en <= en3_p0; bram3_port0_we <= en3_p0;
 
-    bram0_port0_data_in <= (others => '0'); bram1_port0_data_in <= (others => '0');
-    bram2_port0_data_in <= (others => '0'); bram3_port0_data_in <= (others => '0');
-    bram0_port1_data_in <= (others => '0'); bram1_port1_data_in <= (others => '0');
-    bram2_port1_data_in <= (others => '0'); bram3_port1_data_in <= (others => '0');
+    bram0_port1_en <= en0_p1; bram0_port1_we <= en0_p1;
+    bram1_port1_en <= en1_p1; bram1_port1_we <= en1_p1;
+    bram2_port1_en <= en2_p1; bram2_port1_we <= en2_p1;
+    bram3_port1_en <= en3_p1; bram3_port1_we <= en3_p1;
 
-    process(clk)
-    begin
-        if rising_edge(clk) then
-            lane_sel_d <= lane_sel;
-        end if;
-    end process;
-
-    parallel_out : if LANES /= 1 generate
-        data_out_0 <= bram0_port0_data_out;
-        data_out_1 <= bram1_port0_data_out;
-        data_out_2 <= bram2_port0_data_out;
-        data_out_3 <= bram3_port0_data_out;
-        data_out_4 <= bram0_port1_data_out;
-        data_out_5 <= bram1_port1_data_out;
-        data_out_6 <= bram2_port1_data_out;
-        data_out_7 <= bram3_port1_data_out;
+    parallel_in : if LANES /= 1 generate
+        bram0_port0_data_in <= data_in_0;
+        bram1_port0_data_in <= data_in_1;
+        bram2_port0_data_in <= data_in_2;
+        bram3_port0_data_in <= data_in_3;
+        bram0_port1_data_in <= data_in_4;
+        bram1_port1_data_in <= data_in_5;
+        bram2_port1_data_in <= data_in_6;
+        bram3_port1_data_in <= data_in_7;
     end generate;
 
-    serial_out : if LANES = 1 generate
-        -- lane_sel_d selects whichever BRAM's data_out is valid this cycle
-        data_out_0 <= bram0_port0_data_out when lane_sel_d = "00" else
-                      bram1_port0_data_out when lane_sel_d = "01" else
-                      bram2_port0_data_out when lane_sel_d = "10" else
-                      bram3_port0_data_out;
-        data_out_1 <= (others => '0');
-        data_out_2 <= (others => '0');
-        data_out_3 <= (others => '0');
-        data_out_4 <= (others => '0');
-        data_out_5 <= (others => '0');
-        data_out_6 <= (others => '0');
-        data_out_7 <= (others => '0');
+    serial_in : if LANES = 1 generate
+        -- only the enabled lane writes; broadcast is harmless
+        bram0_port0_data_in <= data_in_0;
+        bram1_port0_data_in <= data_in_0;
+        bram2_port0_data_in <= data_in_0;
+        bram3_port0_data_in <= data_in_0;
+        bram0_port1_data_in <= (others => '0');
+        bram1_port1_data_in <= (others => '0');
+        bram2_port1_data_in <= (others => '0');
+        bram3_port1_data_in <= (others => '0');
     end generate;
 
 end Behavioral;

@@ -2,13 +2,10 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
--- Waveform-focused testbench for bmu_read in parallel8 mode.
--- Drives a small (4-bit row address, 16 rows) ring so the wraparound is
--- visible within a handful of cycles, and backs the 4 BRAM ports with a
--- fake memory that stores the sample sequence 1, 2, 3, 4, ... in row-major
--- order (BRAM k, row r -> r*4 + k + 1), so data_out_0..7 should read off as
--- consecutive ascending numbers every pulse -- easy to eyeball, and any
--- gap/repeat/reorder is immediately visible as a break in the sequence.
+-- waveform test for bmu_read, parallel8. small ring (4-bit addr, 16 rows)
+-- so the wraparound shows up fast. fake memory holds 1,2,3... in row-major
+-- order, so data_out_0..7 should just count up each pulse -- any
+-- gap/repeat/reorder breaks the sequence and is obvious to spot
 entity tb_bmu_read_parallel8 is
 end tb_bmu_read_parallel8;
 
@@ -48,8 +45,7 @@ architecture sim of tb_bmu_read_parallel8 is
 
     signal done : std_logic;
 
-    -- sample index (row-major: row r, lane k -> r*4 + k), 1-indexed so the
-    -- very first sample read is 1, not 0
+    -- row-major sample index, 1-indexed so the first sample read is 1
     function mem_value(bram_idx : integer; addr : std_logic_vector) return std_logic_vector is
     begin
         return std_logic_vector(to_unsigned(to_integer(unsigned(addr)) * 4 + bram_idx + 1, 32));
@@ -106,9 +102,8 @@ begin
             done => done
         );
 
-    -- fake dual-port memories: registered read (1-cycle latency, like a real
-    -- BRAM), content = the ascending sample sequence via mem_value(), no
-    -- actual storage array
+    -- fake dual-port memory: registered read like a real BRAM, content
+    -- computed by mem_value() instead of an actual storage array
     mem0 : process(clk)
     begin
         if rising_edge(clk) then

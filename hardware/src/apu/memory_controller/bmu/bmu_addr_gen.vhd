@@ -2,11 +2,7 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
--- Shared address/wraparound sequencer used by both bmu_read and bmu_write.
--- Owns the row cursor into the 4-BRAM row-major layout (samples 0..3 in row 0,
--- one per BRAM block; samples 4..7 in row 1; ...) and the circular-buffer
--- wraparound arithmetic. Produces only address/enable/done; the data path
--- (we, data_in, data_out) is wired up by bmu_read/bmu_write themselves.
+-- addr sequencer: row cursor + ring wraparound. shared read/write. no data path.
 entity bmu_addr_gen is
     generic (
         BUFFER_ADDR_WIDTH : integer := 10; -- row-address width, shared by all 4 BRAM blocks
@@ -53,9 +49,7 @@ architecture Behavioral of bmu_addr_gen is
     constant ROW_SAMPLES : integer := 4; -- one sample per BRAM block, per row
     constant ROW_SHIFT    : integer := 2; -- log2(ROW_SAMPLES): converts a sample count to a row count
 
-    -- rows advanced per count_en pulse once row_advance is asserted.
-    -- Serial mode (LANES=1) advances 1 row every 4th pulse (see row_advance below),
-    -- so it shares the "1 row" step with parallel4; only parallel8 differs.
+    -- rows/pulse: parallel8=2, else 1
     function calc_row_step(l : integer) return integer is
     begin
         if l = 8 then
@@ -68,7 +62,7 @@ architecture Behavioral of bmu_addr_gen is
     constant ROW_STEP : integer := calc_row_step(LANES);
 
     signal ring_start    : unsigned(BUFFER_ADDR_WIDTH-1 downto 0) := (others => '0');
-    signal ring_len_rows : unsigned(BUFFER_ADDR_WIDTH-1 downto 0) := (others => '0');
+    signal ring_len_rows : unsigned(BUFFER_ADDR_WIDTH downto 0) := (others => '0'); -- +1 bit: a full ring is 2**W rows, one more than any address
     signal op_length_lat : unsigned(BUFFER_SIZE_BITS-1 downto 0) := (others => '0');
 
     signal row_cursor   : unsigned(BUFFER_ADDR_WIDTH-1 downto 0) := (others => '0');
@@ -87,6 +81,7 @@ begin
 
     process(clk)
         variable next_port1_row : unsigned(BUFFER_ADDR_WIDTH-1 downto 0);
+        variable rel_off        : unsigned(BUFFER_ADDR_WIDTH downto 0); -- row_cursor - ring_start, widened for the mod
     begin
         if rising_edge(clk) then
             done <= '0';
@@ -107,7 +102,7 @@ begin
 
             elsif start = '1' then
                 ring_start    <= unsigned(buffer_start);
-                ring_len_rows <= resize(shift_right(unsigned(buffer_length), ROW_SHIFT), BUFFER_ADDR_WIDTH);
+                ring_len_rows <= resize(shift_right(unsigned(buffer_length), ROW_SHIFT), BUFFER_ADDR_WIDTH+1);
                 op_length_lat <= unsigned(operation_length);
                 row_cursor    <= unsigned(operation_start);
                 samples_done  <= (others => '0');
@@ -135,7 +130,8 @@ begin
 
                     if LANES = 8 then
                         -- second row (port1) is always "current row + 1", wrapped
-                        next_port1_row := ring_start + ((row_cursor - ring_start + 1) mod ring_len_rows);
+                        rel_off := resize(row_cursor - ring_start, BUFFER_ADDR_WIDTH+1) + 1;
+                        next_port1_row := ring_start + resize(rel_off mod ring_len_rows, BUFFER_ADDR_WIDTH);
                         bram0_port1_addr <= std_logic_vector(next_port1_row);
                         bram1_port1_addr <= std_logic_vector(next_port1_row);
                         bram2_port1_addr <= std_logic_vector(next_port1_row);
@@ -146,7 +142,8 @@ begin
                 end if;
 
                 if row_advance = '1' then
-                    row_cursor <= ring_start + ((row_cursor - ring_start + ROW_STEP) mod ring_len_rows);
+                    rel_off := resize(row_cursor - ring_start, BUFFER_ADDR_WIDTH+1) + ROW_STEP;
+                    row_cursor <= ring_start + resize(rel_off mod ring_len_rows, BUFFER_ADDR_WIDTH);
                 end if;
 
                 samples_done <= samples_done + LANES;
