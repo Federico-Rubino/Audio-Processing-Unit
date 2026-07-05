@@ -4,180 +4,74 @@
 #include <stdint.h>
 #include <bitops.h>
 
+#define APU_SHADER_WORDS 1022
+#define APU_PARAM_WORDS 512
+
 typedef struct {
     volatile uint32_t status;
-    volatile uint32_t opcode;
-    volatile uint32_t in_buffer1_start;
-    volatile uint32_t in_buffer1_offset;
-    volatile uint32_t in_buffer2_start;
-    volatile uint32_t in_buffer2_offset;
-    volatile uint32_t in_buffer3_start;
-    volatile uint32_t in_buffer3_offset;
-    volatile uint32_t out_buffer1_start;
-    volatile uint32_t out_buffer1_offset;
-    volatile uint32_t out_buffer2_start;
-    volatile uint32_t out_buffer2_offset;
-    volatile uint32_t action_size;
-    volatile uint32_t block_size;
-    volatile uint32_t param1;
-    volatile uint32_t param2;
-    volatile uint32_t start_ram_address;
-    volatile uint32_t left_right;
-    volatile uint32_t start;
+    volatile uint32_t control;
+    volatile uint32_t shader_mem[APU_SHADER_WORDS];
+    volatile uint32_t param_mem_left[APU_PARAM_WORDS];
+    volatile uint32_t param_mem_right[APU_PARAM_WORDS];
 } apu_t;
-
-typedef struct {
-    uint32_t sample_select; //0 for sample 15:0; 1 for sample 31:16
-    uint32_t block_select; 
-    uint32_t address; //0-1023
-
-} apu_buffer_offset_t;
-
-typedef struct {
-    uint32_t opcode;
-    uint32_t in1_start;
-    apu_buffer_offset_t in1_offset;
-    uint32_t in2_start;
-    apu_buffer_offset_t in2_offset;
-    uint32_t in3_start;
-    apu_buffer_offset_t in3_offset;
-    uint32_t out1_start;
-    apu_buffer_offset_t out1_offset;
-    uint32_t out2_start;
-    apu_buffer_offset_t out2_offset;
-    uint32_t action_size;
-    uint32_t block_size;
-
-    uint32_t param1;
-    uint32_t param2;
-    uint32_t start_ram_address;
-    uint32_t left_right;
-} apu_cmd_t;
 
 
 //status register mask
-#define APU_STATUS_READY   BIT(0)  //1 if ready 0 if running
-#define APU_STATUS_RESULT GENMASK(31, 16)
-//#define APU_STATUS_RESERVED GENMASK(15, 1) //future use
-#define APU_STATUS_STATE GENMASK(4,1)
-#define APU_STATUS_OUT_EN BIT(5)
+//bit 0 reserved
+#define APU_MEM_BUSY_MASK   BIT(1)  //1 if busy
+#define APU_NEW_GRAINS_AVAIL_MASK BIT(2) //1 if new grains available
 
-//opcode register mask
-#define APU_OPCODE GENMASK(3,0)
-
-//buffer offset register mask
-#define APU_BUFFER_OFFSET_SAMPLE BIT(17) //0 for sample 15:0; 1 for sample 31:16
-#define APU_BUFFER_OFFSET_BLOCK_SELECT GENMASK(16, 10)
-#define APU_BUFFER_OFFSET_ADDRESS GENMASK(9, 0)
-
-//action size register mask
-#define APU_ACTION_SIZE GENMASK(17, 0)
-
-//block size register mask
-#define APU_BLOCK_SIZE GENMASK(9, 0)
-
-//param register mask
-#define APU_PARAM_1 GENMASK(15, 0)
-#define APU_PARAM_2 GENMASK(15, 0)
-
-//left right register mask
-#define APU_LEFT_RIGHT_LEFT BIT(0) //0 left; 1 right
-
-//start register mask
-#define APU_START_BIT BIT(0) //1 to start
-
-//opcode
-#define APU_OPCODE_COPY 0x0
-#define APU_OPCODE_AUDIO_OUT 0x1
-
+#define APU_CONTROL_START_MASK BIT(0) //1 to start processing the shader
+#define APU_SHADER_START_ADDR_MASK GENMASK(11,1)
 //#define APU ((apu_t*) 0x0002B000)
 
 
-
-//other macro
-#define APU_CHANNEL_LEFT 0
-#define APU_CHANNEL_RIGHT 1
-
-
-static inline void apu_copy(apu_t* apu, uint32_t origin_address, uint32_t buffer_start, uint32_t buffer_size, uint32_t operation_start, uint32_t operation_size ){
-    apu->opcode = APU_OPCODE_COPY;
-    apu->start_ram_address = origin_address;
-    apu->start = buffer_start;
-    apu->block_size = buffer_size;
-    apu->in_buffer1_offset = operation_size;
-    apu->in_buffer1_start = operation_start;
+//busy check
+uint32_t apu_is_busy(apu_t* apu){
+    return (apu->status & APU_MEM_BUSY_MASK) != 0;
 }
 
-static inline void apu_audio_out(apu_t* apu, uint32_t buffer_start, uint32_t buffer_size, uint32_t operation_start, uint32_t operation_size, uint32_t lr){
-    apu->opcode = APU_OPCODE_AUDIO_OUT;
-    apu->start = buffer_start;
-    apu->block_size = buffer_size;
-    apu->in_buffer1_offset = operation_size;
-    apu->in_buffer1_start = operation_start;
-    apu->left_right = lr;
+//new grain check
+uint32_t apu_has_new_grain(apu_t* apu){
+    return (apu->status & APU_NEW_GRAINS_AVAIL_MASK) != 0;
 }
 
-static inline int apu_ready(apu_t* apu) {
-    return !(apu->status & APU_STATUS_READY);
+//start shader processing
+uint32_t apu_start_shader(apu_t* apu, uint32_t shader_start_addr){
+    if(apu_is_busy(apu) != 0){ // apu is busy so error
+        return 1;
+    }
+    apu->control = (APU_SHADER_START_ADDR_MASK & (shader_start_addr << 1)) | APU_CONTROL_START_MASK;
+    while(apu_is_busy(apu) == 0){}
+    apu->control &= ~APU_CONTROL_START_MASK;
+    return 0;
 }
 
-static inline void apu_start(apu_t* apu){
-    apu->start = APU_START_BIT;
+//load shader
+uint32_t apu_load_shader(apu_t* apu, uint32_t shader_start_addr, uint32_t* shader, uint32_t shader_dim){
+    if (shader_start_addr + shader_dim > APU_SHADER_WORDS){
+        return 1;
+    }
+    for(uint32_t i = 0; i < shader_dim; i++){
+        apu->shader_mem[shader_start_addr+i] = shader[i];
+    }
+    return 0;
 }
 
-static inline void apu_start_rst(apu_t* apu){
-    apu->start = 0;
-}
+//load param
+uint32_t apu_load_param(apu_t* apu, uint32_t param_left, uint32_t param_right, uint32_t offset){
+    if (offset >= APU_PARAM_WORDS){
+        return 1;
+    }
 
-static inline void apu_wait(apu_t* apu){
-    while(!apu_ready(apu));
-}
-
-static inline uint32_t apu_status_result(apu_t* apu){
-    return (apu->status & APU_STATUS_RESULT) >> 16;
-}
-
-static inline uint32_t apu_status_state(apu_t* apu){
-    return (apu->status & APU_STATUS_STATE) >> 1;
-}
-
-static inline uint32_t apu_status_out_en(apu_t* apu){
-    return (apu->status & APU_STATUS_OUT_EN) >> 5;
-}
-
-static inline uint32_t apu_buffer_offset_composer(apu_buffer_offset_t offset){
-    return (offset.sample_select << 17) | (offset.block_select << 10) | offset.address;
-}
-
-static inline int apu_execute(apu_t* apu, const apu_cmd_t *cmd){
-    apu_wait(apu);
-
-    apu->opcode = cmd->opcode;
-    apu->in_buffer1_start = cmd->in1_start;
-    apu->in_buffer1_offset = apu_buffer_offset_composer(cmd->in1_offset);
-    apu->in_buffer2_start = cmd->in2_start;
-    apu->in_buffer2_offset = apu_buffer_offset_composer(cmd->in2_offset);
-    apu->in_buffer3_start = cmd->in3_start;
-    apu->in_buffer3_offset = apu_buffer_offset_composer(cmd->in3_offset);
-
-    apu->out_buffer1_start = cmd->out1_start;
-    apu->out_buffer1_offset = apu_buffer_offset_composer(cmd->out1_offset);
-    apu->out_buffer2_start = cmd->out2_start;
-    apu->out_buffer2_offset = apu_buffer_offset_composer(cmd->out2_offset);
-
-    apu->action_size=cmd->action_size;
-    apu->block_size=cmd->block_size;
-    apu->param1=cmd->param1;
-    apu->param2=cmd->param2;
-
-    apu->start_ram_address=cmd->start_ram_address;
-    apu->left_right=cmd->left_right;
-
-    apu_start(apu);
-    apu_start_rst(apu);
+    apu->param_mem_left[offset] = param_left;
+    apu->param_mem_right[offset] = param_right;
 
     return 0;
 }
+
+
+
 
 
 
