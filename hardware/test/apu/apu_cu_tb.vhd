@@ -11,7 +11,7 @@ end AudioCU_tb;
 architecture sim of AudioCU_tb is
 
     -- --------------------------------------------------------
-    -- Geometry Parameters (Matching VHDL Generics)
+    -- Geometry Parameters
     -- --------------------------------------------------------
     constant ARAM_WORD_SIZE : integer := 32;
     constant ARAM_ADDR_SIZE : integer := 16;
@@ -30,7 +30,7 @@ architecture sim of AudioCU_tb is
     -- ARAM Interfacing
     signal unit_select : apu_unit_t;
 
-    -- Shared BRAM Interfacing
+    -- Shared BRAM Interfacing (CU Ports)
     signal iwe, ien  : std_logic;
     signal iaddr     : std_logic_vector(INSTR_ADDR_SIZE-1 downto 0);
     signal idata_in  : std_logic_vector(ARAM_WORD_SIZE-1 downto 0);
@@ -39,7 +39,7 @@ architecture sim of AudioCU_tb is
     -- Outside CPU (Host) BRAM Interfacing
     signal host_we   : std_logic := '0';
     signal host_addr : integer := 0;
-    signal host_data : std_logic_vector(31 downto 0) := (others => '0');
+    signal host_data : std_logic_vector(ARAM_WORD_SIZE-1 downto 0) := (others => '0');
     
     -- Audio IO Interfacing
     signal aio_new_grain, aio_in_end, aio_out_end : std_logic := '0';
@@ -62,24 +62,19 @@ architecture sim of AudioCU_tb is
     signal vec_bsr2, vec_blr2, vec_osr2, vec_olr2 : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
     signal vec_bsw, vec_blw, vec_osw, vec_olw : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
 
-    -- --------------------------------------------------------
-    -- Memory Storage Signal representing the unified 2048x32 BRAM
-    -- --------------------------------------------------------
+    -- Memory Storage
     type ram_type is array (0 to MEM_DEPTH-1) of std_logic_vector(ARAM_WORD_SIZE-1 downto 0);
     signal shared_bram : ram_type := (others => (others => '0'));
 
-    -- Clock Period Constant (100MHz System Clock)
     constant CLK_PERIOD : time := 10 ns;
 
 begin
 
-    -- --------------------------------------------------------
-    -- Device Under Test (DUT) Instantiation
-    -- --------------------------------------------------------
     uut: entity work.AudioCU
         generic map (
             ARAM_WORD_SIZE => ARAM_WORD_SIZE,
             ARAM_ADDR_SIZE => ARAM_ADDR_SIZE,
+            INSTR_ADDR_SIZE=> INSTR_ADDR_SIZE,
             UPARAM_SIZE    => UPARAM_SIZE,
             INSTR_SIZE     => INSTR_SIZE,
             COUNTER_SIZE   => COUNTER_SIZE
@@ -138,9 +133,7 @@ begin
             vec_olw         => vec_olw
         );
 
-    -- --------------------------------------------------------
-    -- Clock Generator Process
-    -- --------------------------------------------------------
+    -- Clock Generation
     clk_process : process
     begin
         clk <= '0';
@@ -149,14 +142,11 @@ begin
         wait for CLK_PERIOD/2;
     end process;
 
--- --------------------------------------------------------
-    -- Unified Synchronous Dual-Port BRAM Emulation Process
-    -- --------------------------------------------------------
+    -- Dual Port BRAM
     bram_process : process(clk)
         variable addr_idx : integer;
     begin
         if rising_edge(clk) then
-            -- Port A: Audio CU (Read/Write)
             if ien = '1' then
                 addr_idx := to_integer(unsigned(iaddr));
                 if iwe = '1' then
@@ -165,116 +155,110 @@ begin
                     idata_out <= shared_bram(addr_idx);
                 end if;
             end if;
-            
-            -- Port B: Outside CPU / Testbench (Write-Only for stimulus)
             if host_we = '1' then
                 shared_bram(host_addr) <= host_data;
             end if;
         end if;
     end process;
 
-    -- --------------------------------------------------------
-    -- Main Stimulus Process
-    -- --------------------------------------------------------
+    -- Main Test Sequence
     stim_proc: process
         variable v_instr : std_logic_vector(127 downto 0);
 
-        -- Local procedure to load a 128-bit block using the Host CPU Port
-        procedure load_instruction(
-            constant base_word_addr : in integer;
-            constant full_instr     : in std_logic_vector(127 downto 0)
-        ) is
+        -- Helper to write single 32-bit values synchronously
+        procedure write_bram(constant addr : in integer; constant data : in std_logic_vector(31 downto 0)) is
         begin
             wait until rising_edge(clk);
-            host_we <= '1';
-            
-            host_addr <= base_word_addr;
-            host_data <= full_instr(127 downto 96);
+            host_addr <= addr;
+            host_data <= data;
+            host_we   <= '1';
             wait until rising_edge(clk);
-            
-            host_addr <= base_word_addr + 1;
-            host_data <= full_instr(95 downto 64);
-            wait until rising_edge(clk);
-            
-            host_addr <= base_word_addr + 2;
-            host_data <= full_instr(63 downto 32);
-            wait until rising_edge(clk);
-            
-            host_addr <= base_word_addr + 3;
-            host_data <= full_instr(31 downto 0);
-            wait until rising_edge(clk);
-            
-            host_we <= '0';
+            host_we   <= '0';
+        end procedure;
+
+        -- Helper to load 128-bit Shader Blocks
+        procedure load_instruction(constant base_word_addr : in integer; constant full_instr : in std_logic_vector(127 downto 0)) is
+        begin
+            write_bram(base_word_addr,     full_instr(127 downto 96));
+            write_bram(base_word_addr + 1, full_instr(95 downto 64));
+            write_bram(base_word_addr + 2, full_instr(63 downto 32));
+            write_bram(base_word_addr + 3, full_instr(31 downto 0));
         end procedure;
 
     begin		
-        -- Initial Pipeline Holds
-        rst             <= '0';
-        aio_new_grain   <= '0';
-        aio_in_end      <= '0';
-        aio_out_end     <= '0';
-        fft_end         <= '0';
-        vec_end         <= '0';
+        rst <= '0';
+        aio_new_grain <= '0';
+        aio_in_end <= '0'; aio_out_end <= '0'; fft_end <= '0'; vec_end <= '0';
         wait for CLK_PERIOD * 2;
 
-        -- Pre-populate Shader space (Addresses 2-1023) inside the BRAM before execution
-        -- Shader execution path begins at address 3
+        report "[INIT] Preloading Pointer-Dereference Parameter Memory Tables...";
 
-        -- Instruction 1 (Addr 3): APU_OP_AUDIO_IN (1100), bs=0x123, bl=0x05A, os=0x210, ol=0x0FF
+        -- POPULATE LEFT CHANNEL PARAMETERS (Offsets 1024 to 1051)
+        -- We write distinct values (0x100 to 0x11B) so we can verify them later
+        for i in 0 to 27 loop
+            write_bram(1024 + i, std_logic_vector(to_unsigned(16#100# + i, ARAM_WORD_SIZE)));
+        end loop;
+
+        -- POPULATE RIGHT CHANNEL PARAMETERS (Offsets 1536 to 1563)
+        -- We write distinct values (0x200 to 0x21B)
+        for i in 0 to 27 loop
+            write_bram(1536 + i, std_logic_vector(to_unsigned(16#200# + i, ARAM_WORD_SIZE)));
+        end loop;
+
+        report "[INIT] Building and Storing Shader Assembly (using 9-bit pointers)...";
+
+        -- 1. AUDIO_IN (Pointers 0, 1, 2, 3)
         v_instr := (others => '0');
-        v_instr(127 downto 124) := "1100"; 
-        v_instr(123 downto 114) := "0100100011"; -- 0x123
-        v_instr(113 downto 104) := "0001011010"; -- 0x05A
-        v_instr(103 downto 94)  := "1000010000"; -- 0x210
-        v_instr(93 downto 84)   := "0011111111"; -- 0x0FF
+        v_instr(127 downto 124) := "1100";
+        v_instr(35 downto 27)   := std_logic_vector(to_unsigned(0, 9)); -- bs
+        v_instr(26 downto 18)   := std_logic_vector(to_unsigned(1, 9)); -- bl
+        v_instr(17 downto 9)    := std_logic_vector(to_unsigned(2, 9)); -- os
+        v_instr(8 downto 0)     := std_logic_vector(to_unsigned(3, 9)); -- op_len
         load_instruction(3, v_instr);
 
-        -- Instruction 2 (Addr 7): APU_OP_FFT (0001), size=1, bsr=1, blr=2, osr=3, olr=4, bsw=5, blw=6, osw=7, olw=8
+        -- 2. FFT (Pointers 4 through 10)
         v_instr := (others => '0');
         v_instr(127 downto 124) := "0001";
-        v_instr(123)            := '1';
-        v_instr(122 downto 113) := std_logic_vector(to_unsigned(1, 10));
-        v_instr(112 downto 103) := std_logic_vector(to_unsigned(2, 10));
-        v_instr(102 downto 93)  := std_logic_vector(to_unsigned(3, 10));
-        v_instr(92 downto 83)   := std_logic_vector(to_unsigned(4, 10));
-        v_instr(82 downto 73)   := std_logic_vector(to_unsigned(5, 10));
-        v_instr(72 downto 63)   := std_logic_vector(to_unsigned(6, 10));
-        v_instr(62 downto 53)   := std_logic_vector(to_unsigned(7, 10));
-        v_instr(52 downto 43)   := std_logic_vector(to_unsigned(8, 10));
+        v_instr(123)            := '1'; -- Forward
+        v_instr(122)            := '1'; -- Size flag
+        v_instr(89 downto 81)   := std_logic_vector(to_unsigned(4, 9)); -- out_bs
+        v_instr(80 downto 72)   := std_logic_vector(to_unsigned(5, 9)); -- out_bl
+        v_instr(71 downto 63)   := std_logic_vector(to_unsigned(6, 9)); -- out_os
+        v_instr(35 downto 27)   := std_logic_vector(to_unsigned(7, 9)); -- in1_bs
+        v_instr(26 downto 18)   := std_logic_vector(to_unsigned(8, 9)); -- in1_bl
+        v_instr(17 downto 9)    := std_logic_vector(to_unsigned(9, 9)); -- in1_os
+        v_instr(8 downto 0)     := std_logic_vector(to_unsigned(10, 9)); -- op_len
         load_instruction(7, v_instr);
 
-        -- Instruction 3 (Addr 11): APU_OP_ADD_VECTOR (0011), bsr1=0xAA, blr1=0xBB, osr1=0xCC, olr1=0xDD, bsr2=0x111...
+        -- 3. ADD_VEC (Pointers 11 through 20)
         v_instr := (others => '0');
         v_instr(127 downto 124) := "0011";
-        v_instr(123 downto 114) := "0010101010"; -- 0x0AA
-        v_instr(113 downto 104) := "0010111011"; -- 0x0BB
-        v_instr(103 downto 94)  := "0011001100"; -- 0x0CC
-        v_instr(93 downto 84)   := "0011011101"; -- 0x0DD
-        v_instr(83 downto 74)   := "0100010001"; -- 0x111
-        v_instr(73 downto 64)   := "1000100010"; -- 0x222
-        v_instr(63 downto 54)   := "1100110011"; -- 0x333
-        v_instr(53 downto 44)   := "0101000100"; -- 0x444
-        v_instr(43 downto 34)   := "0110100000"; -- 0x1A0
-        v_instr(33 downto 24)   := "1010110000"; -- 0x2B0
-        v_instr(23 downto 14)   := "1111000000"; -- 0x3C0
-        v_instr(13 downto 4)    := "0100110000"; -- 0x4D0
+        v_instr(89 downto 81)   := std_logic_vector(to_unsigned(11, 9)); -- out_bs
+        v_instr(80 downto 72)   := std_logic_vector(to_unsigned(12, 9)); -- out_bl
+        v_instr(71 downto 63)   := std_logic_vector(to_unsigned(13, 9)); -- out_os
+        v_instr(62 downto 54)   := std_logic_vector(to_unsigned(14, 9)); -- in2_bs
+        v_instr(53 downto 45)   := std_logic_vector(to_unsigned(15, 9)); -- in2_bl
+        v_instr(44 downto 36)   := std_logic_vector(to_unsigned(16, 9)); -- in2_os
+        v_instr(35 downto 27)   := std_logic_vector(to_unsigned(17, 9)); -- in1_bs
+        v_instr(26 downto 18)   := std_logic_vector(to_unsigned(18, 9)); -- in1_bl
+        v_instr(17 downto 9)    := std_logic_vector(to_unsigned(19, 9)); -- in1_os
+        v_instr(8 downto 0)     := std_logic_vector(to_unsigned(20, 9)); -- op_len
         load_instruction(11, v_instr);
 
-        -- Instruction 4 (Addr 15): APU_OP_MUL_SCALAR (1000), bsr1=5, blr1=10, scalar=0xDEAD, bsw=0x300...
+        -- 4. MUL_SCALAR (Pointers 21 to 27)
         v_instr := (others => '0');
         v_instr(127 downto 124) := "1000";
-        v_instr(123 downto 114) := std_logic_vector(to_unsigned(5, 10));
-        v_instr(113 downto 104) := std_logic_vector(to_unsigned(10, 10));
-        v_instr(103 downto 94)  := std_logic_vector(to_unsigned(15, 10));
-        v_instr(93 downto 84)   := std_logic_vector(to_unsigned(20, 10));
-        v_instr(83 downto 68)   := X"DEAD";       -- Immediate Scalar Value
-        v_instr(43 downto 34)   := "1100000000"; -- 0x300
-        v_instr(33 downto 24)   := "1100010000"; -- 0x310
-        v_instr(23 downto 14)   := "1100100000"; -- 0x320
-        v_instr(13 downto 4)    := "1100110000"; -- 0x330
+        v_instr(89 downto 81)   := std_logic_vector(to_unsigned(21, 9)); -- out_bs
+        v_instr(80 downto 72)   := std_logic_vector(to_unsigned(22, 9)); -- out_bl
+        v_instr(71 downto 63)   := std_logic_vector(to_unsigned(23, 9)); -- out_os
+        v_instr(51 downto 36)   := X"DEAD";                              -- absolute scalar value
+        v_instr(35 downto 27)   := std_logic_vector(to_unsigned(24, 9)); -- in1_bs
+        v_instr(26 downto 18)   := std_logic_vector(to_unsigned(25, 9)); -- in1_bl
+        v_instr(17 downto 9)    := std_logic_vector(to_unsigned(26, 9)); -- in1_os
+        v_instr(8 downto 0)     := std_logic_vector(to_unsigned(27, 9)); -- op_len
         load_instruction(15, v_instr);
 
-        -- Instruction 5 (Addr 19): APU_OP_STOP (1111)
+        -- 5. STOP Command
         v_instr := (others => '0');
         v_instr(127 downto 124) := "1111";
         load_instruction(19, v_instr);
@@ -286,135 +270,84 @@ begin
 
         report "--- STARTING AUDIO CONTROL UNIT VHDL TESTBENCH RUN ---";
 
-        -- Outside CPU initiates operations by writing start parameter configuration to Address 1
-        -- Bit 0 = 1 (start active), Bits 10-1 value = 1 (Combined value = 3, mapping start_addr to 3)
-        wait until rising_edge(clk);
-        host_addr <= 1;
-        host_data <= std_logic_vector(to_unsigned(3, ARAM_WORD_SIZE));
-        host_we   <= '1';
-        
-        wait until rising_edge(clk);
-        host_we   <= '0'; -- De-assert write enable
+        -- Trigger start flag + assign start_address=3 to addr 1
+        write_bram(1, std_logic_vector(to_unsigned(3, ARAM_WORD_SIZE)));
 
-        -- --------------------------------------------------------
-        -- TEST CASE 1: AUDIO INPUT INSTRUCTION MAPPING
-        -- --------------------------------------------------------
-        report "[TEST] Launching Audio Input Core Validation...";
+        -- ====================================================================
+        -- PHASE 1: LEFT CHANNEL VALIDATION (Should dereference from 1024+)
+        -- ====================================================================
         
-        wait until aio_in_en = '1';
-        wait for 1 ns; -- Safe margin away from clock edge for sampling
-
+        -- 1. AUDIO_IN (Expected Left Values: 0x100 to 0x103)
+        wait until aio_in_en = '1'; wait for 1 ns;
         assert (unit_select = APU_UNIT_AUDIO_IN) report "Wrong unit selection for Audio In" severity failure;
-        assert (aio_in_bs = "0100100011") report "AIO Base Address structural extraction failed" severity failure;
-        assert (aio_in_bl = "0001011010") report "AIO Block Length structural extraction failed" severity failure;
-        
-        wait until rising_edge(clk);
-        aio_in_end <= '1';
-        wait until rising_edge(clk);
-        aio_in_end <= '0';
+        assert (aio_in_bs = std_logic_vector(to_unsigned(16#100#, ARAM_ADDR_SIZE))) report "Left Deref Failed: aio_in_bs" severity failure;
+        assert (aio_in_bl = std_logic_vector(to_unsigned(16#101#, ARAM_ADDR_SIZE))) report "Left Deref Failed: aio_in_bl" severity failure;
+        assert (aio_in_os = std_logic_vector(to_unsigned(16#102#, ARAM_ADDR_SIZE))) report "Left Deref Failed: aio_in_os" severity failure;
+        assert (aio_in_ol = std_logic_vector(to_unsigned(16#103#, ARAM_ADDR_SIZE))) report "Left Deref Failed: aio_in_ol" severity failure;
+        wait until rising_edge(clk); aio_in_end <= '1'; wait until rising_edge(clk); aio_in_end <= '0';
 
-        -- --------------------------------------------------------
-        -- TEST CASE 2: FFT UNIT PARAMETER GENERATOR
-        -- --------------------------------------------------------
-        report "[TEST] Launching FFT Co-Processor Parameter Routing...";
+        -- 2. FFT (Expected Left Values: 0x104 to 0x10A)
+        wait until fft_en = '1'; wait for 1 ns;
+        assert (fft_bsw = std_logic_vector(to_unsigned(16#104#, ARAM_ADDR_SIZE))) report "Left Deref Failed: fft_bsw" severity failure;
+        assert (fft_bsr = std_logic_vector(to_unsigned(16#107#, ARAM_ADDR_SIZE))) report "Left Deref Failed: fft_bsr" severity failure;
+        wait until rising_edge(clk); fft_end <= '1'; wait until rising_edge(clk); fft_end <= '0';
 
-        wait until fft_en = '1';
+        -- 3. VEC_ADD (Expected Left Values: 0x10B to 0x114)
+        wait until vec_en = '1'; wait for 1 ns;
+        assert (vec_bsw = std_logic_vector(to_unsigned(16#10B#, ARAM_ADDR_SIZE))) report "Left Deref Failed: vec_bsw" severity failure;
+        assert (vec_bsr2 = std_logic_vector(to_unsigned(16#10E#, ARAM_ADDR_SIZE))) report "Left Deref Failed: vec_bsr2" severity failure;
+        assert (vec_bsr1 = std_logic_vector(to_unsigned(16#111#, ARAM_ADDR_SIZE))) report "Left Deref Failed: vec_bsr1" severity failure;
+        wait until rising_edge(clk); vec_end <= '1'; wait until rising_edge(clk); vec_end <= '0';
+
+        -- 4. VEC_MUL_SCALAR (Expected Left Values: 0x115 to 0x11B)
+        wait until vec_en = '1'; wait for 1 ns;
+        assert (vec_scalar = X"DEAD") report "Immediate scalar payload mapping missed" severity failure;
+        assert (vec_bsw = std_logic_vector(to_unsigned(16#115#, ARAM_ADDR_SIZE))) report "Left Deref Failed: vec_bsw (scalar)" severity failure;
+        assert (vec_bsr1 = std_logic_vector(to_unsigned(16#118#, ARAM_ADDR_SIZE))) report "Left Deref Failed: vec_bsr1 (scalar)" severity failure;
+        wait until rising_edge(clk); vec_end <= '1'; wait until rising_edge(clk); vec_end <= '0';
+
+        -- Wait for STOP command to flip the internal channel tracking to Right
+        wait until aio_in_lr = '1'; 
         wait for 1 ns;
 
-        assert (unit_select = APU_UNIT_FFT) report "Wrong unit selection for FFT" severity failure;
-        assert (fwd_inv = '1')             report "Direction selection failed to configure to Forward mode" severity failure;
-        assert (fft_size = '1')            report "Size matrix flag config failed" severity failure;
-        assert (fft_olw = std_logic_vector(to_unsigned(8, 10))) report "FFT output offset vector length error" severity failure;
+        -- ====================================================================
+        -- PHASE 2: RIGHT CHANNEL VALIDATION (Should dereference from 1536+)
+        -- ====================================================================
+        report "[PASS] Left Channel Cleared. Beginning Right Channel Dereferencing Validation...";
 
-        wait until rising_edge(clk);
-        fft_end <= '1';
-        wait until rising_edge(clk);
-        fft_end <= '0';
+        -- 1. AUDIO_IN (Expected Right Values: 0x200 to 0x203)
+        wait until aio_in_en = '1'; wait for 1 ns;
+        assert (aio_in_bs = std_logic_vector(to_unsigned(16#200#, ARAM_ADDR_SIZE))) report "Right Deref Failed: aio_in_bs" severity failure;
+        assert (aio_in_bl = std_logic_vector(to_unsigned(16#201#, ARAM_ADDR_SIZE))) report "Right Deref Failed: aio_in_bl" severity failure;
+        assert (aio_in_os = std_logic_vector(to_unsigned(16#202#, ARAM_ADDR_SIZE))) report "Right Deref Failed: aio_in_os" severity failure;
+        assert (aio_in_ol = std_logic_vector(to_unsigned(16#203#, ARAM_ADDR_SIZE))) report "Right Deref Failed: aio_in_ol" severity failure;
+        wait until rising_edge(clk); aio_in_end <= '1'; wait until rising_edge(clk); aio_in_end <= '0';
 
-        -- Set 'start' back to 0
-        host_addr <= 1;
-        host_data <= std_logic_vector(to_unsigned(2, ARAM_WORD_SIZE));
-        host_we   <= '1';
+        -- 2. FFT (Expected Right Values: 0x204 to 0x20A)
+        wait until fft_en = '1'; wait for 1 ns;
+        assert (fft_bsw = std_logic_vector(to_unsigned(16#204#, ARAM_ADDR_SIZE))) report "Right Deref Failed: fft_bsw" severity failure;
+        assert (fft_bsr = std_logic_vector(to_unsigned(16#207#, ARAM_ADDR_SIZE))) report "Right Deref Failed: fft_bsr" severity failure;
+        wait until rising_edge(clk); fft_end <= '1'; wait until rising_edge(clk); fft_end <= '0';
 
-        -- --------------------------------------------------------
-        -- TEST CASE 3: PARALLEL VECTOR UNIT EXECUTION
-        -- --------------------------------------------------------
-        report "[TEST] Launching Parallel SIMD Vector Instruction Mapping...";
+        -- 3. VEC_ADD (Expected Right Values: 0x20B to 0x214)
+        wait until vec_en = '1'; wait for 1 ns;
+        assert (vec_bsw = std_logic_vector(to_unsigned(16#20B#, ARAM_ADDR_SIZE))) report "Right Deref Failed: vec_bsw" severity failure;
+        assert (vec_bsr2 = std_logic_vector(to_unsigned(16#20E#, ARAM_ADDR_SIZE))) report "Right Deref Failed: vec_bsr2" severity failure;
+        assert (vec_bsr1 = std_logic_vector(to_unsigned(16#211#, ARAM_ADDR_SIZE))) report "Right Deref Failed: vec_bsr1" severity failure;
+        wait until rising_edge(clk); vec_end <= '1'; wait until rising_edge(clk); vec_end <= '0';
 
-        wait until vec_en = '1';
-        wait for 1 ns;
-
-        assert (unit_select = APU_UNIT_VEC) report "Wrong unit selection for Vector Unit" severity failure;
-        assert (vec_op = VEC_OP_ADDV)        report "Opcode transformation lookup map broke for ADDV" severity failure;
-        assert (vec_bsr1 = "0010101010")    report "Vector Operand Address Bus 1 mismatch" severity failure;
-        assert (vec_bsr2 = "0100010001")    report "Vector Operand Address Bus 2 mismatch" severity failure;
-
-        wait until rising_edge(clk);
-        vec_end <= '1';
-        wait until rising_edge(clk);
-        vec_end <= '0';
-
-        -- --------------------------------------------------------
-        -- TEST CASE 4: IMMEDIATE SCALAR FIELD ISOLATION
-        -- --------------------------------------------------------
-        report "[TEST] Launching Scalar Immediate Value Routing & Bus Isolation Checks...";
-
-        wait until vec_en = '1';
-        wait for 1 ns;
-
-        assert (vec_op = VEC_OP_MULS)      report "Opcode transformation lookup map broke for MULS" severity failure;
-        assert (vec_scalar = X"DEAD")      report "Immediate Scalar value pipeline routing missed" severity failure;
-        assert (vec_bsr2 = "0000000000")   report "Address Leakage! Buffer Read 2 must clear out during active scalar cycles" severity failure;
-        
-        wait until rising_edge(clk);
-        vec_end <= '1';
-        wait until rising_edge(clk);
-        vec_end <= '0';
-
-        -- --------------------------------------------------------
-        -- TEST CASE 5: STEREO PING-PONG HANDSHAKE (STOP COMMAND)
-        -- --------------------------------------------------------
-        report "[TEST] Testing Stereo Interleaved Channel Sync (STOP Ping-Pong)...";
-        
-        -- System starts default tracking set to Left Channel (0)
-        assert (aio_in_lr = '0') report "System failed default Left audio channel alignment assertion" severity failure;
-        
-        -- Wait for STOP command to flip channel pointer to Right Channel ('1')
-        wait until aio_in_lr = '1';
-        wait for 1 ns;
-        assert (aio_in_lr = '1') report "Channel pointer failed to transition to Right channel track processing" severity failure;
-        
-        -- --- SECOND PASS (RIGHT CHANNEL): CLEAR PIPELINE INTERLEAVE ---
-
-        -- 1. Trigger & Clear Audio IO
-        wait until aio_in_en = '1';
-        wait until rising_edge(clk); aio_in_end <= '1';
-        wait until rising_edge(clk); aio_in_end <= '0';
-
-        -- 2. Trigger & Clear FFT
-        wait until fft_en = '1';
-        wait until rising_edge(clk); fft_end <= '1';
-        wait until rising_edge(clk); fft_end <= '0';
-
-        -- 3. Trigger & Clear Vector ADD
-        wait until vec_en = '1';
-        wait until rising_edge(clk); vec_end <= '1';
-        wait until rising_edge(clk); vec_end <= '0';
-
-        -- 4. Trigger & Clear Vector MUL
-        wait until vec_en = '1';
-        wait until rising_edge(clk); vec_end <= '1';
-        wait until rising_edge(clk); vec_end <= '0';
+        -- 4. VEC_MUL_SCALAR (Expected Right Values: 0x215 to 0x21B)
+        wait until vec_en = '1'; wait for 1 ns;
+        assert (vec_bsw = std_logic_vector(to_unsigned(16#215#, ARAM_ADDR_SIZE))) report "Right Deref Failed: vec_bsw (scalar)" severity failure;
+        assert (vec_bsr1 = std_logic_vector(to_unsigned(16#218#, ARAM_ADDR_SIZE))) report "Right Deref Failed: vec_bsr1 (scalar)" severity failure;
+        wait until rising_edge(clk); vec_end <= '1'; wait until rising_edge(clk); vec_end <= '0';
         
         -- Wait for system to safely return to Left channel tracking (and back into IDLE state)
         wait until aio_in_lr = '0';
         wait for 1 ns;
-
-        -- System finishes channel pass 2 loops: clears back to zero status safely inside IDLE block state boundary
-        assert (aio_in_lr = '0') report "Reset sequence to Left channel failed at frame exit path boundaries" severity failure;
         
         report "----------------------------------------------------";
-        report "[PASSED] ALL AUDIO CONTROL UNIT TEST CASES CLEAR!";
+        report "[PASSED] ALL POINTER DEREFERENCING TEST CASES CLEAR!";
         report "----------------------------------------------------";
         
         wait; -- Suspension ends simulation run

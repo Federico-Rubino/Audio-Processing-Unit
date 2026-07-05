@@ -225,7 +225,7 @@ begin
                             iaddr(UPARAM_SIZE-1 downto 0) <= instr(4*UPARAM_SIZE-1 downto 3*UPARAM_SIZE);
 
                         when APU_OP_FFT | APU_OP_IFFT =>
-                            next_counter <= std_logic_vector(to_unsigned(6, COUNTER_SIZE));
+                            next_counter <= std_logic_vector(to_unsigned(9, COUNTER_SIZE));
                             iwe <= '0'; ien <= '1';
                             iaddr <= (others => '0');
                             iaddr(UPARAM_SIZE+1) <= '1';
@@ -261,18 +261,18 @@ begin
                 iaddr <= (others => '0');
                 iaddr(UPARAM_SIZE-1 downto 0) <= instr((to_integer(unsigned(counter)) + 1) * UPARAM_SIZE - 1 downto to_integer(unsigned(counter)) * UPARAM_SIZE);
 
-                case op is
-                    when "1100" | "1101" =>  -- Audio In | Audio Out
-                        if    unsigned(counter) = 3 then next_op_len                                           <= idata_out(ARAM_ADDR_SIZE-1 downto 0);
-                        elsif unsigned(counter) = 2 then next_buf1(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2) <= idata_out(ARAM_ADDR_SIZE-1 downto 0);
-                        elsif unsigned(counter) = 1 then next_buf1(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1) <= idata_out(ARAM_ADDR_SIZE-1 downto 0);
-                        elsif unsigned(counter) = 0 then next_buf1(ARAM_ADDR_SIZE*1-1 downto 0)                <= idata_out(ARAM_ADDR_SIZE-1 downto 0);
-                        end if;
-
-                    -- TODO load parameters for missing instructions
-
-                    when others =>
-                end case;
+                -- Unified parameter mapping
+                if    unsigned(counter) = 9 then next_buf3(ARAM_ADDR_SIZE*1-1 downto 0)                <= idata_out(ARAM_ADDR_SIZE-1 downto 0); -- out_bs
+                elsif unsigned(counter) = 8 then next_buf3(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1) <= idata_out(ARAM_ADDR_SIZE-1 downto 0); -- out_bl
+                elsif unsigned(counter) = 7 then next_buf3(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2) <= idata_out(ARAM_ADDR_SIZE-1 downto 0); -- out_os
+                elsif unsigned(counter) = 6 then next_buf2(ARAM_ADDR_SIZE*1-1 downto 0)                <= idata_out(ARAM_ADDR_SIZE-1 downto 0); -- in2_bs
+                elsif unsigned(counter) = 5 then next_buf2(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1) <= idata_out(ARAM_ADDR_SIZE-1 downto 0); -- in2_bl
+                elsif unsigned(counter) = 4 then next_buf2(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2) <= idata_out(ARAM_ADDR_SIZE-1 downto 0); -- in2_os
+                elsif unsigned(counter) = 3 then next_buf1(ARAM_ADDR_SIZE*1-1 downto 0)                <= idata_out(ARAM_ADDR_SIZE-1 downto 0); -- in1_bs
+                elsif unsigned(counter) = 2 then next_buf1(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1) <= idata_out(ARAM_ADDR_SIZE-1 downto 0); -- in1_bl
+                elsif unsigned(counter) = 1 then next_buf1(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2) <= idata_out(ARAM_ADDR_SIZE-1 downto 0); -- in1_os
+                elsif unsigned(counter) = 0 then next_op_len                                           <= idata_out(ARAM_ADDR_SIZE-1 downto 0); -- op_len
+                end if;
 
                 if unsigned(counter) = 0 then
                     next_state <= EXECUTE;
@@ -284,10 +284,10 @@ begin
                     when APU_OP_AUDIO_IN =>
                         unit_select <= APU_UNIT_AUDIO_IN;
                         aio_in_en <= '1';
-                        -- aio_in_bs <= instr(123 downto 114);
-                        -- aio_in_bl <= instr(113 downto 104);
-                        -- aio_in_os <= instr(103 downto 94);
-                        -- aio_in_ol <= instr(93 downto 84);
+                        aio_in_bs <= buf1(ARAM_ADDR_SIZE*1-1 downto 0);
+                        aio_in_bl <= buf1(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1);
+                        aio_in_os <= buf1(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2);
+                        aio_in_ol <= op_len;
 
                         if aio_in_end = '1' then
                             next_state <= FETCH;
@@ -301,10 +301,10 @@ begin
                     when APU_OP_AUDIO_OUT =>
                         unit_select <= APU_UNIT_AUDIO_OUT;
                         aio_out_en <= '1';
-                        -- aio_out_bs <= instr(123 downto 114);
-                        -- aio_out_bl <= instr(113 downto 104);
-                        -- aio_out_os <= instr(103 downto 94);
-                        -- aio_out_ol <= instr(93 downto 84);
+                        aio_out_bs <= buf1(ARAM_ADDR_SIZE*1-1 downto 0);
+                        aio_out_bl <= buf1(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1);
+                        aio_out_os <= buf1(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2);
+                        aio_out_ol <= op_len;
 
                         if aio_out_end = '1' then
                             next_state <= FETCH;
@@ -318,16 +318,20 @@ begin
                     when APU_OP_FFT | APU_OP_IFFT =>
                         unit_select <= APU_UNIT_FFT;
                         fft_en <= '1';
-                        fwd_inv <= '1' when (op = APU_OP_FFT) else '0';
-                        fft_size <= instr(123);
-                        -- fft_bsr <= instr(122 downto 113);
-                        -- fft_blr <= instr(112 downto 103);
-                        -- fft_osr <= instr(102 downto 93);
-                        -- fft_olr <= instr(92 downto 83);
-                        -- fft_bsw <= instr(82 downto 73);
-                        -- fft_blw <= instr(72 downto 63);
-                        -- fft_osw <= instr(62 downto 53);
-                        -- fft_olw <= instr(52 downto 43);
+                        
+                        -- Immediate flags directly from instruction bits
+                        fwd_inv <= instr(123);
+                        fft_size <= instr(122);
+                        
+                        fft_bsr <= buf1(ARAM_ADDR_SIZE*1-1 downto 0);
+                        fft_blr <= buf1(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1);
+                        fft_osr <= buf1(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2);
+                        fft_olr <= op_len;
+                        
+                        fft_bsw <= buf3(ARAM_ADDR_SIZE*1-1 downto 0);
+                        fft_blw <= buf3(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1);
+                        fft_osw <= buf3(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2);
+                        fft_olw <= op_len;
 
                         if fft_end = '1' then
                             next_state <= FETCH;
@@ -339,9 +343,8 @@ begin
 
                     -- Vector/Scalar Parallel Operations
                     when APU_OP_ADD_VECTOR | APU_OP_ADD_SCALAR | 
-                            APU_OP_SUB_VECTOR | APU_OP_SUB_SCALAR | 
-                            APU_OP_MUL_VECTOR | APU_OP_MUL_SCALAR | 
-                            APU_OP_MULC_VECTOR =>
+                         APU_OP_SUB_VECTOR | APU_OP_SUB_SCALAR | 
+                         APU_OP_MUL_VECTOR | APU_OP_MUL_SCALAR | APU_OP_MULC_VECTOR =>
                             
                         unit_select <= APU_UNIT_VEC;
                         vec_en <= '1';
@@ -357,27 +360,29 @@ begin
                             when others             => vec_op <= (others => '0');
                         end case;
 
-                        -- vec_bsr1 <= instr(123 downto 114);
-                        -- vec_blr1 <= instr(113 downto 104);
-                        -- vec_osr1 <= instr(103 downto 94);
-                        -- vec_olr1 <= instr(93 downto 84);
-                        -- vec_bsw <= instr(43 downto 34);
-                        -- vec_blw <= instr(33 downto 24);
-                        -- vec_osw <= instr(23 downto 14);
-                        -- vec_olw <= instr(13 downto 4);
+                        vec_bsr1 <= buf1(ARAM_ADDR_SIZE*1-1 downto 0);
+                        vec_blr1 <= buf1(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1);
+                        vec_osr1 <= buf1(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2);
+                        vec_olr1 <= op_len;
+                        
+                        vec_bsw <= buf3(ARAM_ADDR_SIZE*1-1 downto 0);
+                        vec_blw <= buf3(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1);
+                        vec_osw <= buf3(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2);
+                        vec_olw <= op_len;
 
                         if (op = APU_OP_ADD_SCALAR or op = APU_OP_SUB_SCALAR or op = APU_OP_MUL_SCALAR) then
-                            -- vec_scalar <= instr(83 downto 68);
-                            -- vec_bsr2 <= (others => '0');
-                            -- vec_blr2 <= (others => '0');
-                            -- vec_osr2 <= (others => '0');
-                            -- vec_olr2 <= (others => '0');
+                            -- Extracted immediate scalar parameter based on ISA
+                            vec_scalar <= instr(51 downto 36);
+                            vec_bsr2 <= (others => '0');
+                            vec_blr2 <= (others => '0');
+                            vec_osr2 <= (others => '0');
+                            vec_olr2 <= (others => '0');
                         else
-                            -- vec_scalar <= (others => '0');
-                            -- vec_bsr2 <= instr(83 downto 74);
-                            -- vec_blr2 <= instr(73 downto 64);
-                            -- vec_osr2 <= instr(63 downto 54);
-                            -- vec_olr2 <= instr(53 downto 44);
+                            vec_scalar <= (others => '0');
+                            vec_bsr2 <= buf2(ARAM_ADDR_SIZE*1-1 downto 0);
+                            vec_blr2 <= buf2(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1);
+                            vec_osr2 <= buf2(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2);
+                            vec_olr2 <= op_len;
                         end if;
 
                         if vec_end = '1' then

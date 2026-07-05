@@ -41,4 +41,4 @@ Thumbs.db
 *.ghw
 
 # Auxiliary files
-*/bo.vhd
+bo.vhd
