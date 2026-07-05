@@ -2,6 +2,29 @@
 #Source to copy the real layout from:
 #   hardware/src/apu/apu_opcode_pkg.vhd        (opcode values)
 #   hardware/src/apu/audio_control_unit.vhd    (EXECUTE case: instr bit -> field decode)
+#
+# IMPORTANT -- every param field below is an OFFSET, not an immediate value.
+# There are no literal/immediate param fields in this ISA -- that includes
+# scalar_parameter, despite the name suggesting otherwise.
+#
+# A param field is an index into the shared CPU<->APU BRAM's param table
+# (see software/apu/include/apu.h: apu_t.param_mem_left / param_mem_right,
+# each 512 words -- matching the 9-bit width most of these fields have). The
+# CPU writes the real value (a buffer address, a length, a scalar gain, ...)
+# into param_mem_left[offset] / param_mem_right[offset] via apu_load_param()
+# *before* the shader runs; the instruction only says which offset to read.
+#
+# This is also why param memory is split left/right: the same instruction
+# stream runs twice (once per channel, via AudioCU's lr toggle), and the
+# same field value (e.g. buffer_start_reg=5) resolves against
+# param_mem_left[5] while running for the left channel and
+# param_mem_right[5] for the right -- one program, two different real
+# values, because the CPU staged different values at the same offset in
+# each half of the table.
+#
+# Not a param, and not an offset: FFT's forward_inverse/size_256_512 (1 bit
+# each) select which variant of the operation runs -- they're literal mode
+# bits the CU branches on directly, not a reference to param memory.
 
 instruction_bits: 128
 word_bits: 32

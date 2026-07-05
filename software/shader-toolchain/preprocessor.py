@@ -9,6 +9,7 @@ import re
 from isa import AssemblerError
 
 _DEFINE_RE = re.compile(r"^\.define\s+(\w+)\s+(\S+)\s*$")
+_PARAM_RE = re.compile(r"^\.param\s+(\w+)\s*$")
 _MACRO_START_RE = re.compile(r"^\.macro\s+(\w+)\s*\(([^)]*)\)\s*$")
 _MACRO_END_RE = re.compile(r"^\.endmacro\s*$")
 _MACRO_CALL_RE = re.compile(r"^(\w+)\s*\(([^)]*)\)\s*$")
@@ -74,10 +75,16 @@ def _split_args(text):
 
 def preprocess(source_lines):
     """source_lines: raw text lines from the .shader source file (1-indexed
-    by position). Returns a list of (line_no, instruction_text) ready for
-    the encoder -- comments stripped, .define substituted, .macro calls
-    expanded inline. line_no is the original source line (a macro call
-    expanding to N instructions reports the call-site line for all of them).
+    by position). Returns (instructions, params):
+      - instructions: list of (line_no, instruction_text) ready for the
+        encoder -- comments stripped, .define/.param substituted, .macro
+        calls expanded inline. line_no is the original source line (a macro
+        call expanding to N instructions reports the call-site line for all
+        of them).
+      - params: list of (name, offset) in declaration order, one per
+        `.param NAME` directive -- the CPU<->APU param-table offsets this
+        shader expects the firmware to have staged via apu_load_param()
+        before running it. Exposed so the CLI can emit a manifest.
     """
     stripped = []
     for i, raw in enumerate(source_lines, start=1):
@@ -88,6 +95,8 @@ def preprocess(source_lines):
     lines = _join_blocks(stripped)
 
     defines = {}
+    params = []  # (name, offset), in declaration order
+    next_param_offset = 0
     macros = {}  # name -> (params, body [(line_no, text), ...])
 
     candidates = []  # (line_no, text) -- plain lines or macro calls
@@ -105,10 +114,22 @@ def preprocess(source_lines):
         m = _DEFINE_RE.match(text)
         if m:
             name, value = m.group(1), m.group(2)
+            if name in defines:
+                raise AssemblerError(f"'{name}' is already defined", i)
             try:
                 defines[name] = int(value, 0)
             except ValueError:
                 raise AssemblerError(f"'.define {name}' has non-numeric value '{value}'", i)
+            continue
+
+        m = _PARAM_RE.match(text)
+        if m:
+            name = m.group(1)
+            if name in defines:
+                raise AssemblerError(f"'{name}' is already defined", i)
+            defines[name] = next_param_offset
+            params.append((name, next_param_offset))
+            next_param_offset += 1
             continue
 
         m = _MACRO_START_RE.match(text)
@@ -138,16 +159,16 @@ def preprocess(source_lines):
         m = _MACRO_CALL_RE.match(text)
         if m and m.group(1) in macros:
             name, arg_text = m.group(1), m.group(2)
-            params, body = macros[name]
+            macro_param_names, body = macros[name]
             args = _split_args(arg_text)
-            if len(args) != len(params):
+            if len(args) != len(macro_param_names):
                 raise AssemblerError(
-                    f"macro '{name}' expects {len(params)} argument(s), got {len(args)}", line_no
+                    f"macro '{name}' expects {len(macro_param_names)} argument(s), got {len(args)}", line_no
                 )
-            arg_map = dict(zip(params, args))
+            arg_map = dict(zip(macro_param_names, args))
             for _, body_text in body:
                 instructions.append((line_no, _substitute_tokens(body_text, arg_map)))
         else:
             instructions.append((line_no, text))
 
-    return instructions
+    return instructions, params
