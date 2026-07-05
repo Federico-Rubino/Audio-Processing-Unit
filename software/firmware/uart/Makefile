@@ -4,7 +4,7 @@ OBJDUMP = riscv64-unknown-elf-objdump
 OBJCOPY = riscv64-unknown-elf-objcopy
 
 # Include directories
-INCLUDES = -Iinclude -I../utils
+INCLUDES = -Iinclude -I../common
 
 # Project files
 SRC = ../bsp/startup.s src/main.c

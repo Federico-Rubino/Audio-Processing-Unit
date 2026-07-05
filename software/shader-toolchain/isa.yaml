@@ -1,0 +1,49 @@
+# APU shader ISA specification (template).
+#
+# This is meant to become the single source of truth for the shader
+# instruction encoding, read by the assembler instead of re-deriving the
+# bit layout from the VHDL by hand. Source to copy the real layout from:
+#   hardware/src/apu/apu_opcode_pkg.vhd        (opcode values)
+#   hardware/src/apu/audio_control_unit.vhd    (EXECUTE case: instr bit -> field decode)
+
+instruction_bits: 128
+word_bits: 32
+# word 0 (lowest shader-memory address) holds the highest instruction bits,
+# word 3 (highest address) holds the lowest bits -- i.e. words are MSB-first.
+word_order: msb_first
+
+opcode_field: {msb: 127, lsb: 124}   # width comes from apu_opcode_pkg.APU_OP_WIDTH
+
+opcodes:
+
+  # No-operand example: just the opcode, nothing else to decode.
+  STOP:
+    value: 0x0
+    fields: []
+
+  # Operand example: each field is an inclusive [msb, lsb] slice of the
+  # 128-bit instruction, matching an assignment in AudioCU's EXECUTE case.
+  SOME_OPCODE_WITH_OPERANDS:
+    value: 0x1
+    fields:
+      - {name: buffer_start,  msb: 123, lsb: 114}
+      - {name: buffer_length, msb: 113, lsb: 104}
+
+  # Repeated field layouts (e.g. the vector ops' scalar/vector variants) can
+  # share a definition with a YAML anchor instead of copy-pasting:
+  OPCODE_A:
+    value: 0x2
+    fields: &shared_fields
+      - {name: example_field, msb: 93, lsb: 84}
+  OPCODE_B:
+    value: 0x3
+    fields: *shared_fields
+
+  # Reserved/not-yet-wired-up opcodes: keep the value reserved, flag it, and
+  # leave fields empty until the CU actually decodes them.
+  RESERVED_OPCODE:
+    value: 0x4
+    implemented: false
+    fields: []
+
+  # ... add every opcode from apu_opcode_pkg.vhd here ...
