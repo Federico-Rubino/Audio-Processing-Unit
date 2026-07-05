@@ -167,7 +167,7 @@ begin
         );
 
     -- stage 3 entities
-    AUDIO_OUTPUT : entity work.AudioOut
+    AUDIO_OUTPUT : entity work.AudioOutReg
         port map (
             clk => clk,
             enable => audio_out_enable_2,
