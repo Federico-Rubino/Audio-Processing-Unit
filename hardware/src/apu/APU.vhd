@@ -387,7 +387,7 @@ begin
             web(0) => bram0_port1_we_sig, enb => bram0_port1_en_sig, doutb => bram0_port1_data_out_sig
         );
 
-    aram_bram1_inst : entity work.aram_bra
+    aram_bram1_inst : entity work.aram_bram
         port map (
             clka  => clk, addra => bram1_port0_addr_sig, dina => bram1_port0_data_in_sig,
             wea(0) => bram1_port0_we_sig, ena => bram1_port0_en_sig, douta => bram1_port0_data_out_sig,
