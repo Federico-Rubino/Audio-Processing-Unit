@@ -22,7 +22,7 @@ architecture sim of tb_audioIO_grain is
     constant CLK_PERIOD : time := 10 ns;
 
     signal clk : std_logic := '0';
-    signal rst : std_logic := '1';
+    signal rst : std_logic := '0';
 
     -- fake ADAU
     signal new_sample : std_logic := '0';
@@ -440,9 +440,9 @@ begin
     ------------------------------------------------------------------
     stim : process
     begin
-        rst <= '1';
-        wait for CLK_PERIOD * 4;
         rst <= '0';
+        wait for CLK_PERIOD * 4;
+        rst <= '1';
 
         audio_in_left_right      <= '0'; -- left
         audio_in_buffer_start    <= std_logic_vector(to_unsigned(0, ADDR_W));

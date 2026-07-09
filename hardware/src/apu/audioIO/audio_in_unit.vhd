@@ -209,7 +209,7 @@ begin
             -- 1 cycle behind row_cnt
             row_addr_d <= row_cnt;
 
-            if rst = '1' then
+            if rst = '0' then
                 state   <= IDLE;
                 row_cnt <= (others => '0');
             else

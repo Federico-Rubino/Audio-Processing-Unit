@@ -231,7 +231,7 @@ begin
             row_we_d1   <= br_count_en;
             row_we_d2   <= row_we_d1;
 
-            if rst = '1' then
+            if rst = '0' then
                 state   <= IDLE;
                 row_cnt <= (others => '0');
             else

@@ -67,7 +67,7 @@ begin
     process(clk)
     begin
         if rising_edge(clk) then
-            if rst = '1' then
+            if rst = '0' then
                 write_ptr   <= 0;
                 grain_ready <= '0';
             else

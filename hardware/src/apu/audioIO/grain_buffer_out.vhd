@@ -55,7 +55,7 @@ begin
     process(clk)
     begin
         if rising_edge(clk) then
-            if rst = '1' then
+            if rst = '0' then
                 read_count   <= 0;
                 back_written <= '0';
                 need_grain   <= '1'; -- nothing loaded yet: ask for a grain immediately

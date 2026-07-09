@@ -10,7 +10,7 @@ entity bmu_addr_gen is
         LANES             : integer := 4  -- samples moved per count_en pulse: 1 (serial), 4 (parallel4), 8 (parallel8)
     );
     Port (
-        clk, rst : in std_logic; -- synchronous, active high
+        clk, rst : in std_logic; -- synchronous, active low
         start    : in std_logic; -- pulse: load a new operation
         count_en : in std_logic; -- pulse: advance the operation by LANES samples
 
@@ -95,7 +95,7 @@ begin
             bram2_port1_en <= '0'; 
             bram3_port1_en <= '0';
 
-            if rst = '1' then
+            if rst = '0' then
                 row_cursor   <= (others => '0');
                 samples_done <= (others => '0');
                 lane_cnt     <= (others => '0');
