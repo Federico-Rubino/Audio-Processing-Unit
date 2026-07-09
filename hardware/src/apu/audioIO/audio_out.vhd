@@ -12,7 +12,7 @@ entity audio_out is
     sample_out_r : out std_logic_vector(15 downto 0);
 
     -- left channel, towards audio_out_unit
-    row_addr_l        : in  std_logic_vector(4 downto 0);
+    row_addr_l        : in  std_logic_vector(3 downto 0);
     row_we_l          : in  std_logic;
     row_data_l_0      : in  std_logic_vector(15 downto 0);
     row_data_l_1      : in  std_logic_vector(15 downto 0);
@@ -22,12 +22,20 @@ entity audio_out is
     row_data_l_5      : in  std_logic_vector(15 downto 0);
     row_data_l_6      : in  std_logic_vector(15 downto 0);
     row_data_l_7      : in  std_logic_vector(15 downto 0);
+    row_data_l_8      : in  std_logic_vector(15 downto 0);
+    row_data_l_9      : in  std_logic_vector(15 downto 0);
+    row_data_l_10     : in  std_logic_vector(15 downto 0);
+    row_data_l_11     : in  std_logic_vector(15 downto 0);
+    row_data_l_12     : in  std_logic_vector(15 downto 0);
+    row_data_l_13     : in  std_logic_vector(15 downto 0);
+    row_data_l_14     : in  std_logic_vector(15 downto 0);
+    row_data_l_15     : in  std_logic_vector(15 downto 0);
     back_write_done_l : in  std_logic;
     need_grain_l      : out std_logic;
     fill_ack_l        : in  std_logic;
 
     -- right channel, towards audio_out_unit
-    row_addr_r        : in  std_logic_vector(4 downto 0);
+    row_addr_r        : in  std_logic_vector(3 downto 0);
     row_we_r          : in  std_logic;
     row_data_r_0      : in  std_logic_vector(15 downto 0);
     row_data_r_1      : in  std_logic_vector(15 downto 0);
@@ -37,6 +45,14 @@ entity audio_out is
     row_data_r_5      : in  std_logic_vector(15 downto 0);
     row_data_r_6      : in  std_logic_vector(15 downto 0);
     row_data_r_7      : in  std_logic_vector(15 downto 0);
+    row_data_r_8      : in  std_logic_vector(15 downto 0);
+    row_data_r_9      : in  std_logic_vector(15 downto 0);
+    row_data_r_10     : in  std_logic_vector(15 downto 0);
+    row_data_r_11     : in  std_logic_vector(15 downto 0);
+    row_data_r_12     : in  std_logic_vector(15 downto 0);
+    row_data_r_13     : in  std_logic_vector(15 downto 0);
+    row_data_r_14     : in  std_logic_vector(15 downto 0);
+    row_data_r_15     : in  std_logic_vector(15 downto 0);
     back_write_done_r : in  std_logic;
     need_grain_r      : out std_logic;
     fill_ack_r        : in  std_logic
@@ -57,6 +73,10 @@ begin
             row_data_2 => row_data_l_2, row_data_3 => row_data_l_3,
             row_data_4 => row_data_l_4, row_data_5 => row_data_l_5,
             row_data_6 => row_data_l_6, row_data_7 => row_data_l_7,
+            row_data_8 => row_data_l_8, row_data_9 => row_data_l_9,
+            row_data_10 => row_data_l_10, row_data_11 => row_data_l_11,
+            row_data_12 => row_data_l_12, row_data_13 => row_data_l_13,
+            row_data_14 => row_data_l_14, row_data_15 => row_data_l_15,
 
             back_write_done => back_write_done_l,
 
@@ -78,6 +98,10 @@ begin
             row_data_2 => row_data_r_2, row_data_3 => row_data_r_3,
             row_data_4 => row_data_r_4, row_data_5 => row_data_r_5,
             row_data_6 => row_data_r_6, row_data_7 => row_data_r_7,
+            row_data_8 => row_data_r_8, row_data_9 => row_data_r_9,
+            row_data_10 => row_data_r_10, row_data_11 => row_data_r_11,
+            row_data_12 => row_data_r_12, row_data_13 => row_data_r_13,
+            row_data_14 => row_data_r_14, row_data_15 => row_data_r_15,
 
             back_write_done => back_write_done_r,
 

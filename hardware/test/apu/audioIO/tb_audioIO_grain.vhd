@@ -10,13 +10,14 @@ use IEEE.NUMERIC_STD.ALL;
 -- audio_out_unit, wait).
 --
 -- line_in_l/r count up 0..255, so a correct round trip shows sample_out_l
--- counting 0..255 too.
+-- counting 0..255 too. Each a-ram cell packs 2 samples, so a 256-sample
+-- grain is 128 cells; buffer_length below is in cells, not samples.
 entity tb_audioIO_grain is
 end tb_audioIO_grain;
 
 architecture sim of tb_audioIO_grain is
 
-    constant ADDR_W     : integer := 6; -- 64 rows = exactly one 256-sample grain
+    constant ADDR_W     : integer := 6; -- 64 rows, plenty for one 128-cell grain (16 bmu rows)
     constant SIZE_W     : integer := 9;
     constant CLK_PERIOD : time := 10 ns;
 
@@ -28,25 +29,33 @@ architecture sim of tb_audioIO_grain is
     signal line_in_l, line_in_r : std_logic_vector(15 downto 0) := (others => '0');
     signal sample_out_l, sample_out_r : std_logic_vector(15 downto 0);
 
-    -- audio_in <-> audio_in_unit
+    -- audio_in <-> audio_in_unit. rows are 16 samples (2 samples/a-ram cell)
     signal grain_ready_l, grain_ready_r : std_logic;
     signal grain_ack_l, grain_ack_r : std_logic;
-    signal row_addr_in_l, row_addr_in_r : std_logic_vector(4 downto 0);
-    signal row_data_in_l_0, row_data_in_l_1, row_data_in_l_2, row_data_in_l_3 : std_logic_vector(15 downto 0);
-    signal row_data_in_l_4, row_data_in_l_5, row_data_in_l_6, row_data_in_l_7 : std_logic_vector(15 downto 0);
-    signal row_data_in_r_0, row_data_in_r_1, row_data_in_r_2, row_data_in_r_3 : std_logic_vector(15 downto 0);
-    signal row_data_in_r_4, row_data_in_r_5, row_data_in_r_6, row_data_in_r_7 : std_logic_vector(15 downto 0);
+    signal row_addr_in_l, row_addr_in_r : std_logic_vector(3 downto 0);
+    signal row_data_in_l_0,  row_data_in_l_1,  row_data_in_l_2,  row_data_in_l_3  : std_logic_vector(15 downto 0);
+    signal row_data_in_l_4,  row_data_in_l_5,  row_data_in_l_6,  row_data_in_l_7  : std_logic_vector(15 downto 0);
+    signal row_data_in_l_8,  row_data_in_l_9,  row_data_in_l_10, row_data_in_l_11 : std_logic_vector(15 downto 0);
+    signal row_data_in_l_12, row_data_in_l_13, row_data_in_l_14, row_data_in_l_15 : std_logic_vector(15 downto 0);
+    signal row_data_in_r_0,  row_data_in_r_1,  row_data_in_r_2,  row_data_in_r_3  : std_logic_vector(15 downto 0);
+    signal row_data_in_r_4,  row_data_in_r_5,  row_data_in_r_6,  row_data_in_r_7  : std_logic_vector(15 downto 0);
+    signal row_data_in_r_8,  row_data_in_r_9,  row_data_in_r_10, row_data_in_r_11 : std_logic_vector(15 downto 0);
+    signal row_data_in_r_12, row_data_in_r_13, row_data_in_r_14, row_data_in_r_15 : std_logic_vector(15 downto 0);
 
-    -- audio_out <-> audio_out_unit
+    -- audio_out <-> audio_out_unit. rows are 16 samples (2 samples/a-ram cell)
     signal need_grain_l, need_grain_r : std_logic;
     signal fill_ack_l, fill_ack_r : std_logic;
-    signal row_addr_out_l, row_addr_out_r : std_logic_vector(4 downto 0);
+    signal row_addr_out_l, row_addr_out_r : std_logic_vector(3 downto 0);
     signal row_we_out_l, row_we_out_r : std_logic;
     signal back_write_done_l, back_write_done_r : std_logic;
-    signal row_data_out_l_0, row_data_out_l_1, row_data_out_l_2, row_data_out_l_3 : std_logic_vector(15 downto 0);
-    signal row_data_out_l_4, row_data_out_l_5, row_data_out_l_6, row_data_out_l_7 : std_logic_vector(15 downto 0);
-    signal row_data_out_r_0, row_data_out_r_1, row_data_out_r_2, row_data_out_r_3 : std_logic_vector(15 downto 0);
-    signal row_data_out_r_4, row_data_out_r_5, row_data_out_r_6, row_data_out_r_7 : std_logic_vector(15 downto 0);
+    signal row_data_out_l_0,  row_data_out_l_1,  row_data_out_l_2,  row_data_out_l_3  : std_logic_vector(15 downto 0);
+    signal row_data_out_l_4,  row_data_out_l_5,  row_data_out_l_6,  row_data_out_l_7  : std_logic_vector(15 downto 0);
+    signal row_data_out_l_8,  row_data_out_l_9,  row_data_out_l_10, row_data_out_l_11 : std_logic_vector(15 downto 0);
+    signal row_data_out_l_12, row_data_out_l_13, row_data_out_l_14, row_data_out_l_15 : std_logic_vector(15 downto 0);
+    signal row_data_out_r_0,  row_data_out_r_1,  row_data_out_r_2,  row_data_out_r_3  : std_logic_vector(15 downto 0);
+    signal row_data_out_r_4,  row_data_out_r_5,  row_data_out_r_6,  row_data_out_r_7  : std_logic_vector(15 downto 0);
+    signal row_data_out_r_8,  row_data_out_r_9,  row_data_out_r_10, row_data_out_r_11 : std_logic_vector(15 downto 0);
+    signal row_data_out_r_12, row_data_out_r_13, row_data_out_r_14, row_data_out_r_15 : std_logic_vector(15 downto 0);
 
     -- fake CU
     signal audio_in_enable, audio_in_left_right : std_logic := '0';
@@ -121,13 +130,21 @@ begin
             row_data_l_2 => row_data_in_l_2, row_data_l_3 => row_data_in_l_3,
             row_data_l_4 => row_data_in_l_4, row_data_l_5 => row_data_in_l_5,
             row_data_l_6 => row_data_in_l_6, row_data_l_7 => row_data_in_l_7,
+            row_data_l_8 => row_data_in_l_8, row_data_l_9 => row_data_in_l_9,
+            row_data_l_10 => row_data_in_l_10, row_data_l_11 => row_data_in_l_11,
+            row_data_l_12 => row_data_in_l_12, row_data_l_13 => row_data_in_l_13,
+            row_data_l_14 => row_data_in_l_14, row_data_l_15 => row_data_in_l_15,
 
             grain_ready_r => grain_ready_r, grain_ack_r => grain_ack_r,
             row_addr_r => row_addr_in_r,
             row_data_r_0 => row_data_in_r_0, row_data_r_1 => row_data_in_r_1,
             row_data_r_2 => row_data_in_r_2, row_data_r_3 => row_data_in_r_3,
             row_data_r_4 => row_data_in_r_4, row_data_r_5 => row_data_in_r_5,
-            row_data_r_6 => row_data_in_r_6, row_data_r_7 => row_data_in_r_7
+            row_data_r_6 => row_data_in_r_6, row_data_r_7 => row_data_in_r_7,
+            row_data_r_8 => row_data_in_r_8, row_data_r_9 => row_data_in_r_9,
+            row_data_r_10 => row_data_in_r_10, row_data_r_11 => row_data_in_r_11,
+            row_data_r_12 => row_data_in_r_12, row_data_r_13 => row_data_in_r_13,
+            row_data_r_14 => row_data_in_r_14, row_data_r_15 => row_data_in_r_15
         );
 
     audio_in_unit_inst : entity work.audio_in_unit
@@ -144,6 +161,10 @@ begin
             row_data_l_2 => row_data_in_l_2, row_data_l_3 => row_data_in_l_3,
             row_data_l_4 => row_data_in_l_4, row_data_l_5 => row_data_in_l_5,
             row_data_l_6 => row_data_in_l_6, row_data_l_7 => row_data_in_l_7,
+            row_data_l_8 => row_data_in_l_8, row_data_l_9 => row_data_in_l_9,
+            row_data_l_10 => row_data_in_l_10, row_data_l_11 => row_data_in_l_11,
+            row_data_l_12 => row_data_in_l_12, row_data_l_13 => row_data_in_l_13,
+            row_data_l_14 => row_data_in_l_14, row_data_l_15 => row_data_in_l_15,
             grain_ack_l => grain_ack_l,
 
             row_addr_r => row_addr_in_r,
@@ -151,6 +172,10 @@ begin
             row_data_r_2 => row_data_in_r_2, row_data_r_3 => row_data_in_r_3,
             row_data_r_4 => row_data_in_r_4, row_data_r_5 => row_data_in_r_5,
             row_data_r_6 => row_data_in_r_6, row_data_r_7 => row_data_in_r_7,
+            row_data_r_8 => row_data_in_r_8, row_data_r_9 => row_data_in_r_9,
+            row_data_r_10 => row_data_in_r_10, row_data_r_11 => row_data_in_r_11,
+            row_data_r_12 => row_data_in_r_12, row_data_r_13 => row_data_in_r_13,
+            row_data_r_14 => row_data_in_r_14, row_data_r_15 => row_data_in_r_15,
             grain_ack_r => grain_ack_r,
 
             bram0_port0_addr => ain_addr0, bram1_port0_addr => ain_addr1,
@@ -190,6 +215,10 @@ begin
             row_data_l_2 => row_data_out_l_2, row_data_l_3 => row_data_out_l_3,
             row_data_l_4 => row_data_out_l_4, row_data_l_5 => row_data_out_l_5,
             row_data_l_6 => row_data_out_l_6, row_data_l_7 => row_data_out_l_7,
+            row_data_l_8 => row_data_out_l_8, row_data_l_9 => row_data_out_l_9,
+            row_data_l_10 => row_data_out_l_10, row_data_l_11 => row_data_out_l_11,
+            row_data_l_12 => row_data_out_l_12, row_data_l_13 => row_data_out_l_13,
+            row_data_l_14 => row_data_out_l_14, row_data_l_15 => row_data_out_l_15,
             back_write_done_l => back_write_done_l, need_grain_l => need_grain_l, fill_ack_l => fill_ack_l,
 
             row_addr_r => row_addr_out_r, row_we_r => row_we_out_r,
@@ -197,6 +226,10 @@ begin
             row_data_r_2 => row_data_out_r_2, row_data_r_3 => row_data_out_r_3,
             row_data_r_4 => row_data_out_r_4, row_data_r_5 => row_data_out_r_5,
             row_data_r_6 => row_data_out_r_6, row_data_r_7 => row_data_out_r_7,
+            row_data_r_8 => row_data_out_r_8, row_data_r_9 => row_data_out_r_9,
+            row_data_r_10 => row_data_out_r_10, row_data_r_11 => row_data_out_r_11,
+            row_data_r_12 => row_data_out_r_12, row_data_r_13 => row_data_out_r_13,
+            row_data_r_14 => row_data_out_r_14, row_data_r_15 => row_data_out_r_15,
             back_write_done_r => back_write_done_r, need_grain_r => need_grain_r, fill_ack_r => fill_ack_r
         );
 
@@ -214,6 +247,10 @@ begin
             row_data_l_2 => row_data_out_l_2, row_data_l_3 => row_data_out_l_3,
             row_data_l_4 => row_data_out_l_4, row_data_l_5 => row_data_out_l_5,
             row_data_l_6 => row_data_out_l_6, row_data_l_7 => row_data_out_l_7,
+            row_data_l_8 => row_data_out_l_8, row_data_l_9 => row_data_out_l_9,
+            row_data_l_10 => row_data_out_l_10, row_data_l_11 => row_data_out_l_11,
+            row_data_l_12 => row_data_out_l_12, row_data_l_13 => row_data_out_l_13,
+            row_data_l_14 => row_data_out_l_14, row_data_l_15 => row_data_out_l_15,
             back_write_done_l => back_write_done_l, fill_ack_l => fill_ack_l,
 
             row_addr_r => row_addr_out_r, row_we_r => row_we_out_r,
@@ -221,6 +258,10 @@ begin
             row_data_r_2 => row_data_out_r_2, row_data_r_3 => row_data_out_r_3,
             row_data_r_4 => row_data_out_r_4, row_data_r_5 => row_data_out_r_5,
             row_data_r_6 => row_data_out_r_6, row_data_r_7 => row_data_out_r_7,
+            row_data_r_8 => row_data_out_r_8, row_data_r_9 => row_data_out_r_9,
+            row_data_r_10 => row_data_out_r_10, row_data_r_11 => row_data_out_r_11,
+            row_data_r_12 => row_data_out_r_12, row_data_r_13 => row_data_out_r_13,
+            row_data_r_14 => row_data_out_r_14, row_data_r_15 => row_data_out_r_15,
             back_write_done_r => back_write_done_r, fill_ack_r => fill_ack_r,
 
             bram0_port0_addr => aout_addr0, bram1_port0_addr => aout_addr1,
@@ -394,7 +435,8 @@ begin
 
     ------------------------------------------------------------------
     -- fake CU: same a-ram location both ways, so audio_out reads back
-    -- exactly what audio_in wrote
+    -- exactly what audio_in wrote. buffer_length is in cells (128), not
+    -- samples (256), since each cell now packs 2 samples.
     ------------------------------------------------------------------
     stim : process
     begin
@@ -404,12 +446,12 @@ begin
 
         audio_in_left_right      <= '0'; -- left
         audio_in_buffer_start    <= std_logic_vector(to_unsigned(0, ADDR_W));
-        audio_in_buffer_length   <= std_logic_vector(to_unsigned(256, SIZE_W));
+        audio_in_buffer_length   <= std_logic_vector(to_unsigned(128, SIZE_W));
         audio_in_operation_start <= std_logic_vector(to_unsigned(0, ADDR_W));
 
         audio_out_left_right      <= '0'; -- left
         audio_out_buffer_start    <= std_logic_vector(to_unsigned(0, ADDR_W));
-        audio_out_buffer_length   <= std_logic_vector(to_unsigned(256, SIZE_W));
+        audio_out_buffer_length   <= std_logic_vector(to_unsigned(128, SIZE_W));
         audio_out_operation_start <= std_logic_vector(to_unsigned(0, ADDR_W));
 
         wait until grain_ready_l = '1';

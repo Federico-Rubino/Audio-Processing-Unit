@@ -149,23 +149,31 @@ architecture Behavioral of audioIO is
     signal line_out_l_24b, line_out_r_24b: std_logic_vector(23 downto 0) := (others => '0');
     signal sample_clk_48k : std_logic;
 
-    -- audio_in <-> audio_in_unit
+    -- audio_in <-> audio_in_unit. rows are 16 samples (2 samples/a-ram cell)
     signal grain_ack_l, grain_ack_r : std_logic;
-    signal row_addr_in_l, row_addr_in_r : std_logic_vector(4 downto 0);
-    signal row_data_in_l_0, row_data_in_l_1, row_data_in_l_2, row_data_in_l_3 : std_logic_vector(15 downto 0);
-    signal row_data_in_l_4, row_data_in_l_5, row_data_in_l_6, row_data_in_l_7 : std_logic_vector(15 downto 0);
-    signal row_data_in_r_0, row_data_in_r_1, row_data_in_r_2, row_data_in_r_3 : std_logic_vector(15 downto 0);
-    signal row_data_in_r_4, row_data_in_r_5, row_data_in_r_6, row_data_in_r_7 : std_logic_vector(15 downto 0);
+    signal row_addr_in_l, row_addr_in_r : std_logic_vector(3 downto 0);
+    signal row_data_in_l_0,  row_data_in_l_1,  row_data_in_l_2,  row_data_in_l_3  : std_logic_vector(15 downto 0);
+    signal row_data_in_l_4,  row_data_in_l_5,  row_data_in_l_6,  row_data_in_l_7  : std_logic_vector(15 downto 0);
+    signal row_data_in_l_8,  row_data_in_l_9,  row_data_in_l_10, row_data_in_l_11 : std_logic_vector(15 downto 0);
+    signal row_data_in_l_12, row_data_in_l_13, row_data_in_l_14, row_data_in_l_15 : std_logic_vector(15 downto 0);
+    signal row_data_in_r_0,  row_data_in_r_1,  row_data_in_r_2,  row_data_in_r_3  : std_logic_vector(15 downto 0);
+    signal row_data_in_r_4,  row_data_in_r_5,  row_data_in_r_6,  row_data_in_r_7  : std_logic_vector(15 downto 0);
+    signal row_data_in_r_8,  row_data_in_r_9,  row_data_in_r_10, row_data_in_r_11 : std_logic_vector(15 downto 0);
+    signal row_data_in_r_12, row_data_in_r_13, row_data_in_r_14, row_data_in_r_15 : std_logic_vector(15 downto 0);
 
-    -- audio_out <-> audio_out_unit
+    -- audio_out <-> audio_out_unit. rows are 16 samples (2 samples/a-ram cell)
     signal fill_ack_l, fill_ack_r : std_logic;
-    signal row_addr_out_l, row_addr_out_r : std_logic_vector(4 downto 0);
+    signal row_addr_out_l, row_addr_out_r : std_logic_vector(3 downto 0);
     signal row_we_out_l, row_we_out_r : std_logic;
     signal back_write_done_l, back_write_done_r : std_logic;
-    signal row_data_out_l_0, row_data_out_l_1, row_data_out_l_2, row_data_out_l_3 : std_logic_vector(15 downto 0);
-    signal row_data_out_l_4, row_data_out_l_5, row_data_out_l_6, row_data_out_l_7 : std_logic_vector(15 downto 0);
-    signal row_data_out_r_0, row_data_out_r_1, row_data_out_r_2, row_data_out_r_3 : std_logic_vector(15 downto 0);
-    signal row_data_out_r_4, row_data_out_r_5, row_data_out_r_6, row_data_out_r_7 : std_logic_vector(15 downto 0);
+    signal row_data_out_l_0,  row_data_out_l_1,  row_data_out_l_2,  row_data_out_l_3  : std_logic_vector(15 downto 0);
+    signal row_data_out_l_4,  row_data_out_l_5,  row_data_out_l_6,  row_data_out_l_7  : std_logic_vector(15 downto 0);
+    signal row_data_out_l_8,  row_data_out_l_9,  row_data_out_l_10, row_data_out_l_11 : std_logic_vector(15 downto 0);
+    signal row_data_out_l_12, row_data_out_l_13, row_data_out_l_14, row_data_out_l_15 : std_logic_vector(15 downto 0);
+    signal row_data_out_r_0,  row_data_out_r_1,  row_data_out_r_2,  row_data_out_r_3  : std_logic_vector(15 downto 0);
+    signal row_data_out_r_4,  row_data_out_r_5,  row_data_out_r_6,  row_data_out_r_7  : std_logic_vector(15 downto 0);
+    signal row_data_out_r_8,  row_data_out_r_9,  row_data_out_r_10, row_data_out_r_11 : std_logic_vector(15 downto 0);
+    signal row_data_out_r_12, row_data_out_r_13, row_data_out_r_14, row_data_out_r_15 : std_logic_vector(15 downto 0);
 
 begin
     audio_in_inst: entity work.audio_in
@@ -183,6 +191,10 @@ begin
             row_data_l_2 => row_data_in_l_2, row_data_l_3 => row_data_in_l_3,
             row_data_l_4 => row_data_in_l_4, row_data_l_5 => row_data_in_l_5,
             row_data_l_6 => row_data_in_l_6, row_data_l_7 => row_data_in_l_7,
+            row_data_l_8 => row_data_in_l_8, row_data_l_9 => row_data_in_l_9,
+            row_data_l_10 => row_data_in_l_10, row_data_l_11 => row_data_in_l_11,
+            row_data_l_12 => row_data_in_l_12, row_data_l_13 => row_data_in_l_13,
+            row_data_l_14 => row_data_in_l_14, row_data_l_15 => row_data_in_l_15,
 
             grain_ready_r => grain_ready_r,
             grain_ack_r   => grain_ack_r,
@@ -190,7 +202,11 @@ begin
             row_data_r_0 => row_data_in_r_0, row_data_r_1 => row_data_in_r_1,
             row_data_r_2 => row_data_in_r_2, row_data_r_3 => row_data_in_r_3,
             row_data_r_4 => row_data_in_r_4, row_data_r_5 => row_data_in_r_5,
-            row_data_r_6 => row_data_in_r_6, row_data_r_7 => row_data_in_r_7
+            row_data_r_6 => row_data_in_r_6, row_data_r_7 => row_data_in_r_7,
+            row_data_r_8 => row_data_in_r_8, row_data_r_9 => row_data_in_r_9,
+            row_data_r_10 => row_data_in_r_10, row_data_r_11 => row_data_in_r_11,
+            row_data_r_12 => row_data_in_r_12, row_data_r_13 => row_data_in_r_13,
+            row_data_r_14 => row_data_in_r_14, row_data_r_15 => row_data_in_r_15
         );
 
     audio_in_unit_inst : entity work.audio_in_unit
@@ -213,6 +229,10 @@ begin
             row_data_l_2 => row_data_in_l_2, row_data_l_3 => row_data_in_l_3,
             row_data_l_4 => row_data_in_l_4, row_data_l_5 => row_data_in_l_5,
             row_data_l_6 => row_data_in_l_6, row_data_l_7 => row_data_in_l_7,
+            row_data_l_8 => row_data_in_l_8, row_data_l_9 => row_data_in_l_9,
+            row_data_l_10 => row_data_in_l_10, row_data_l_11 => row_data_in_l_11,
+            row_data_l_12 => row_data_in_l_12, row_data_l_13 => row_data_in_l_13,
+            row_data_l_14 => row_data_in_l_14, row_data_l_15 => row_data_in_l_15,
             grain_ack_l  => grain_ack_l,
 
             row_addr_r   => row_addr_in_r,
@@ -220,6 +240,10 @@ begin
             row_data_r_2 => row_data_in_r_2, row_data_r_3 => row_data_in_r_3,
             row_data_r_4 => row_data_in_r_4, row_data_r_5 => row_data_in_r_5,
             row_data_r_6 => row_data_in_r_6, row_data_r_7 => row_data_in_r_7,
+            row_data_r_8 => row_data_in_r_8, row_data_r_9 => row_data_in_r_9,
+            row_data_r_10 => row_data_in_r_10, row_data_r_11 => row_data_in_r_11,
+            row_data_r_12 => row_data_in_r_12, row_data_r_13 => row_data_in_r_13,
+            row_data_r_14 => row_data_in_r_14, row_data_r_15 => row_data_in_r_15,
             grain_ack_r  => grain_ack_r,
 
             bram0_port0_addr => ain_bram0_port0_addr, bram1_port0_addr => ain_bram1_port0_addr,
@@ -263,6 +287,10 @@ begin
             row_data_l_2 => row_data_out_l_2, row_data_l_3 => row_data_out_l_3,
             row_data_l_4 => row_data_out_l_4, row_data_l_5 => row_data_out_l_5,
             row_data_l_6 => row_data_out_l_6, row_data_l_7 => row_data_out_l_7,
+            row_data_l_8 => row_data_out_l_8, row_data_l_9 => row_data_out_l_9,
+            row_data_l_10 => row_data_out_l_10, row_data_l_11 => row_data_out_l_11,
+            row_data_l_12 => row_data_out_l_12, row_data_l_13 => row_data_out_l_13,
+            row_data_l_14 => row_data_out_l_14, row_data_l_15 => row_data_out_l_15,
             back_write_done_l => back_write_done_l,
             need_grain_l => need_grain_l,
             fill_ack_l   => fill_ack_l,
@@ -273,6 +301,10 @@ begin
             row_data_r_2 => row_data_out_r_2, row_data_r_3 => row_data_out_r_3,
             row_data_r_4 => row_data_out_r_4, row_data_r_5 => row_data_out_r_5,
             row_data_r_6 => row_data_out_r_6, row_data_r_7 => row_data_out_r_7,
+            row_data_r_8 => row_data_out_r_8, row_data_r_9 => row_data_out_r_9,
+            row_data_r_10 => row_data_out_r_10, row_data_r_11 => row_data_out_r_11,
+            row_data_r_12 => row_data_out_r_12, row_data_r_13 => row_data_out_r_13,
+            row_data_r_14 => row_data_out_r_14, row_data_r_15 => row_data_out_r_15,
             back_write_done_r => back_write_done_r,
             need_grain_r => need_grain_r,
             fill_ack_r   => fill_ack_r
@@ -299,6 +331,10 @@ begin
             row_data_l_2 => row_data_out_l_2, row_data_l_3 => row_data_out_l_3,
             row_data_l_4 => row_data_out_l_4, row_data_l_5 => row_data_out_l_5,
             row_data_l_6 => row_data_out_l_6, row_data_l_7 => row_data_out_l_7,
+            row_data_l_8 => row_data_out_l_8, row_data_l_9 => row_data_out_l_9,
+            row_data_l_10 => row_data_out_l_10, row_data_l_11 => row_data_out_l_11,
+            row_data_l_12 => row_data_out_l_12, row_data_l_13 => row_data_out_l_13,
+            row_data_l_14 => row_data_out_l_14, row_data_l_15 => row_data_out_l_15,
             back_write_done_l => back_write_done_l,
             fill_ack_l   => fill_ack_l,
 
@@ -308,6 +344,10 @@ begin
             row_data_r_2 => row_data_out_r_2, row_data_r_3 => row_data_out_r_3,
             row_data_r_4 => row_data_out_r_4, row_data_r_5 => row_data_out_r_5,
             row_data_r_6 => row_data_out_r_6, row_data_r_7 => row_data_out_r_7,
+            row_data_r_8 => row_data_out_r_8, row_data_r_9 => row_data_out_r_9,
+            row_data_r_10 => row_data_out_r_10, row_data_r_11 => row_data_out_r_11,
+            row_data_r_12 => row_data_out_r_12, row_data_r_13 => row_data_out_r_13,
+            row_data_r_14 => row_data_out_r_14, row_data_r_15 => row_data_out_r_15,
             back_write_done_r => back_write_done_r,
             fill_ack_r   => fill_ack_r,
 

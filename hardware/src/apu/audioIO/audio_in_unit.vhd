@@ -4,6 +4,8 @@ use IEEE.NUMERIC_STD.ALL;
 
 -- on enable: drains 256-sample grain (left_right = channel) from
 -- grain_buffer_in to a-ram via bmu_write, parallel8. pulses finished.
+-- each a-ram cell carries 2 samples (sample 2k -> bits 15:0, sample 2k+1
+-- -> bits 31:16), so 256 samples pack into 128 cells / 16 bmu rows.
 entity audio_in_unit is
     generic (
         BUFFER_ADDR_WIDTH : integer := 10;
@@ -21,28 +23,44 @@ entity audio_in_unit is
         finished         : out std_logic;
 
         -- grain_buffer_in (left)
-        row_addr_l   : out std_logic_vector(4 downto 0);
-        row_data_l_0 : in  std_logic_vector(15 downto 0);
-        row_data_l_1 : in  std_logic_vector(15 downto 0);
-        row_data_l_2 : in  std_logic_vector(15 downto 0);
-        row_data_l_3 : in  std_logic_vector(15 downto 0);
-        row_data_l_4 : in  std_logic_vector(15 downto 0);
-        row_data_l_5 : in  std_logic_vector(15 downto 0);
-        row_data_l_6 : in  std_logic_vector(15 downto 0);
-        row_data_l_7 : in  std_logic_vector(15 downto 0);
-        grain_ack_l  : out std_logic;
+        row_addr_l    : out std_logic_vector(3 downto 0);
+        row_data_l_0  : in  std_logic_vector(15 downto 0);
+        row_data_l_1  : in  std_logic_vector(15 downto 0);
+        row_data_l_2  : in  std_logic_vector(15 downto 0);
+        row_data_l_3  : in  std_logic_vector(15 downto 0);
+        row_data_l_4  : in  std_logic_vector(15 downto 0);
+        row_data_l_5  : in  std_logic_vector(15 downto 0);
+        row_data_l_6  : in  std_logic_vector(15 downto 0);
+        row_data_l_7  : in  std_logic_vector(15 downto 0);
+        row_data_l_8  : in  std_logic_vector(15 downto 0);
+        row_data_l_9  : in  std_logic_vector(15 downto 0);
+        row_data_l_10 : in  std_logic_vector(15 downto 0);
+        row_data_l_11 : in  std_logic_vector(15 downto 0);
+        row_data_l_12 : in  std_logic_vector(15 downto 0);
+        row_data_l_13 : in  std_logic_vector(15 downto 0);
+        row_data_l_14 : in  std_logic_vector(15 downto 0);
+        row_data_l_15 : in  std_logic_vector(15 downto 0);
+        grain_ack_l   : out std_logic;
 
         -- grain_buffer_in (right)
-        row_addr_r   : out std_logic_vector(4 downto 0);
-        row_data_r_0 : in  std_logic_vector(15 downto 0);
-        row_data_r_1 : in  std_logic_vector(15 downto 0);
-        row_data_r_2 : in  std_logic_vector(15 downto 0);
-        row_data_r_3 : in  std_logic_vector(15 downto 0);
-        row_data_r_4 : in  std_logic_vector(15 downto 0);
-        row_data_r_5 : in  std_logic_vector(15 downto 0);
-        row_data_r_6 : in  std_logic_vector(15 downto 0);
-        row_data_r_7 : in  std_logic_vector(15 downto 0);
-        grain_ack_r  : out std_logic;
+        row_addr_r    : out std_logic_vector(3 downto 0);
+        row_data_r_0  : in  std_logic_vector(15 downto 0);
+        row_data_r_1  : in  std_logic_vector(15 downto 0);
+        row_data_r_2  : in  std_logic_vector(15 downto 0);
+        row_data_r_3  : in  std_logic_vector(15 downto 0);
+        row_data_r_4  : in  std_logic_vector(15 downto 0);
+        row_data_r_5  : in  std_logic_vector(15 downto 0);
+        row_data_r_6  : in  std_logic_vector(15 downto 0);
+        row_data_r_7  : in  std_logic_vector(15 downto 0);
+        row_data_r_8  : in  std_logic_vector(15 downto 0);
+        row_data_r_9  : in  std_logic_vector(15 downto 0);
+        row_data_r_10 : in  std_logic_vector(15 downto 0);
+        row_data_r_11 : in  std_logic_vector(15 downto 0);
+        row_data_r_12 : in  std_logic_vector(15 downto 0);
+        row_data_r_13 : in  std_logic_vector(15 downto 0);
+        row_data_r_14 : in  std_logic_vector(15 downto 0);
+        row_data_r_15 : in  std_logic_vector(15 downto 0);
+        grain_ack_r   : out std_logic;
 
         -- a-ram side (bmu_write's full flat interface)
         bram0_port0_addr : out std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
@@ -100,15 +118,16 @@ end audio_in_unit;
 architecture Behavioral of audio_in_unit is
 
     constant GRAIN_SAMPLES : integer := 256; -- fixed by audioIO_types.DEPTH
+    constant GRAIN_CELLS   : integer := GRAIN_SAMPLES / 2; -- 2 samples/cell
 
     type state_t is (IDLE, START, RUN, FLUSH);
     signal state : state_t := IDLE;
 
-    signal row_cnt : unsigned(4 downto 0) := (others => '0');
+    signal row_cnt : unsigned(3 downto 0) := (others => '0');
 
     -- 1-cycle delay: bmu_write addr/we land 1 cycle after count_en,
-    -- grain_buffer_in read is immediate. FLUSH = extra cycle for row 31.
-    signal row_addr_d : unsigned(4 downto 0) := (others => '0');
+    -- grain_buffer_in read is immediate. FLUSH = extra cycle for row 15.
+    signal row_addr_d : unsigned(3 downto 0) := (others => '0');
 
     signal bw_start, bw_count_en, bw_done : std_logic;
     signal data_in_0, data_in_1, data_in_2, data_in_3 : std_logic_vector(31 downto 0);
@@ -128,7 +147,7 @@ begin
             buffer_start     => buffer_start,
             buffer_length    => buffer_length,
             operation_start  => operation_start,
-            operation_length => std_logic_vector(to_unsigned(GRAIN_SAMPLES, BUFFER_SIZE_BITS)),
+            operation_length => std_logic_vector(to_unsigned(GRAIN_CELLS, BUFFER_SIZE_BITS)),
 
             bram0_port0_addr => bram0_port0_addr, bram1_port0_addr => bram1_port0_addr,
             bram2_port0_addr => bram2_port0_addr, bram3_port0_addr => bram3_port0_addr,
@@ -163,15 +182,16 @@ begin
             done => bw_done
         );
 
-    -- pick the enabled channel, sign-extend 16-bit PCM to 32-bit a-ram words
-    data_in_0 <= std_logic_vector(resize(signed(row_data_l_0), 32)) when left_right = '0' else std_logic_vector(resize(signed(row_data_r_0), 32));
-    data_in_1 <= std_logic_vector(resize(signed(row_data_l_1), 32)) when left_right = '0' else std_logic_vector(resize(signed(row_data_r_1), 32));
-    data_in_2 <= std_logic_vector(resize(signed(row_data_l_2), 32)) when left_right = '0' else std_logic_vector(resize(signed(row_data_r_2), 32));
-    data_in_3 <= std_logic_vector(resize(signed(row_data_l_3), 32)) when left_right = '0' else std_logic_vector(resize(signed(row_data_r_3), 32));
-    data_in_4 <= std_logic_vector(resize(signed(row_data_l_4), 32)) when left_right = '0' else std_logic_vector(resize(signed(row_data_r_4), 32));
-    data_in_5 <= std_logic_vector(resize(signed(row_data_l_5), 32)) when left_right = '0' else std_logic_vector(resize(signed(row_data_r_5), 32));
-    data_in_6 <= std_logic_vector(resize(signed(row_data_l_6), 32)) when left_right = '0' else std_logic_vector(resize(signed(row_data_r_6), 32));
-    data_in_7 <= std_logic_vector(resize(signed(row_data_l_7), 32)) when left_right = '0' else std_logic_vector(resize(signed(row_data_r_7), 32));
+    -- pick the enabled channel, pack 2 samples/cell: even sample -> bits
+    -- 15:0, odd sample -> bits 31:16
+    data_in_0 <= (row_data_l_1 & row_data_l_0) when left_right = '0' else (row_data_r_1 & row_data_r_0);
+    data_in_1 <= (row_data_l_3 & row_data_l_2) when left_right = '0' else (row_data_r_3 & row_data_r_2);
+    data_in_2 <= (row_data_l_5 & row_data_l_4) when left_right = '0' else (row_data_r_5 & row_data_r_4);
+    data_in_3 <= (row_data_l_7 & row_data_l_6) when left_right = '0' else (row_data_r_7 & row_data_r_6);
+    data_in_4 <= (row_data_l_9 & row_data_l_8) when left_right = '0' else (row_data_r_9 & row_data_r_8);
+    data_in_5 <= (row_data_l_11 & row_data_l_10) when left_right = '0' else (row_data_r_11 & row_data_r_10);
+    data_in_6 <= (row_data_l_13 & row_data_l_12) when left_right = '0' else (row_data_r_13 & row_data_r_12);
+    data_in_7 <= (row_data_l_15 & row_data_l_14) when left_right = '0' else (row_data_r_15 & row_data_r_14);
 
     row_addr_l <= std_logic_vector(row_addr_d);
     row_addr_r <= std_logic_vector(row_addr_d);
@@ -209,15 +229,15 @@ begin
                         state <= RUN;
 
                     when RUN =>
-                        -- 32 pulses, rows 0..31, then FLUSH lets row 31 land
-                        if row_cnt = 31 then
+                        -- 16 pulses, rows 0..15, then FLUSH lets row 15 land
+                        if row_cnt = 15 then
                             state <= FLUSH;
                         else
                             row_cnt <= row_cnt + 1;
                         end if;
 
                     when FLUSH =>
-                        -- row_addr_d is still 31 here, so row 31's write lands
+                        -- row_addr_d is still 15 here, so row 15's write lands
                         finished <= '1';
                         state    <= IDLE;
                 end case;

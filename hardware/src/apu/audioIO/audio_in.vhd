@@ -14,7 +14,7 @@ entity audio_in is
     -- left channel, towards audio_in_unit
     grain_ready_l : out std_logic;
     grain_ack_l   : in  std_logic;
-    row_addr_l    : in  std_logic_vector(4 downto 0);
+    row_addr_l    : in  std_logic_vector(3 downto 0);
     row_data_l_0  : out std_logic_vector(15 downto 0);
     row_data_l_1  : out std_logic_vector(15 downto 0);
     row_data_l_2  : out std_logic_vector(15 downto 0);
@@ -23,11 +23,19 @@ entity audio_in is
     row_data_l_5  : out std_logic_vector(15 downto 0);
     row_data_l_6  : out std_logic_vector(15 downto 0);
     row_data_l_7  : out std_logic_vector(15 downto 0);
+    row_data_l_8  : out std_logic_vector(15 downto 0);
+    row_data_l_9  : out std_logic_vector(15 downto 0);
+    row_data_l_10 : out std_logic_vector(15 downto 0);
+    row_data_l_11 : out std_logic_vector(15 downto 0);
+    row_data_l_12 : out std_logic_vector(15 downto 0);
+    row_data_l_13 : out std_logic_vector(15 downto 0);
+    row_data_l_14 : out std_logic_vector(15 downto 0);
+    row_data_l_15 : out std_logic_vector(15 downto 0);
 
     -- right channel, towards audio_in_unit
     grain_ready_r : out std_logic;
     grain_ack_r   : in  std_logic;
-    row_addr_r    : in  std_logic_vector(4 downto 0);
+    row_addr_r    : in  std_logic_vector(3 downto 0);
     row_data_r_0  : out std_logic_vector(15 downto 0);
     row_data_r_1  : out std_logic_vector(15 downto 0);
     row_data_r_2  : out std_logic_vector(15 downto 0);
@@ -35,7 +43,15 @@ entity audio_in is
     row_data_r_4  : out std_logic_vector(15 downto 0);
     row_data_r_5  : out std_logic_vector(15 downto 0);
     row_data_r_6  : out std_logic_vector(15 downto 0);
-    row_data_r_7  : out std_logic_vector(15 downto 0)
+    row_data_r_7  : out std_logic_vector(15 downto 0);
+    row_data_r_8  : out std_logic_vector(15 downto 0);
+    row_data_r_9  : out std_logic_vector(15 downto 0);
+    row_data_r_10 : out std_logic_vector(15 downto 0);
+    row_data_r_11 : out std_logic_vector(15 downto 0);
+    row_data_r_12 : out std_logic_vector(15 downto 0);
+    row_data_r_13 : out std_logic_vector(15 downto 0);
+    row_data_r_14 : out std_logic_vector(15 downto 0);
+    row_data_r_15 : out std_logic_vector(15 downto 0)
    );
 end audio_in;
 
@@ -56,7 +72,11 @@ begin
             row_data_0 => row_data_l_0, row_data_1 => row_data_l_1,
             row_data_2 => row_data_l_2, row_data_3 => row_data_l_3,
             row_data_4 => row_data_l_4, row_data_5 => row_data_l_5,
-            row_data_6 => row_data_l_6, row_data_7 => row_data_l_7
+            row_data_6 => row_data_l_6, row_data_7 => row_data_l_7,
+            row_data_8 => row_data_l_8, row_data_9 => row_data_l_9,
+            row_data_10 => row_data_l_10, row_data_11 => row_data_l_11,
+            row_data_12 => row_data_l_12, row_data_13 => row_data_l_13,
+            row_data_14 => row_data_l_14, row_data_15 => row_data_l_15
         );
 
     right_channel_buffer_in : entity work.grain_buffer_in
@@ -73,7 +93,11 @@ begin
             row_data_0 => row_data_r_0, row_data_1 => row_data_r_1,
             row_data_2 => row_data_r_2, row_data_3 => row_data_r_3,
             row_data_4 => row_data_r_4, row_data_5 => row_data_r_5,
-            row_data_6 => row_data_r_6, row_data_7 => row_data_r_7
+            row_data_6 => row_data_r_6, row_data_7 => row_data_r_7,
+            row_data_8 => row_data_r_8, row_data_9 => row_data_r_9,
+            row_data_10 => row_data_r_10, row_data_11 => row_data_r_11,
+            row_data_12 => row_data_r_12, row_data_13 => row_data_r_13,
+            row_data_14 => row_data_r_14, row_data_15 => row_data_r_15
         );
 
 end Behavioral;

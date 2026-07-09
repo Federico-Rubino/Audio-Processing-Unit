@@ -4,6 +4,8 @@ use IEEE.NUMERIC_STD.ALL;
 
 -- on enable: fills 256-sample grain (left_right = channel) from a-ram
 -- via bmu_read, parallel8, into grain_buffer_out. pulses finished.
+-- each a-ram cell carries 2 samples (bits 15:0 -> even sample, bits 31:16
+-- -> odd sample), so 256 samples unpack from 128 cells / 16 bmu rows.
 entity audio_out_unit is
     generic (
         BUFFER_ADDR_WIDTH : integer := 10;
@@ -21,30 +23,46 @@ entity audio_out_unit is
         finished         : out std_logic;
 
         -- grain_buffer_out (left)
-        row_addr_l   : out std_logic_vector(4 downto 0);
-        row_we_l     : out std_logic;
-        row_data_l_0 : out std_logic_vector(15 downto 0);
-        row_data_l_1 : out std_logic_vector(15 downto 0);
-        row_data_l_2 : out std_logic_vector(15 downto 0);
-        row_data_l_3 : out std_logic_vector(15 downto 0);
-        row_data_l_4 : out std_logic_vector(15 downto 0);
-        row_data_l_5 : out std_logic_vector(15 downto 0);
-        row_data_l_6 : out std_logic_vector(15 downto 0);
-        row_data_l_7 : out std_logic_vector(15 downto 0);
+        row_addr_l    : out std_logic_vector(3 downto 0);
+        row_we_l      : out std_logic;
+        row_data_l_0  : out std_logic_vector(15 downto 0);
+        row_data_l_1  : out std_logic_vector(15 downto 0);
+        row_data_l_2  : out std_logic_vector(15 downto 0);
+        row_data_l_3  : out std_logic_vector(15 downto 0);
+        row_data_l_4  : out std_logic_vector(15 downto 0);
+        row_data_l_5  : out std_logic_vector(15 downto 0);
+        row_data_l_6  : out std_logic_vector(15 downto 0);
+        row_data_l_7  : out std_logic_vector(15 downto 0);
+        row_data_l_8  : out std_logic_vector(15 downto 0);
+        row_data_l_9  : out std_logic_vector(15 downto 0);
+        row_data_l_10 : out std_logic_vector(15 downto 0);
+        row_data_l_11 : out std_logic_vector(15 downto 0);
+        row_data_l_12 : out std_logic_vector(15 downto 0);
+        row_data_l_13 : out std_logic_vector(15 downto 0);
+        row_data_l_14 : out std_logic_vector(15 downto 0);
+        row_data_l_15 : out std_logic_vector(15 downto 0);
         back_write_done_l : out std_logic;
         fill_ack_l   : out std_logic;
 
         -- grain_buffer_out (right)
-        row_addr_r   : out std_logic_vector(4 downto 0);
-        row_we_r     : out std_logic;
-        row_data_r_0 : out std_logic_vector(15 downto 0);
-        row_data_r_1 : out std_logic_vector(15 downto 0);
-        row_data_r_2 : out std_logic_vector(15 downto 0);
-        row_data_r_3 : out std_logic_vector(15 downto 0);
-        row_data_r_4 : out std_logic_vector(15 downto 0);
-        row_data_r_5 : out std_logic_vector(15 downto 0);
-        row_data_r_6 : out std_logic_vector(15 downto 0);
-        row_data_r_7 : out std_logic_vector(15 downto 0);
+        row_addr_r    : out std_logic_vector(3 downto 0);
+        row_we_r      : out std_logic;
+        row_data_r_0  : out std_logic_vector(15 downto 0);
+        row_data_r_1  : out std_logic_vector(15 downto 0);
+        row_data_r_2  : out std_logic_vector(15 downto 0);
+        row_data_r_3  : out std_logic_vector(15 downto 0);
+        row_data_r_4  : out std_logic_vector(15 downto 0);
+        row_data_r_5  : out std_logic_vector(15 downto 0);
+        row_data_r_6  : out std_logic_vector(15 downto 0);
+        row_data_r_7  : out std_logic_vector(15 downto 0);
+        row_data_r_8  : out std_logic_vector(15 downto 0);
+        row_data_r_9  : out std_logic_vector(15 downto 0);
+        row_data_r_10 : out std_logic_vector(15 downto 0);
+        row_data_r_11 : out std_logic_vector(15 downto 0);
+        row_data_r_12 : out std_logic_vector(15 downto 0);
+        row_data_r_13 : out std_logic_vector(15 downto 0);
+        row_data_r_14 : out std_logic_vector(15 downto 0);
+        row_data_r_15 : out std_logic_vector(15 downto 0);
         back_write_done_r : out std_logic;
         fill_ack_r   : out std_logic;
 
@@ -104,15 +122,16 @@ end audio_out_unit;
 architecture Behavioral of audio_out_unit is
 
     constant GRAIN_SAMPLES : integer := 256;
+    constant GRAIN_CELLS   : integer := GRAIN_SAMPLES / 2; -- 2 samples/cell
 
     type state_t is (IDLE, START, RUN, FLUSH1, FLUSH2);
     signal state : state_t := IDLE;
 
-    signal row_cnt : unsigned(4 downto 0) := (others => '0');
+    signal row_cnt : unsigned(3 downto 0) := (others => '0');
 
     -- 2-cycle delay: addr_gen registers addr (+1), a-ram registers read
-    -- (+1). FLUSH1/FLUSH2 drain rows 30/31.
-    signal row_addr_d1, row_addr_d2 : unsigned(4 downto 0) := (others => '0');
+    -- (+1). FLUSH1/FLUSH2 drain rows 14/15.
+    signal row_addr_d1, row_addr_d2 : unsigned(3 downto 0) := (others => '0');
     signal row_we_d1, row_we_d2      : std_logic := '0';
 
     signal br_start, br_count_en, br_done : std_logic;
@@ -133,7 +152,7 @@ begin
             buffer_start     => buffer_start,
             buffer_length    => buffer_length,
             operation_start  => operation_start,
-            operation_length => std_logic_vector(to_unsigned(GRAIN_SAMPLES, BUFFER_SIZE_BITS)),
+            operation_length => std_logic_vector(to_unsigned(GRAIN_CELLS, BUFFER_SIZE_BITS)),
 
             bram0_port0_addr => bram0_port0_addr, bram1_port0_addr => bram1_port0_addr,
             bram2_port0_addr => bram2_port0_addr, bram3_port0_addr => bram3_port0_addr,
@@ -168,15 +187,23 @@ begin
             done => br_done
         );
 
-    -- a-ram word -> 16-bit PCM, low bits back (undoes audio_in_unit's sign-extend)
-    row_data_l_0 <= data_out_0(15 downto 0); row_data_r_0 <= data_out_0(15 downto 0);
-    row_data_l_1 <= data_out_1(15 downto 0); row_data_r_1 <= data_out_1(15 downto 0);
-    row_data_l_2 <= data_out_2(15 downto 0); row_data_r_2 <= data_out_2(15 downto 0);
-    row_data_l_3 <= data_out_3(15 downto 0); row_data_r_3 <= data_out_3(15 downto 0);
-    row_data_l_4 <= data_out_4(15 downto 0); row_data_r_4 <= data_out_4(15 downto 0);
-    row_data_l_5 <= data_out_5(15 downto 0); row_data_r_5 <= data_out_5(15 downto 0);
-    row_data_l_6 <= data_out_6(15 downto 0); row_data_r_6 <= data_out_6(15 downto 0);
-    row_data_l_7 <= data_out_7(15 downto 0); row_data_r_7 <= data_out_7(15 downto 0);
+    -- unpack 2 samples/cell: bits 15:0 -> even sample, bits 31:16 -> odd sample
+    row_data_l_0  <= data_out_0(15 downto 0);  row_data_r_0  <= data_out_0(15 downto 0);
+    row_data_l_1  <= data_out_0(31 downto 16); row_data_r_1  <= data_out_0(31 downto 16);
+    row_data_l_2  <= data_out_1(15 downto 0);  row_data_r_2  <= data_out_1(15 downto 0);
+    row_data_l_3  <= data_out_1(31 downto 16); row_data_r_3  <= data_out_1(31 downto 16);
+    row_data_l_4  <= data_out_2(15 downto 0);  row_data_r_4  <= data_out_2(15 downto 0);
+    row_data_l_5  <= data_out_2(31 downto 16); row_data_r_5  <= data_out_2(31 downto 16);
+    row_data_l_6  <= data_out_3(15 downto 0);  row_data_r_6  <= data_out_3(15 downto 0);
+    row_data_l_7  <= data_out_3(31 downto 16); row_data_r_7  <= data_out_3(31 downto 16);
+    row_data_l_8  <= data_out_4(15 downto 0);  row_data_r_8  <= data_out_4(15 downto 0);
+    row_data_l_9  <= data_out_4(31 downto 16); row_data_r_9  <= data_out_4(31 downto 16);
+    row_data_l_10 <= data_out_5(15 downto 0);  row_data_r_10 <= data_out_5(15 downto 0);
+    row_data_l_11 <= data_out_5(31 downto 16); row_data_r_11 <= data_out_5(31 downto 16);
+    row_data_l_12 <= data_out_6(15 downto 0);  row_data_r_12 <= data_out_6(15 downto 0);
+    row_data_l_13 <= data_out_6(31 downto 16); row_data_r_13 <= data_out_6(31 downto 16);
+    row_data_l_14 <= data_out_7(15 downto 0);  row_data_r_14 <= data_out_7(15 downto 0);
+    row_data_l_15 <= data_out_7(31 downto 16); row_data_r_15 <= data_out_7(31 downto 16);
 
     -- only the selected channel actually latches, so gating we is enough
     row_we_l <= row_we_d2 when left_right = '0' else '0';
@@ -224,19 +251,19 @@ begin
                         state <= RUN;
 
                     when RUN =>
-                        -- 32 pulses, rows 0..31, then FLUSH1/2 drain rows 30/31
-                        if row_cnt = 31 then
+                        -- 16 pulses, rows 0..15, then FLUSH1/2 drain rows 14/15
+                        if row_cnt = 15 then
                             state <= FLUSH1;
                         else
                             row_cnt <= row_cnt + 1;
                         end if;
 
                     when FLUSH1 =>
-                        -- row 30 lands here
+                        -- row 14 lands here
                         state <= FLUSH2;
 
                     when FLUSH2 =>
-                        -- row 31 (the last one) lands here
+                        -- row 15 (the last one) lands here
                         finished <= '1';
                         state    <= IDLE;
                 end case;
