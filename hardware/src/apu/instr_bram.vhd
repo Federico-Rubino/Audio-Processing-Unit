@@ -11,18 +11,10 @@ entity InstrMemory is
     Port (
         clk, rst   : in  std_logic;
         
-        -- Port A Interface
         we, en   : in  std_logic;
         addr     : in  std_logic_vector(10 downto 0);
         data_in  : in  std_logic_vector(31 downto 0);
         data_out : out std_logic_vector(31 downto 0);
-        
-        -- Port B Interface (TODO use it to increase bandwidth?)
-        -- we_b       : in  std_logic;
-        -- addr_b     : in  std_logic_vector(9 downto 0);
-        -- data_in_b  : in  std_logic_vector(31 downto 0);
-        -- select_b   : in  std_logic_vector(7 downto 0);
-        -- data_out_b : out std_logic_vector(31 downto 0)
     );
 end MemoryBlock;
 
@@ -36,14 +28,7 @@ begin
         dina => data_in,
         wea(0) => we,
         douta => data_out,
-        ena => en,
-        
-        -- clkb => clk,
-        -- addrb => addr_b,
-        -- dinb => data_in_b,
-        -- doutb => data_out_b,
-        -- web(0) => we_b,
-        -- enb => enb 
+        ena => en
     );
 
 end Behavioral;
