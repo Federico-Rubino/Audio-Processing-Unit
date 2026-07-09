@@ -1,7 +1,11 @@
 *.jou
 *.log
+*.plan
 
 **/.vscode/
 **/.vscode-test/
 **/bin/
+
+# Simulation
+.sim/
 **/__pycache__/
