@@ -1,12 +1,5 @@
-# Example: AUDIO_IN -> VOLUME_UP(macro) -> AUDIO_OUT. Not a useful effect as
-# written (see note on MUL_SCALAR below) -- just an example of a macro
-# wrapping a vector*scalar op, reused across the buffer it operates on.
-#
-# Every field below, including scalar_parameter, is a param-table offset,
-# not a literal value -- see isa.yaml's top-of-file note. Firmware must
-# call apu_load_param() for each offset, for both channels, before running
-# this shader. Assemble with --emit-params to get volume_up.h instead of
-# hardcoding these offsets.
+# Example: AUDIO_IN -> VOLUME_UP(macro) -> AUDIO_OUT
+
 
 .param GRAIN_START
 .param GRAIN_LEN
