@@ -379,7 +379,7 @@ begin
     -- a-ram: 4 true-dual-port blocks, one per row-major lane. Entity names
     -- below (aram_bram0..aram_bram3) are what the matching Vivado Block
     -- Memory Generator IP customizations must be named as.
-    aram_bram0_inst : entity work.aram_bram0
+    aram_bram0_inst : entity work.aram_bram
         port map (
             clka  => clk, addra => bram0_port0_addr_sig, dina => bram0_port0_data_in_sig,
             wea(0) => bram0_port0_we_sig, ena => bram0_port0_en_sig, douta => bram0_port0_data_out_sig,
@@ -387,7 +387,7 @@ begin
             web(0) => bram0_port1_we_sig, enb => bram0_port1_en_sig, doutb => bram0_port1_data_out_sig
         );
 
-    aram_bram1_inst : entity work.aram_bram1
+    aram_bram1_inst : entity work.aram_bra
         port map (
             clka  => clk, addra => bram1_port0_addr_sig, dina => bram1_port0_data_in_sig,
             wea(0) => bram1_port0_we_sig, ena => bram1_port0_en_sig, douta => bram1_port0_data_out_sig,
@@ -395,7 +395,7 @@ begin
             web(0) => bram1_port1_we_sig, enb => bram1_port1_en_sig, doutb => bram1_port1_data_out_sig
         );
 
-    aram_bram2_inst : entity work.aram_bram2
+    aram_bram2_inst : entity work.aram_bram
         port map (
             clka  => clk, addra => bram2_port0_addr_sig, dina => bram2_port0_data_in_sig,
             wea(0) => bram2_port0_we_sig, ena => bram2_port0_en_sig, douta => bram2_port0_data_out_sig,
@@ -403,7 +403,7 @@ begin
             web(0) => bram2_port1_we_sig, enb => bram2_port1_en_sig, doutb => bram2_port1_data_out_sig
         );
 
-    aram_bram3_inst : entity work.aram_bram3
+    aram_bram3_inst : entity work.aram_bram
         port map (
             clka  => clk, addra => bram3_port0_addr_sig, dina => bram3_port0_data_in_sig,
             wea(0) => bram3_port0_we_sig, ena => bram3_port0_en_sig, douta => bram3_port0_data_out_sig,
