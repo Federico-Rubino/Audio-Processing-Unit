@@ -24,6 +24,7 @@ package apu_internal_pkg is
     constant APU_UNIT_AUDIO_OUT : apu_unit_t := "010";
     constant APU_UNIT_FFT       : apu_unit_t := "011";
     constant APU_UNIT_VEC       : apu_unit_t := "100";
+    constant APU_UNIT_PITCH     : apu_unit_t := "101";
 
     -- Utilities
     type logic_aoa is array (natural range <>) of std_logic_vector;
