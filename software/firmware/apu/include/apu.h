@@ -23,7 +23,7 @@ typedef struct {
 
 #define APU_CONTROL_START_MASK BIT(0) //1 to start processing the shader
 #define APU_SHADER_START_ADDR_MASK GENMASK(11,1)
-//#define APU ((apu_t*) 0x0002B000)
+//#define APU ((apu_t*) 0x00030000)
 
 
 //busy check

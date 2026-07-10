@@ -46,7 +46,7 @@ if { [string first $scripts_vivado_version $current_vivado_version] == -1 } {
 
 # The design that will be created by this Tcl script contains the following 
 # module references:
-# CPU, instr_mem_mux
+# CPU, instr_mem_mux, APU
 
 # Please add the sources of those modules before sourcing this Tcl script.
 
@@ -169,9 +169,10 @@ xilinx.com:ip:axi_gpio:2.0\
 ##################################################################
 set bCheckModules 1
 if { $bCheckModules == 1 } {
-   set list_check_mods "\
+   set list_check_mods "\ 
 CPU\
 instr_mem_mux\
+APU\
 "
 
    set list_mods_missing ""
@@ -247,6 +248,15 @@ proc create_root_design { parentCell } {
    CONFIG.POLARITY {ACTIVE_HIGH} \
  ] $reset_rtl_0
   set clk_in1_0 [ create_bd_port -dir I -type clk clk_in1_0 ]
+  set AC_ADR0_0 [ create_bd_port -dir O AC_ADR0_0 ]
+  set AC_SDA_0 [ create_bd_port -dir IO AC_SDA_0 ]
+  set AC_SCK_0 [ create_bd_port -dir O AC_SCK_0 ]
+  set AC_MCLK_0 [ create_bd_port -dir O AC_MCLK_0 ]
+  set AC_GPIO3_0 [ create_bd_port -dir I AC_GPIO3_0 ]
+  set AC_GPIO2_0 [ create_bd_port -dir I AC_GPIO2_0 ]
+  set AC_GPIO1_0 [ create_bd_port -dir I AC_GPIO1_0 ]
+  set AC_GPIO0_0 [ create_bd_port -dir O AC_GPIO0_0 ]
+  set AC_ADR1_0 [ create_bd_port -dir O AC_ADR1_0 ]
 
   # Create instance: CPU_0, and set properties
   set block_name CPU
@@ -287,7 +297,7 @@ proc create_root_design { parentCell } {
   # Create instance: axi_smc, and set properties
   set axi_smc [ create_bd_cell -type ip -vlnv xilinx.com:ip:smartconnect:1.0 axi_smc ]
   set_property -dict [list \
-    CONFIG.NUM_MI {4} \
+    CONFIG.NUM_MI {5} \
     CONFIG.NUM_SI {2} \
   ] $axi_smc
 
@@ -406,6 +416,31 @@ proc create_root_design { parentCell } {
   ] $axi_gpio_0
 
 
+  # Create instance: APU_0, and set properties
+  set block_name APU
+  set block_cell_name APU_0
+  if { [catch {set APU_0 [create_bd_cell -type module -reference $block_name $block_cell_name] } errmsg] } {
+     catch {common::send_gid_msg -ssname BD::TCL -id 2095 -severity "ERROR" "Unable to add referenced block <$block_name>. Please add the files for ${block_name}'s definition into the project."}
+     return 1
+   } elseif { $APU_0 eq "" } {
+     catch {common::send_gid_msg -ssname BD::TCL -id 2096 -severity "ERROR" "Unable to referenced block <$block_name>. Please add the files for ${block_name}'s definition into the project."}
+     return 1
+   }
+  
+  # Create instance: axi_bram_ctrl_2, and set properties
+  set axi_bram_ctrl_2 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_bram_ctrl:4.1 axi_bram_ctrl_2 ]
+  set_property CONFIG.SINGLE_PORT_BRAM {1} $axi_bram_ctrl_2
+
+
+  # Create instance: xlslice_5, and set properties
+  set xlslice_5 [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlslice:1.0 xlslice_5 ]
+  set_property -dict [list \
+    CONFIG.DIN_FROM {15} \
+    CONFIG.DIN_TO {2} \
+    CONFIG.DIN_WIDTH {16} \
+  ] $xlslice_5
+
+
   # Create interface connections
   connect_bd_intf_net -intf_net RV32I_AXI_Bridge_0_M_AXI [get_bd_intf_pins RV32I_AXI_Bridge_0/M_AXI] [get_bd_intf_pins axi_smc/S00_AXI]
   connect_bd_intf_net -intf_net axi_bram_ctrl_0_BRAM_PORTA [get_bd_intf_pins axi_bram_ctrl_0_bram/BRAM_PORTA] [get_bd_intf_pins axi_bram_ctrl_0/BRAM_PORTA]
@@ -415,9 +450,28 @@ proc create_root_design { parentCell } {
   connect_bd_intf_net -intf_net axi_smc_M01_AXI [get_bd_intf_pins axi_smc/M01_AXI] [get_bd_intf_pins axi_uartlite_0/S_AXI]
   connect_bd_intf_net -intf_net axi_smc_M02_AXI [get_bd_intf_pins axi_smc/M02_AXI] [get_bd_intf_pins axi_bram_ctrl_1/S_AXI]
   connect_bd_intf_net -intf_net axi_smc_M03_AXI [get_bd_intf_pins axi_smc/M03_AXI] [get_bd_intf_pins axi_gpio_0/S_AXI]
+  connect_bd_intf_net -intf_net axi_smc_M04_AXI [get_bd_intf_pins axi_smc/M04_AXI] [get_bd_intf_pins axi_bram_ctrl_2/S_AXI]
   connect_bd_intf_net -intf_net axi_uartlite_0_UART [get_bd_intf_ports uart_rtl_0] [get_bd_intf_pins axi_uartlite_0/UART]
 
   # Create port connections
+  connect_bd_net -net AC_GPIO1_0_1  [get_bd_ports AC_GPIO1_0] \
+  [get_bd_pins APU_0/AC_GPIO1]
+  connect_bd_net -net AC_GPIO2_0_1  [get_bd_ports AC_GPIO2_0] \
+  [get_bd_pins APU_0/AC_GPIO2]
+  connect_bd_net -net AC_GPIO3_0_1  [get_bd_ports AC_GPIO3_0] \
+  [get_bd_pins APU_0/AC_GPIO3]
+  connect_bd_net -net APU_0_AC_ADR0  [get_bd_pins APU_0/AC_ADR0] \
+  [get_bd_ports AC_ADR0_0]
+  connect_bd_net -net APU_0_AC_ADR1  [get_bd_pins APU_0/AC_ADR1] \
+  [get_bd_ports AC_ADR1_0]
+  connect_bd_net -net APU_0_AC_GPIO0  [get_bd_pins APU_0/AC_GPIO0] \
+  [get_bd_ports AC_GPIO0_0]
+  connect_bd_net -net APU_0_AC_MCLK  [get_bd_pins APU_0/AC_MCLK] \
+  [get_bd_ports AC_MCLK_0]
+  connect_bd_net -net APU_0_AC_SCK  [get_bd_pins APU_0/AC_SCK] \
+  [get_bd_ports AC_SCK_0]
+  connect_bd_net -net APU_0_data_out  [get_bd_pins APU_0/data_out] \
+  [get_bd_pins axi_bram_ctrl_2/bram_rddata_a]
   connect_bd_net -net CPU_0_data_mem_addr  [get_bd_pins CPU_0/data_mem_addr] \
   [get_bd_pins RV32I_AXI_Bridge_0/cpu_addr]
   connect_bd_net -net CPU_0_data_mem_data_out  [get_bd_pins CPU_0/data_mem_data_out] \
@@ -430,15 +484,12 @@ proc create_root_design { parentCell } {
   [get_bd_pins instr_mem_mux_0/instr_mem_addr_in]
   connect_bd_net -net CPU_0_instr_mem_ena  [get_bd_pins CPU_0/instr_mem_ena] \
   [get_bd_pins instr_mem_mux_0/instr_mem_ena_in]
+  connect_bd_net -net Net  [get_bd_ports AC_SDA_0] \
+  [get_bd_pins APU_0/AC_SDA]
   connect_bd_net -net RV32I_AXI_Bridge_0_cpu_rdata  [get_bd_pins RV32I_AXI_Bridge_0/cpu_rdata] \
   [get_bd_pins CPU_0/data_mem_data_in]
   connect_bd_net -net RV32I_AXI_Bridge_0_cpu_stall  [get_bd_pins RV32I_AXI_Bridge_0/cpu_stall] \
   [get_bd_pins CPU_0/stall]
-  # NOTE: axi_bram_ctrl_0_bram port B (addrb/dinb/enb/web/doutb) is
-  # unconnected here on purpose. CPU uses port A over AXI (below); port B is
-  # reserved for the future APU/AudioIO subsystem to access the same BRAM
-  # directly as a plain register file, no AXI hop, once it's ready to be
-  # added back into this design.
   connect_bd_net -net axi_bram_ctrl_0_bram_addr_a  [get_bd_pins axi_bram_ctrl_0/bram_addr_a] \
   [get_bd_pins xlslice_0/Din]
   connect_bd_net -net axi_bram_ctrl_0_bram_clk_a  [get_bd_pins axi_bram_ctrl_0/bram_clk_a] \
@@ -461,6 +512,16 @@ proc create_root_design { parentCell } {
   [get_bd_pins blk_mem_gen_0/web]
   connect_bd_net -net axi_bram_ctrl_1_bram_wrdata_a  [get_bd_pins axi_bram_ctrl_1/bram_wrdata_a] \
   [get_bd_pins blk_mem_gen_0/dinb]
+  connect_bd_net -net axi_bram_ctrl_2_bram_addr_a  [get_bd_pins axi_bram_ctrl_2/bram_addr_a] \
+  [get_bd_pins xlslice_5/Din]
+  connect_bd_net -net axi_bram_ctrl_2_bram_clk_a  [get_bd_pins axi_bram_ctrl_2/bram_clk_a] \
+  [get_bd_pins APU_0/clk]
+  connect_bd_net -net axi_bram_ctrl_2_bram_en_a  [get_bd_pins axi_bram_ctrl_2/bram_en_a] \
+  [get_bd_pins APU_0/en]
+  connect_bd_net -net axi_bram_ctrl_2_bram_we_a  [get_bd_pins axi_bram_ctrl_2/bram_we_a] \
+  [get_bd_pins APU_0/we]
+  connect_bd_net -net axi_bram_ctrl_2_bram_wrdata_a  [get_bd_pins axi_bram_ctrl_2/bram_wrdata_a] \
+  [get_bd_pins APU_0/data_in]
   connect_bd_net -net blk_mem_gen_0_douta  [get_bd_pins blk_mem_gen_0/douta] \
   [get_bd_pins instr_mem_mux_0/instr_mem_data_in]
   connect_bd_net -net blk_mem_gen_0_doutb  [get_bd_pins blk_mem_gen_0/doutb] \
@@ -480,7 +541,8 @@ proc create_root_design { parentCell } {
   [get_bd_pins blk_mem_gen_1/clka] \
   [get_bd_pins blk_mem_gen_0/clka] \
   [get_bd_pins axi_gpio_0/s_axi_aclk] \
-  [get_bd_pins axi_bram_ctrl_0_bram/clkb]
+  [get_bd_pins axi_bram_ctrl_0_bram/clkb] \
+  [get_bd_pins axi_bram_ctrl_2/s_axi_aclk]
   connect_bd_net -net clk_wiz_0_locked  [get_bd_pins clk_wiz_0/locked] \
   [get_bd_pins rst_clk_wiz_100M/dcm_locked]
   connect_bd_net -net instr_mem_mux_0_boot_mem_addr_out  [get_bd_pins instr_mem_mux_0/boot_mem_addr_out] \
@@ -496,13 +558,16 @@ proc create_root_design { parentCell } {
   connect_bd_net -net reset_rtl_0_1  [get_bd_ports reset_rtl_0] \
   [get_bd_pins rst_clk_wiz_100M/ext_reset_in] \
   [get_bd_pins clk_wiz_0/reset]
+  connect_bd_net -net rst_clk_wiz_100M_interconnect_aresetn  [get_bd_pins rst_clk_wiz_100M/interconnect_aresetn] \
+  [get_bd_pins APU_0/rst]
   connect_bd_net -net rst_clk_wiz_100M_peripheral_aresetn  [get_bd_pins rst_clk_wiz_100M/peripheral_aresetn] \
   [get_bd_pins RV32I_AXI_Bridge_0/m_axi_aresetn] \
   [get_bd_pins axi_bram_ctrl_0/s_axi_aresetn] \
   [get_bd_pins axi_smc/aresetn] \
   [get_bd_pins axi_uartlite_0/s_axi_aresetn] \
   [get_bd_pins axi_bram_ctrl_1/s_axi_aresetn] \
-  [get_bd_pins axi_gpio_0/s_axi_aresetn]
+  [get_bd_pins axi_gpio_0/s_axi_aresetn] \
+  [get_bd_pins axi_bram_ctrl_2/s_axi_aresetn]
   connect_bd_net -net rst_clk_wiz_100M_peripheral_reset  [get_bd_pins rst_clk_wiz_100M/peripheral_reset] \
   [get_bd_pins CPU_0/rst]
   connect_bd_net -net xlslice_0_Dout  [get_bd_pins xlslice_0/Dout] \
@@ -513,13 +578,126 @@ proc create_root_design { parentCell } {
   [get_bd_pins blk_mem_gen_1/addra]
   connect_bd_net -net xlslice_4_Dout  [get_bd_pins xlslice_4/Dout] \
   [get_bd_pins blk_mem_gen_0/addrb]
+  connect_bd_net -net xlslice_5_Dout  [get_bd_pins xlslice_5/Dout] \
+  [get_bd_pins APU_0/addr]
 
   # Create address segments
   assign_bd_address -offset 0x00020000 -range 0x00008000 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_bram_ctrl_0/S_AXI/Mem0] -force
   assign_bd_address -offset 0x00010000 -range 0x00010000 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_bram_ctrl_1/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00030000 -range 0x00001000 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_bram_ctrl_2/S_AXI/Mem0] -force
   assign_bd_address -offset 0x00029000 -range 0x00000080 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_gpio_0/S_AXI/Reg] -force
   assign_bd_address -offset 0x00028000 -range 0x00000080 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_uartlite_0/S_AXI/Reg] -force
 
+  # Perform GUI Layout
+  regenerate_bd_layout -layout_string {
+   "ActiveEmotionalView":"Default View",
+   "Default View_ScaleFactor":"0.441941",
+   "Default View_TopLeft":"-127,-1070",
+   "ExpandedHierarchyInLayout":"",
+   "guistr":"# # String gsaved with Nlview 7.8.0 2024-04-26 e1825d835c VDI=44 GEI=38 GUI=JA:21.0
+#  -string -flagsOSRD
+preplace port uart_rtl_0 -pg 1 -lvl 12 -x 4200 -y 80 -defaultsOSRD
+preplace port gpio_rtl_0 -pg 1 -lvl 12 -x 4200 -y 20 -defaultsOSRD
+preplace port gpio_rtl_1 -pg 1 -lvl 12 -x 4200 -y 50 -defaultsOSRD
+preplace port port-id_reset_rtl_0 -pg 1 -lvl 0 -x 0 -y 50 -defaultsOSRD
+preplace port port-id_clk_in1_0 -pg 1 -lvl 0 -x 0 -y 20 -defaultsOSRD
+preplace port port-id_AC_ADR0_0 -pg 1 -lvl 12 -x 4200 -y 580 -defaultsOSRD
+preplace port port-id_AC_SDA_0 -pg 1 -lvl 12 -x 4200 -y 730 -defaultsOSRD
+preplace port port-id_AC_SCK_0 -pg 1 -lvl 12 -x 4200 -y 700 -defaultsOSRD
+preplace port port-id_AC_MCLK_0 -pg 1 -lvl 12 -x 4200 -y 670 -defaultsOSRD
+preplace port port-id_AC_GPIO3_0 -pg 1 -lvl 0 -x 0 -y 110 -defaultsOSRD
+preplace port port-id_AC_GPIO2_0 -pg 1 -lvl 0 -x 0 -y 140 -defaultsOSRD
+preplace port port-id_AC_GPIO1_0 -pg 1 -lvl 0 -x 0 -y 610 -defaultsOSRD
+preplace port port-id_AC_GPIO0_0 -pg 1 -lvl 12 -x 4200 -y 640 -defaultsOSRD
+preplace port port-id_AC_ADR1_0 -pg 1 -lvl 12 -x 4200 -y 610 -defaultsOSRD
+preplace inst CPU_0 -pg 1 -lvl 1 -x 590 -y 340 -defaultsOSRD
+preplace inst RV32I_AXI_Bridge_0 -pg 1 -lvl 1 -x 590 -y 560 -defaultsOSRD
+preplace inst axi_bram_ctrl_0 -pg 1 -lvl 1 -x 590 -y 780 -defaultsOSRD
+preplace inst axi_bram_ctrl_0_bram -pg 1 -lvl 1 -x 590 -y 1020 -defaultsOSRD
+preplace inst axi_smc -pg 1 -lvl 9 -x 3400 -y 70 -defaultsOSRD
+preplace inst rst_clk_wiz_100M -pg 1 -lvl 10 -x 3760 -y 80 -defaultsOSRD
+preplace inst xlslice_0 -pg 1 -lvl 7 -x 2880 -y 140 -defaultsOSRD
+preplace inst blk_mem_gen_0 -pg 1 -lvl 8 -x 3160 -y 50 -defaultsOSRD
+preplace inst xlslice_1 -pg 1 -lvl 2 -x 1040 -y 10 -defaultsOSRD
+preplace inst axi_uartlite_0 -pg 1 -lvl 2 -x 1040 -y -110 -defaultsOSRD
+preplace inst instr_mem_mux_0 -pg 1 -lvl 6 -x 2490 -y -90 -defaultsOSRD
+preplace inst axi_bram_ctrl_1 -pg 1 -lvl 3 -x 1400 -y -110 -defaultsOSRD
+preplace inst blk_mem_gen_1 -pg 1 -lvl 8 -x 3160 -y 300 -defaultsOSRD
+preplace inst clk_wiz_0 -pg 1 -lvl 7 -x 2880 -y -70 -defaultsOSRD
+preplace inst xlslice_3 -pg 1 -lvl 7 -x 2880 -y 40 -defaultsOSRD
+preplace inst xlslice_4 -pg 1 -lvl 6 -x 2490 -y 120 -defaultsOSRD
+preplace inst axi_gpio_0 -pg 1 -lvl 11 -x 4060 -y 40 -defaultsOSRD
+preplace inst APU_0 -pg 1 -lvl 5 -x 2080 -y 670 -defaultsOSRD
+preplace inst axi_bram_ctrl_2 -pg 1 -lvl 3 -x 1400 -y 710 -defaultsOSRD
+preplace inst xlslice_5 -pg 1 -lvl 4 -x 1750 -y 510 -defaultsOSRD
+preplace netloc CPU_0_data_mem_addr 1 0 2 350 180 870
+preplace netloc CPU_0_data_mem_data_out 1 0 2 300 130 880
+preplace netloc CPU_0_data_mem_ena 1 0 2 280 110 890
+preplace netloc CPU_0_data_mem_wea 1 0 2 360 190 850
+preplace netloc CPU_0_instr_mem_addr 1 1 5 NJ 280 NJ 280 1630 -30 N -30 2230
+preplace netloc CPU_0_instr_mem_ena 1 1 5 NJ 300 NJ 300 1650 -20 N -20 2240
+preplace netloc RV32I_AXI_Bridge_0_cpu_rdata 1 0 2 290 120 790
+preplace netloc RV32I_AXI_Bridge_0_cpu_stall 1 0 2 310 140 810
+preplace netloc axi_bram_ctrl_0_bram_addr_a 1 1 6 920J 200 NJ 200 NJ 200 N 200 N 200 2700
+preplace netloc axi_bram_ctrl_0_bram_clk_a 1 0 2 320 150 860
+preplace netloc axi_bram_ctrl_0_bram_douta 1 0 2 330 160 820
+preplace netloc axi_bram_ctrl_0_bram_en_a 1 0 2 370 200 840
+preplace netloc axi_bram_ctrl_0_bram_we_a 1 0 2 390 220 800
+preplace netloc axi_bram_ctrl_0_bram_wrdata_a 1 0 2 380 210 830
+preplace netloc axi_bram_ctrl_1_bram_addr_a 1 3 3 1650 -40 N -40 2260
+preplace netloc axi_bram_ctrl_1_bram_clk_a 1 3 5 1580 -250 N -250 N -250 NJ -250 3050J
+preplace netloc axi_bram_ctrl_1_bram_en_a 1 3 5 1610 220 N 220 N 220 NJ 220 3040J
+preplace netloc axi_bram_ctrl_1_bram_we_a 1 3 5 1550 230 N 230 N 230 NJ 230 3060J
+preplace netloc axi_bram_ctrl_1_bram_wrdata_a 1 3 5 1640 -10 N -10 2230 240 NJ 240 3050J
+preplace netloc blk_mem_gen_0_douta 1 5 3 2260 -190 NJ -190 3040J
+preplace netloc blk_mem_gen_0_doutb 1 3 5 1620 0 N 0 2270 10 2760J -140 3000J
+preplace netloc blk_mem_gen_1_douta 1 5 3 2290 320 NJ 320 NJ
+preplace netloc clk_in1_0_1 1 0 7 NJ 20 830J 70 NJ 70 NJ 70 N 70 2240 50 2780
+preplace netloc clk_wiz_0_clk_out1 1 0 11 240 -110 890 -200 1170 250 NJ 250 N 250 N 250 NJ 250 3030 -120 3260 -30 3590 -30 3950
+preplace netloc clk_wiz_0_locked 1 7 3 2990J -130 NJ -130 3560
+preplace netloc instr_mem_mux_0_boot_mem_addr_out 1 6 1 2770 -110n
+preplace netloc instr_mem_mux_0_boot_mem_ena_out 1 6 2 2740 340 NJ
+preplace netloc instr_mem_mux_0_instr_mem_addr_out 1 1 6 930 -190 1160J 80 NJ 80 N 80 2270 60 2690
+preplace netloc instr_mem_mux_0_instr_mem_data_out 1 0 7 250 -210 NJ -210 1220J 10 NJ 10 N 10 2240 20 2700
+preplace netloc instr_mem_mux_0_instr_mem_ena_out 1 6 2 2730 -150 3010J
+preplace netloc reset_rtl_0_1 1 0 10 30 -220 NJ -220 1230J 20 NJ 20 N 20 2220 30 2720 -170 NJ -170 NJ -170 3570
+preplace netloc rst_clk_wiz_100M_peripheral_aresetn 1 0 11 260 100 890 100 1200 420 NJ 420 N 420 N 420 NJ 420 NJ 420 3270 180 NJ 180 3950
+preplace netloc rst_clk_wiz_100M_peripheral_reset 1 0 11 270 80 NJ 80 1150J 60 NJ 60 1860 40 N 40 2750J -160 NJ -160 NJ -160 NJ -160 3930
+preplace netloc xlslice_0_Dout 1 0 8 340 170 900J 210 NJ 210 NJ 210 N 210 N 210 NJ 210 2980
+preplace netloc xlslice_1_Dout 1 2 6 1180J 30 1600J -50 N -50 2220 -200 NJ -200 3060
+preplace netloc xlslice_3_Dout 1 7 1 2990J 40n
+preplace netloc xlslice_4_Dout 1 6 2 2710J 200 3010J
+preplace netloc axi_bram_ctrl_2_bram_clk_a 1 3 2 1650 590 N
+preplace netloc axi_bram_ctrl_2_bram_en_a 1 3 2 1650 710 N
+preplace netloc axi_bram_ctrl_2_bram_wrdata_a 1 3 2 N 700 1850
+preplace netloc axi_bram_ctrl_2_bram_we_a 1 3 2 1630 690 N
+preplace netloc APU_0_data_out 1 3 3 1590 450 N 450 2220
+preplace netloc APU_0_AC_ADR0 1 5 7 2240J 580 NJ 580 NJ 580 NJ 580 NJ 580 NJ 580 NJ
+preplace netloc Net 1 5 7 NJ 710 NJ 710 NJ 710 NJ 710 NJ 710 NJ 710 4180J
+preplace netloc APU_0_AC_SCK 1 5 7 NJ 690 NJ 690 NJ 690 NJ 690 NJ 690 NJ 690 4170J
+preplace netloc APU_0_AC_MCLK 1 5 7 NJ 670 NJ 670 NJ 670 NJ 670 NJ 670 NJ 670 NJ
+preplace netloc AC_GPIO3_0_1 1 0 5 20J -240 NJ -240 1190J 50 NJ 50 1880
+preplace netloc AC_GPIO2_0_1 1 0 5 50J 90 NJ 90 NJ 90 NJ 90 1870
+preplace netloc AC_GPIO1_0_1 1 0 5 40J -250 NJ -250 1240J 40 NJ 40 1850
+preplace netloc APU_0_AC_GPIO0 1 5 7 2280J 640 NJ 640 NJ 640 NJ 640 NJ 640 NJ 640 NJ
+preplace netloc APU_0_AC_ADR1 1 5 7 2250J 610 NJ 610 NJ 610 NJ 610 NJ 610 NJ 610 NJ
+preplace netloc rst_clk_wiz_100M_interconnect_aresetn 1 4 7 1940 410 NJ 410 NJ 410 NJ 410 NJ 410 NJ 410 3930
+preplace netloc axi_bram_ctrl_2_bram_addr_a 1 3 1 1550 510n
+preplace netloc xlslice_5_Dout 1 4 1 1860 510n
+preplace netloc RV32I_AXI_Bridge_0_M_AXI 1 1 8 910J 110 NJ 110 1590J -260 N -260 N -260 NJ -260 NJ -260 3270
+preplace netloc axi_bram_ctrl_0_BRAM_PORTA 1 0 2 270 1160 790
+preplace netloc axi_gpio_0_GPIO 1 11 1 4170 20n
+preplace netloc axi_gpio_0_GPIO2 1 11 1 N 50
+preplace netloc axi_smc_M00_AXI 1 0 10 230 -230 NJ -230 1200J -240 NJ -240 N -240 N -240 NJ -240 NJ -240 NJ -240 3530
+preplace netloc axi_smc_M01_AXI 1 1 9 920 -260 NJ -260 1570J -230 N -230 N -230 NJ -230 NJ -230 NJ -230 3540
+preplace netloc axi_smc_M02_AXI 1 2 8 1250 -250 1560J -220 N -220 N -220 NJ -220 NJ -220 NJ -220 3550
+preplace netloc axi_smc_M03_AXI 1 9 2 3580J -20 3940
+preplace netloc axi_uartlite_0_UART 1 2 10 1210J -230 1550J -210 N -210 N -210 NJ -210 NJ -210 NJ -210 NJ -210 NJ -210 4180
+preplace netloc axi_smc_M04_AXI 1 2 8 1250 400 NJ 400 N 400 NJ 400 NJ 400 NJ 400 NJ 400 3530
+levelinfo -pg 1 0 590 1040 1400 1750 2080 2490 2880 3160 3400 3760 4060 4200
+pagesize -pg 1 -db -bbox -sgen -230 -270 4330 1170
+"
+}
 
   # Restore current instance
   current_bd_instance $oldCurInst

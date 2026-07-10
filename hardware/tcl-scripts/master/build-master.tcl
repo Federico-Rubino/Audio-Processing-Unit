@@ -49,7 +49,9 @@ set rtl_files [glob -nocomplain \
 if {[llength $rtl_files] > 0} {
     add_files $rtl_files
     foreach f $rtl_files {
-        set_property file_type "VHDL 2008" [get_files $f]
+        if {[file tail $f] ne "APU.vhd"} {
+            set_property file_type "VHDL 2008" [get_files $f]
+        }
     }
     puts "Added [llength $rtl_files] RTL files."
 } else {
