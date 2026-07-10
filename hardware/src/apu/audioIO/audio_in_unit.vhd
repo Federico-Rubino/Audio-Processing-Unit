@@ -132,7 +132,7 @@ architecture Behavioral of audio_in_unit is
     signal bw_start, bw_count_en, bw_done : std_logic;
     signal data_in_0, data_in_1, data_in_2, data_in_3 : std_logic_vector(31 downto 0);
     signal data_in_4, data_in_5, data_in_6, data_in_7 : std_logic_vector(31 downto 0);
-
+    signal last_en, next_last_en : std_logic;
 begin
 
     bw : entity work.bmu_write
@@ -205,6 +205,8 @@ begin
             finished    <= '0';
             grain_ack_l <= '0';
             grain_ack_r <= '0';
+            next_last_en <= enable;
+            last_en <= next_last_en;
 
             -- 1 cycle behind row_cnt
             row_addr_d <= row_cnt;
@@ -215,7 +217,7 @@ begin
             else
                 case state is
                     when IDLE =>
-                        if enable = '1' then
+                        if enable = '1' and last_en = '0' then
                             row_cnt <= (others => '0');
                             if left_right = '0' then
                                 grain_ack_l <= '1';

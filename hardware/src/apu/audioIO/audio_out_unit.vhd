@@ -137,7 +137,7 @@ architecture Behavioral of audio_out_unit is
     signal br_start, br_count_en, br_done : std_logic;
     signal data_out_0, data_out_1, data_out_2, data_out_3 : std_logic_vector(31 downto 0);
     signal data_out_4, data_out_5, data_out_6, data_out_7 : std_logic_vector(31 downto 0);
-
+    signal last_en, next_last_en : std_logic;
 begin
 
     br : entity work.bmu_read
@@ -230,6 +230,9 @@ begin
             row_addr_d2 <= row_addr_d1;
             row_we_d1   <= br_count_en;
             row_we_d2   <= row_we_d1;
+            
+            next_last_en <= enable;
+            last_en <= next_last_en;
 
             if rst = '0' then
                 state   <= IDLE;
@@ -237,7 +240,7 @@ begin
             else
                 case state is
                     when IDLE =>
-                        if enable = '1' then
+                        if enable = '1' and last_en = '0' then
                             row_cnt <= (others => '0');
                             if left_right = '0' then
                                 fill_ack_l <= '1';
