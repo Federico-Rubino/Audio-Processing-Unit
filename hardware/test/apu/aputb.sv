@@ -166,7 +166,7 @@ module aputb;
 
     // shader placed at word 3 instead of the "natural" word 2 -- see caveat 4
     localparam logic [10:0] SHADER_START_ADDR = 11'd3;
-    localparam logic [31:0] CONTROL_START_VALUE = 32'h00000003;
+    localparam logic [31:0] CONTROL_START_VALUE = 32'h00000007;
 
     // param offsets from the assembler's --emit-params manifest
     localparam int IN_BS = 0, IN_BL = 1, IN_OS = 2, IN_OL = 3;
@@ -265,7 +265,10 @@ module aputb;
                 logic [31:0] status;
                 forever begin
                     bram_read(11'd0, status);
-                    if (status[STATUS_NEW_GRAIN_BIT]) disable wait_new_grain_timeout;
+                    if (status[STATUS_NEW_GRAIN_BIT]) begin
+                        disable wait_new_grain_timeout;
+                        $display("new grain bit set to 1");
+                    end
                     #500;
                 end
             end

@@ -57,13 +57,13 @@ architecture Behavioral of AudioCU is
     signal counter, next_counter : std_logic_vector(COUNTER_SIZE-1 downto 0);
     signal op, next_op : apu_code_t;
     signal instr, next_instr : std_logic_vector(INSTR_SIZE-1 downto 0);
-    signal pc, next_pc : std_logic_vector(INSTR_ADDR_SIZE-1 downto 0);
+    signal pc, next_pc : std_logic_vector(INSTR_ADDR_SIZE-2 downto 0);
     signal buf1, next_buf1 : std_logic_vector(ARAM_ADDR_SIZE*3-1 downto 0); -- 29:20 buff start, 19:10 buff len, 9:0 op start
     signal buf2, next_buf2 : std_logic_vector(ARAM_ADDR_SIZE*3-1 downto 0);
     signal buf3, next_buf3 : std_logic_vector(ARAM_ADDR_SIZE*3-1 downto 0);
     signal op_len, next_op_len : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
     signal new_grain, next_new_grain : std_logic;
-    signal start_addr, next_start_addr : std_logic_vector(INSTR_ADDR_SIZE-1 downto 0);
+    signal start_addr, next_start_addr : std_logic_vector(INSTR_ADDR_SIZE-2 downto 0);
 
     constant TO_CPU_ADDR : std_logic_vector(INSTR_ADDR_SIZE-1 downto 0) := (others => '0');
     constant FROM_CPU_ADDR : std_logic_vector(INSTR_ADDR_SIZE-1 downto 0) := std_logic_vector(to_unsigned(1, INSTR_ADDR_SIZE));
@@ -142,7 +142,7 @@ begin
 
                 if idata_out(0) = '1' then  -- check start signal written by CPU (on the first iteration idata_out is relative to another address, but bit 0 is always '0' so is doesn't go to state SETUP)
                     next_state <= SETUP;
-                    next_start_addr <= idata_out(INSTR_ADDR_SIZE-1 downto 0);
+                    next_start_addr <= idata_out(INSTR_ADDR_SIZE-1 downto 1);
 
                     -- set 'busy' to 1
                     ien <= '1'; iwe <= '1';
@@ -167,13 +167,14 @@ begin
 
                 ien <= '1'; iwe <= '0';
                 iaddr <= (others => '0');
-                iaddr(INSTR_ADDR_SIZE-1 downto 0) <= start_addr;
+                iaddr(INSTR_ADDR_SIZE-2 downto 0) <= start_addr;
 
             when FETCH =>
                 next_counter <= std_logic_vector(unsigned(counter) - 1);
                 next_pc <= std_logic_vector(unsigned(pc) + 1);
                 ien <= '1'; iwe <= '0';
-                iaddr <= pc;
+                iaddr <= (others => '0');
+                iaddr (INSTR_ADDR_SIZE-2 downto 0) <= pc;
 
                 -- Load the correct part of the instruction
                 if    unsigned(counter) = 0 then next_instr(ARAM_WORD_SIZE-1 downto 0) <= idata_out;
@@ -199,10 +200,11 @@ begin
                         next_lr <= '1';
 
                         next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / ARAM_WORD_SIZE - 1, COUNTER_SIZE)); 
-                        next_pc <= std_logic_vector(unsigned(START_ADDR) + 1);
+                        next_pc <= std_logic_vector(unsigned(start_addr) + 1);
 
                         ien <= '1'; iwe <= '0';
-                        iaddr <= START_ADDR;
+                        iaddr <= (others => '0');
+                        iaddr(INSTR_ADDR_SIZE-2 downto 0) <= start_addr;
                     else                -- last channel was right, going to idle
                         next_state <= IDLE;
                         next_lr <= '0';
@@ -298,7 +300,8 @@ begin
                         if aio_in_end = '1' then
                             next_state <= FETCH;
                             ien <= '1'; iwe <= '0';
-                            iaddr <= pc;
+                            iaddr <= (others => '0');
+                            iaddr(INSTR_ADDR_SIZE-2 downto 0) <= pc;
                             next_pc <= std_logic_vector(unsigned(pc) + 1);
                             next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / ARAM_WORD_SIZE - 1, COUNTER_SIZE));
                         end if;
@@ -315,7 +318,8 @@ begin
                         if aio_out_end = '1' then
                             next_state <= FETCH;
                             ien <= '1'; iwe <= '0';
-                            iaddr <= pc;
+                            iaddr <= (others => '0');
+                            iaddr(INSTR_ADDR_SIZE-2 downto 0) <= pc;
                             next_pc <= std_logic_vector(unsigned(pc) + 1);
                             next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / ARAM_WORD_SIZE - 1, COUNTER_SIZE));
                         end if;
@@ -342,7 +346,8 @@ begin
                         if fft_end = '1' then
                             next_state <= FETCH;
                             ien <= '1'; iwe <= '0';
-                            iaddr <= pc;
+                            iaddr <= (others => '0');
+                            iaddr(INSTR_ADDR_SIZE-2 downto 0) <= pc;
                             next_pc <= std_logic_vector(unsigned(pc) + 1);
                             next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / ARAM_WORD_SIZE - 1, COUNTER_SIZE));
                         end if;
@@ -394,7 +399,8 @@ begin
                         if vec_end = '1' then
                             next_state <= FETCH;
                             ien <= '1'; iwe <= '0';
-                            iaddr <= pc;
+                            iaddr <= (others => '0');
+                            iaddr(INSTR_ADDR_SIZE-2 downto 0) <= pc;
                             next_pc <= std_logic_vector(unsigned(pc) + 1);
                             next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / ARAM_WORD_SIZE - 1, COUNTER_SIZE));
                         end if;
