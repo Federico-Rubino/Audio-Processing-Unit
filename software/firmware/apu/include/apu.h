@@ -38,9 +38,7 @@ uint32_t apu_has_new_grain(apu_t* apu){
 
 //start shader processing
 uint32_t apu_start_shader(apu_t* apu, uint32_t shader_start_addr){
-    if(apu_is_busy(apu) != 0){ // apu is busy so error
-        return 1;
-    }
+    while(apu_is_busy(apu) != 0){}
     apu->control = (APU_SHADER_START_ADDR_MASK & (shader_start_addr << 1)) | APU_CONTROL_START_MASK;
     while(apu_is_busy(apu) == 0){}
     apu->control &= ~APU_CONTROL_START_MASK;
@@ -59,7 +57,7 @@ uint32_t apu_load_shader(apu_t* apu, uint32_t shader_start_addr, uint32_t* shade
 }
 
 //load param
-uint32_t apu_load_param(apu_t* apu, uint32_t param_left, uint32_t param_right, uint32_t offset){
+uint32_t apu_load_param(apu_t* apu, uint32_t offset, uint32_t param_left, uint32_t param_right){
     if (offset >= APU_PARAM_WORDS){
         return 1;
     }
