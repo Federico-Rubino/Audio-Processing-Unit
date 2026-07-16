@@ -1,4 +1,7 @@
+import argparse
+import configparser
 import os
+from pathlib import Path
 
 import serial
 import sys
@@ -12,9 +15,18 @@ ACK_SIGNAL = 0xAB
 CMD_LOAD_CHUNK = 0x01
 CMD_FINISHED = 0x02
 
-# New Memory Map Addresses
-INSTR_START_ADDR = 0x00010000
-DATA_START_ADDR  = 0x000200F0
+DEFAULT_CONFIG_PATH = Path(__file__).parent / "memory_map.ini"
+
+
+def load_config(config_path):
+    """Reads the [addresses] section of memory_map.ini into a dict of ints
+    (instr_start_addr, data_start_addr, shader_start_addr)."""
+    parser = configparser.ConfigParser()
+    if not parser.read(config_path):
+        sys.exit(f"[!] Error: config file '{config_path}' not found.")
+    addrs = parser["addresses"]
+    return {name: int(value, 0) for name, value in addrs.items()}
+
 
 def send_word(ser, value):
     """Sends 32-bit word in Little Endian."""
@@ -70,22 +82,28 @@ def serial_monitor(ser):
         print("\n--- Closing Monitor ---")
 
 def main():
-    if len(sys.argv) < 3:
-        print("Usage: python loader.py <instr.hex> <data.hex> [port]")
-        return
+    parser = argparse.ArgumentParser(description="Upload a CPU program (and optionally a shader) over the UART bootloader.")
+    parser.add_argument("instr", help="Path to the CPU instruction .hex file")
+    parser.add_argument("data", help="Path to the CPU data .hex file")
+    parser.add_argument("port", nargs="?", default="COM3", help="Serial port (default: COM3)")
+    parser.add_argument("--shader", help="Path to an assembled shader .hex file to upload into APU shader memory")
+    parser.add_argument(
+        "--config",
+        default=str(DEFAULT_CONFIG_PATH),
+        help=f"Path to the memory-map config file (default: {DEFAULT_CONFIG_PATH.name} alongside this script)",
+    )
+    args = parser.parse_args()
 
-    instr_file = sys.argv[1]
-    data_file = sys.argv[2]
-    port = sys.argv[3] if len(sys.argv) > 3 else 'COM3' # Adjust for your system
-    
+    cfg = load_config(args.config)
+
     try:
-        ser = serial.Serial(port, 115200, timeout=2)
+        ser = serial.Serial(args.port, 115200, timeout=2)
     except Exception as e:
-        print(f"[!] Could not open port {port}: {e}")
+        print(f"[!] Could not open port {args.port}: {e}")
         return
 
-    print(f"[*] Port {port} opened. Reset your FPGA to start...")
-    
+    print(f"[*] Port {args.port} opened. Reset your FPGA to start...")
+
     # 1. Wait for Bootloader
     while True:
         b = ser.read(1)
@@ -94,17 +112,21 @@ def main():
             break
 
     # 2. Upload Sections
-    instr_data = load_hex_file(instr_file)
-    send_chunk(ser, INSTR_START_ADDR, instr_data)
+    instr_data = load_hex_file(args.instr)
+    send_chunk(ser, cfg["instr_start_addr"], instr_data)
 
-    data_vals = load_hex_file(data_file)
-    send_chunk(ser, DATA_START_ADDR, data_vals)
+    data_vals = load_hex_file(args.data)
+    send_chunk(ser, cfg["data_start_addr"], data_vals)
+
+    if args.shader:
+        shader_words = load_hex_file(args.shader)
+        send_chunk(ser, cfg["shader_start_addr"], shader_words)
 
     # 3. Finish and Jump
     print("[*] Sending Finished Command...")
     ser.write(bytes([CMD_FINISHED]))
     ser.close()
-    os.system(f"python -m serial.tools.miniterm COM63 115200 --dtr 0 --rts 0")
+    os.system(f"python -m serial.tools.miniterm {args.port} 115200 --dtr 0 --rts 0")
 
 if __name__ == "__main__":
     main()
