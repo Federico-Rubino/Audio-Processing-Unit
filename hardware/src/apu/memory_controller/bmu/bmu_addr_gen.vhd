@@ -46,10 +46,9 @@ end bmu_addr_gen;
 
 architecture Behavioral of bmu_addr_gen is
 
-    constant ROW_SAMPLES : integer := 4; -- one sample per BRAM block, per row
-    constant ROW_SHIFT    : integer := 2; -- log2(ROW_SAMPLES): converts a sample count to a row count
+    constant ROW_SAMPLES : integer := 4; 
+    constant ROW_SHIFT    : integer := 2; 
 
-    -- rows/pulse: parallel8=2, else 1
     function calc_row_step(l : integer) return integer is
     begin
         if l = 8 then
@@ -62,14 +61,17 @@ architecture Behavioral of bmu_addr_gen is
     constant ROW_STEP : integer := calc_row_step(LANES);
 
     signal ring_start    : unsigned(BUFFER_ADDR_WIDTH-1 downto 0) := (others => '0');
-    signal ring_len_rows : unsigned(BUFFER_ADDR_WIDTH downto 0) := (others => '0'); -- +1 bit: a full ring is 2**W rows, one more than any address
+    signal ring_len_rows : unsigned(BUFFER_ADDR_WIDTH downto 0) := (others => '0'); 
+    -- Pre-calculated physical boundary of the ring (start + len) to make comparison fast
+    signal ring_end      : unsigned(BUFFER_ADDR_WIDTH downto 0) := (others => '0'); 
+    
     signal op_length_lat : unsigned(BUFFER_SIZE_BITS-1 downto 0) := (others => '0');
 
     signal row_cursor   : unsigned(BUFFER_ADDR_WIDTH-1 downto 0) := (others => '0');
     signal samples_done : unsigned(BUFFER_SIZE_BITS-1 downto 0) := (others => '0');
     signal lane_cnt     : unsigned(1 downto 0) := (others => '0');
 
-    signal row_advance : std_logic; -- '1' when this pulse should move row_cursor
+    signal row_advance : std_logic; 
 
 begin
 
@@ -81,42 +83,51 @@ begin
 
     process(clk)
         variable next_port1_row : unsigned(BUFFER_ADDR_WIDTH-1 downto 0);
-        variable rel_off        : unsigned(BUFFER_ADDR_WIDTH downto 0); -- row_cursor - ring_start, widened for the mod
+        
+        -- High-speed temporary variables for single-cycle comparisons
+        variable temp_port1_row : unsigned(BUFFER_ADDR_WIDTH downto 0);
+        variable temp_row_step  : unsigned(BUFFER_ADDR_WIDTH downto 0);
+        
+        -- Calculated during 'start'
+        variable temp_ring_len  : unsigned(BUFFER_ADDR_WIDTH downto 0);
+        variable temp_ring_start : unsigned(BUFFER_ADDR_WIDTH-1 downto 0);
     begin
         if rising_edge(clk) then
             done <= '0';
 
-            bram0_port0_en <= '0'; 
-            bram1_port0_en <= '0';
-            bram2_port0_en <= '0'; 
-            bram3_port0_en <= '0';
-            bram0_port1_en <= '0'; 
-            bram1_port1_en <= '0';
-            bram2_port1_en <= '0'; 
-            bram3_port1_en <= '0';
+            bram0_port0_en <= '0'; bram1_port0_en <= '0';
+            bram2_port0_en <= '0'; bram3_port0_en <= '0';
+            bram0_port1_en <= '0'; bram1_port1_en <= '0';
+            bram2_port1_en <= '0'; bram3_port1_en <= '0';
 
             if rst = '0' then
                 row_cursor   <= (others => '0');
                 samples_done <= (others => '0');
                 lane_cnt     <= (others => '0');
+                ring_end     <= (others => '0');
 
             elsif start = '1' then
-                ring_start    <= unsigned(buffer_start);
-                ring_len_rows <= resize(shift_right(unsigned(buffer_length), ROW_SHIFT), BUFFER_ADDR_WIDTH+1);
+                temp_ring_start := unsigned(buffer_start);
+                temp_ring_len   := resize(shift_right(unsigned(buffer_length), ROW_SHIFT), BUFFER_ADDR_WIDTH+1);
+                
+                ring_start    <= temp_ring_start;
+                ring_len_rows <= temp_ring_len;
+                -- Pre-calculate the physical end of the buffer (takes 1 cycle, during 'start' routine)
+                ring_end      <= resize(temp_ring_start, BUFFER_ADDR_WIDTH+1) + temp_ring_len;
+                
                 op_length_lat <= unsigned(operation_length);
                 row_cursor    <= unsigned(operation_start);
                 samples_done  <= (others => '0');
                 lane_cnt      <= (others => '0');
 
             elsif count_en = '1' then
-                -- port0 address: same row for all 4 BRAM blocks (row-major layout)
+                -- port0 address: same row for all 4 BRAM blocks
                 bram0_port0_addr <= std_logic_vector(row_cursor);
                 bram1_port0_addr <= std_logic_vector(row_cursor);
                 bram2_port0_addr <= std_logic_vector(row_cursor);
                 bram3_port0_addr <= std_logic_vector(row_cursor);
 
                 if LANES = 1 then
-                    -- serial: exactly one BRAM enabled this cycle, picked by lane_cnt
                     case lane_cnt is
                         when "00"   => bram0_port0_en <= '1';
                         when "01"   => bram1_port0_en <= '1';
@@ -129,9 +140,16 @@ begin
                     bram2_port0_en <= '1'; bram3_port0_en <= '1';
 
                     if LANES = 8 then
-                        -- second row (port1) is always "current row + 1", wrapped
-                        rel_off := resize(row_cursor - ring_start, BUFFER_ADDR_WIDTH+1) + 1;
-                        next_port1_row := ring_start + resize(rel_off mod ring_len_rows, BUFFER_ADDR_WIDTH);
+                        -- 1. Tentatively increment row cursor by 1
+                        temp_port1_row := resize(row_cursor, BUFFER_ADDR_WIDTH+1) + 1;
+                        
+                        -- 2. Fast wrap check: if it exceeds ring_end, subtract ring_len_rows
+                        if temp_port1_row >= ring_end then
+                            next_port1_row := resize(temp_port1_row - ring_len_rows, BUFFER_ADDR_WIDTH);
+                        else
+                            next_port1_row := resize(temp_port1_row, BUFFER_ADDR_WIDTH);
+                        end if;
+                        
                         bram0_port1_addr <= std_logic_vector(next_port1_row);
                         bram1_port1_addr <= std_logic_vector(next_port1_row);
                         bram2_port1_addr <= std_logic_vector(next_port1_row);
@@ -142,8 +160,15 @@ begin
                 end if;
 
                 if row_advance = '1' then
-                    rel_off := resize(row_cursor - ring_start, BUFFER_ADDR_WIDTH+1) + ROW_STEP;
-                    row_cursor <= ring_start + resize(rel_off mod ring_len_rows, BUFFER_ADDR_WIDTH);
+                    -- 1. Tentatively increment row cursor by ROW_STEP
+                    temp_row_step := resize(row_cursor, BUFFER_ADDR_WIDTH+1) + ROW_STEP;
+                    
+                    -- 2. Fast wrap check: if it exceeds ring_end, subtract ring_len_rows
+                    if temp_row_step >= ring_end then
+                        row_cursor <= resize(temp_row_step - ring_len_rows, BUFFER_ADDR_WIDTH);
+                    else
+                        row_cursor <= resize(temp_row_step, BUFFER_ADDR_WIDTH);
+                    end if;
                 end if;
 
                 samples_done <= samples_done + LANES;
