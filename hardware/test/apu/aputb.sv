@@ -215,28 +215,53 @@ module aputb;
     // a broken, doubled sequence
     // ------------------------------------------------------------------
     localparam int COLLECT_MAX = 512;
-    logic [15:0] collected [0:COLLECT_MAX-1];
-    int          collected_count;
+    
+    // Live signals for easy waveform visualization
+    logic [15:0] current_rx_left;
+    logic [15:0] current_rx_right;
+
+    // Separate arrays to store the history of both channels
+    logic [15:0] collected_left  [0:COLLECT_MAX-1];
+    logic [15:0] collected_right [0:COLLECT_MAX-1];
+    
+    int          collected_count_left;
+    int          collected_count_right;
     logic        collecting;
 
     initial begin
-        collected_count = 0;
-        collecting      = 1'b0;
+        collected_count_left  = 0;
+        collected_count_right = 0;
+        collecting            = 1'b0;
+        current_rx_left       = 16'd0;
+        current_rx_right      = 16'd0;
     end
 
     always @(posedge rx_valid) begin
-        if (collecting && rx_slot_phase == 1'b0 && collected_count < COLLECT_MAX) begin
-            collected[collected_count] <= rx_sample;
-            collected_count <= collected_count + 1;
+        // Assuming rx_slot_phase == 0 is Left, and 1 is Right (Standard I2S)
+        if (rx_slot_phase == 1'b0) begin
+            current_rx_left <= rx_sample; // Live update for waveform
+            
+            if (collecting && collected_count_left < COLLECT_MAX) begin
+                collected_left[collected_count_left] <= rx_sample;
+                collected_count_left <= collected_count_left + 1;
+            end
+        end else begin
+            current_rx_right <= rx_sample; // Live update for waveform
+            
+            if (collecting && collected_count_right < COLLECT_MAX) begin
+                collected_right[collected_count_right] <= rx_sample;
+                collected_count_right <= collected_count_right + 1;
+            end
         end
     end
 
-    function automatic int longest_contiguous_run();
+    // Function adapted to take arrays as arguments to check Left and Right independently
+    function automatic int longest_contiguous_run(ref logic [15:0] arr [0:COLLECT_MAX-1], input int count);
         int best, cur, i;
-        best = (collected_count > 0) ? 1 : 0;
-        cur  = (collected_count > 0) ? 1 : 0;
-        for (i = 1; i < collected_count; i++) begin
-            if (collected[i] == logic'(collected[i-1] + 16'd1)) begin
+        best = (count > 0) ? 1 : 0;
+        cur  = (count > 0) ? 1 : 0;
+        for (i = 1; i < count; i++) begin
+            if (arr[i] == logic'(arr[i-1] + 16'd1)) begin
                 cur = cur + 1;
                 if (cur > best) best = cur;
             end else begin
@@ -310,13 +335,19 @@ module aputb;
         #12_000_000; // 12 ms: enough for a 256-sample grain at ~20.8us/sample plus margin
 
         begin
-            int run;
-            run = longest_contiguous_run();
-            $display("[%0t] collected %0d sample(s), longest contiguous run = %0d", $time, collected_count, run);
-            if (run >= PASS_RUN_LENGTH) begin
+            int run_left, run_right;
+            run_left  = longest_contiguous_run(collected_left, collected_count_left);
+            run_right = longest_contiguous_run(collected_right, collected_count_right);
+            
+            $display("[%0t] LEFT:  collected %0d sample(s), longest contiguous run = %0d", $time, collected_count_left, run_left);
+            $display("[%0t] RIGHT: collected %0d sample(s), longest contiguous run = %0d", $time, collected_count_right, run_right);
+            
+            if (run_left >= PASS_RUN_LENGTH && run_right >= PASS_RUN_LENGTH) begin
                 $display("RESULT: PASS");
             end else begin
-                $display("RESULT: FAIL (longest run %0d < required %0d)", run, PASS_RUN_LENGTH);
+                $display("RESULT: FAIL");
+                if (run_left < PASS_RUN_LENGTH)  $display(" -> LEFT failed (run %0d < required %0d)", run_left, PASS_RUN_LENGTH);
+                if (run_right < PASS_RUN_LENGTH) $display(" -> RIGHT failed (run %0d < required %0d)", run_right, PASS_RUN_LENGTH);
             end
         end
 
