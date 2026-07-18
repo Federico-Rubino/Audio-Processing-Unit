@@ -14,7 +14,7 @@ architecture sim of AudioCU_tb is
     -- Geometry Parameters
     -- --------------------------------------------------------
     constant ARAM_WORD_SIZE : integer := 32;
-    constant ARAM_ADDR_SIZE : integer := 16;
+    constant ARAM_ADDR_SIZE : integer := 15;
     constant INSTR_ADDR_SIZE: integer := 11;
     constant UPARAM_SIZE    : integer := 9;
     constant INSTR_SIZE     : integer := 128;
@@ -275,7 +275,7 @@ begin
             report "=== STARTING ITERATION " & integer'image(iteration) & " ===";
 
             -- Trigger start flag + assign start_address=3 to addr 1 (Combined value = 3)
-            write_bram(1, std_logic_vector(to_unsigned(3, ARAM_WORD_SIZE)));
+            write_bram(1, std_logic_vector(to_unsigned(7, ARAM_WORD_SIZE)));
 
             -- Wait 3 clock cycles (Fast enough to not miss the hardware execution)
             for i in 0 to 2 loop
@@ -283,7 +283,7 @@ begin
             end loop;
 
             -- Clear the start bit (Bit 0 = 0, keeping address bits -> value 2)
-            write_bram(1, std_logic_vector(to_unsigned(2, ARAM_WORD_SIZE)));
+            write_bram(1, std_logic_vector(to_unsigned(6, ARAM_WORD_SIZE)));
 
             -- ====================================================================
             -- PHASE 1: LEFT CHANNEL VALIDATION (Should dereference from 1024+)
@@ -358,6 +358,10 @@ begin
             wait for 1 ns;
             
             report "[PASS] Iteration " & integer'image(iteration) & " complete.";
+
+            for i in 0 to 4 loop
+                wait until rising_edge(clk);
+            end loop;
         end loop;
 
         report "----------------------------------------------------";
