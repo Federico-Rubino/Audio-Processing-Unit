@@ -64,6 +64,7 @@ architecture Behavioral of AudioCU is
     signal op_len, next_op_len : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
     signal new_grain, next_new_grain : std_logic;
     signal start_addr, next_start_addr : std_logic_vector(INSTR_ADDR_SIZE-2 downto 0);
+    signal single_channel, next_single_channel : std_logic; -- shaders with a load instruction are only executed once (the parameters are not usable for a full shader execution)
 
     constant TO_CPU_ADDR : std_logic_vector(INSTR_ADDR_SIZE-1 downto 0) := (others => '0');
     constant FROM_CPU_ADDR : std_logic_vector(INSTR_ADDR_SIZE-1 downto 0) := std_logic_vector(to_unsigned(1, INSTR_ADDR_SIZE));
@@ -86,6 +87,7 @@ begin
             op_len <= (others => '0');
             new_grain <= '0';
             start_addr <= (others => '0');
+            single_channel <= '0';
         elsif rising_edge(clk) then
             state <= next_state;
             lr <= next_lr;
@@ -99,6 +101,7 @@ begin
             op_len <= next_op_len;
             new_grain <= next_new_grain;
             start_addr <= next_start_addr;
+            single_channel <= next_single_channel;
         end if;
     end process;
 
@@ -118,6 +121,7 @@ begin
         next_op_len <= op_len;
         next_new_grain <= new_grain;
         next_start_addr <= start_addr;
+        next_single_channel <= single_channel;
         
         ien <= '0'; iwe <= '0';
         iaddr <= (others => '0'); idata_in <= (others => '0');
@@ -139,6 +143,7 @@ begin
             when IDLE =>
                 ien <= '1'; iwe <= '0';
                 iaddr <= FROM_CPU_ADDR;
+                next_single_channel <= '0';
 
                 if idata_out(0) = '1' then  -- check start signal written by CPU (on the first iteration idata_out is relative to another address, but bit 0 is always '0' so is doesn't go to state SETUP)
                     next_state <= SETUP;
@@ -195,7 +200,7 @@ begin
                 -- if op is stop, then execute go to idle or to the other channel,
                 -- otherwise transition to load state
                 if instr(INSTR_SIZE-1 downto INSTR_SIZE-APU_OP_WIDTH) = APU_OP_STOP then
-                    if lr = '0' then    -- last channel was left, going to execute right
+                    if lr = '0' and single_channel = '0' then    -- last channel was left, going to execute right
                         next_state <= FETCH;
                         next_lr <= '1';
 
@@ -246,6 +251,8 @@ begin
 
                         when APU_OP_LOAD =>
                             -- TODO save immediate parameters
+                            next_state <= EXECUTE;  -- load operation doesn't use parameters, so LOAD stage is skipped
+                            next_single_channel <= '1';
                             next_counter <= std_logic_vector(to_unsigned(3, COUNTER_SIZE));
                             iwe <= '0'; ien <= '1';
                             iaddr <= (others => '0');
@@ -404,6 +411,10 @@ begin
                             next_pc <= std_logic_vector(unsigned(pc) + 1);
                             next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / ARAM_WORD_SIZE - 1, COUNTER_SIZE));
                         end if;
+
+                    when APU_OP_LOAD =>
+                        -- TODO execute load instruction
+                        next_state <= FETCH;
 
                     when others =>
                         next_state <= IDLE;
