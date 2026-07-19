@@ -45,7 +45,13 @@ entity AudioCU is
         vec_scalar : out std_logic_vector(15 downto 0);
         vec_bsr1, vec_blr1, vec_osr1, vec_olr1 : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
         vec_bsr2, vec_blr2, vec_osr2, vec_olr2 : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
-        vec_bsw, vec_blw, vec_osw, vec_olw : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0)
+        vec_bsw, vec_blw, vec_osw, vec_olw : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+
+        -- Load Unit Interfacing
+        ld_end : in std_logic;
+        ld_en : out std_logic;
+        ld_bs, ld_bl, ld_os, ld_ol : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        ld_data : out std_logic_vector(ARAM_WORD_SIZE-1 downto 0)
     );
 end AudioCU;
 
@@ -138,6 +144,10 @@ begin
         vec_bsr1 <= (others => '0'); vec_blr1 <= (others => '0'); vec_osr1 <= (others => '0'); vec_olr1 <= (others => '0');
         vec_bsr2 <= (others => '0'); vec_blr2 <= (others => '0'); vec_osr2 <= (others => '0'); vec_olr2 <= (others => '0');
         vec_bsw <= (others => '0'); vec_blw <= (others => '0'); vec_osw <= (others => '0'); vec_olw <= (others => '0');
+
+        ld_en <= '0';
+        ld_bs <= (others => '0'); ld_bl <= (others => '0'); ld_os <= (others => '0'); ld_ol <= (others => '0');
+        ld_data <= (others => '0');
 
         case state is
             when IDLE =>
@@ -250,16 +260,17 @@ begin
                             iaddr(UPARAM_SIZE-1 downto 0) <= instr(10*UPARAM_SIZE-1 downto 9*UPARAM_SIZE);
 
                         when APU_OP_LOAD =>
-                            -- TODO save immediate parameters
+                            -- store immediate buffer values
+                            next_buf1 <= instr(ARAM_ADDR_SIZE*4-1 downto ARAM_ADDR_SIZE);
+                            next_op_len <= instr(ARAM_ADDR_SIZE-1 downto 0);
+
                             next_state <= EXECUTE;  -- load operation doesn't use parameters, so LOAD stage is skipped
                             next_single_channel <= '1';
-                            next_counter <= std_logic_vector(to_unsigned(3, COUNTER_SIZE));
-                            iwe <= '0'; ien <= '1';
-                            iaddr <= (others => '0');
-                            iaddr(UPARAM_SIZE+1) <= '1';
-                            iaddr(UPARAM_SIZE) <= lr;
-                            iaddr(UPARAM_SIZE-1 downto 0) <= instr(4*UPARAM_SIZE-1 downto 3*UPARAM_SIZE);
-
+                            next_counter <= std_logic_vector(to_unsigned(1, COUNTER_SIZE));
+                            
+                            ien <= '1'; iwe <= '0';
+                            iaddr <= std_logic_vector(to_unsigned(1024, INSTR_ADDR_SIZE));
+                            
                         when others =>
                     end case;
 
@@ -413,8 +424,30 @@ begin
                         end if;
 
                     when APU_OP_LOAD =>
-                        -- TODO execute load instruction
-                        next_state <= FETCH;
+                        unit_select <= APU_UNIT_LOAD;
+                        ld_en <= '1';
+
+                        ld_bs <= buf1(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2);
+                        ld_bl <= buf1(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1);
+                        ld_os <= buf1(ARAM_ADDR_SIZE*1-1 downto 0);
+                        ld_ol <= op_len;
+
+                        ien <= '1'; iwe <= '0';
+                        iaddr <= std_logic_vector(to_unsigned(1024, INSTR_ADDR_SIZE) + unsigned(counter));  -- 1024 + offset
+                        ld_data <= idata_out;
+                        
+                        if unsigned(counter) <= unsigned(op_len) then
+                            next_counter <= std_logic_vector(unsigned(counter) + 1);
+                        end if;
+
+                        if ld_end = '1' then
+                            next_state <= FETCH;
+                            ien <= '1'; iwe <= '0';
+                            iaddr <= (others => '0');
+                            iaddr(INSTR_ADDR_SIZE-2 downto 0) <= pc;
+                            next_pc <= std_logic_vector(unsigned(pc) + 1);
+                            next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / ARAM_WORD_SIZE - 1, COUNTER_SIZE));
+                        end if;
 
                     when others =>
                         next_state <= IDLE;

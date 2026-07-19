@@ -62,6 +62,11 @@ architecture sim of AudioCU_tb is
     signal vec_bsr2, vec_blr2, vec_osr2, vec_olr2 : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
     signal vec_bsw, vec_blw, vec_osw, vec_olw : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
 
+    -- Store Unit Interfacing
+    signal st_en, st_end : std_logic;
+    signal st_bs, st_bl, st_os, st_ol : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal st_data : std_logic_vector(ARAM_WORD_SIZE-1 downto 0);
+
     -- Memory Storage
     type ram_type is array (0 to MEM_DEPTH-1) of std_logic_vector(ARAM_WORD_SIZE-1 downto 0);
     signal shared_bram : ram_type := (others => (others => '0'));
@@ -130,7 +135,14 @@ begin
             vec_bsw         => vec_bsw,
             vec_blw         => vec_blw,
             vec_osw         => vec_osw,
-            vec_olw         => vec_olw
+            vec_olw         => vec_olw,
+            ld_en           => st_en,
+            ld_end          => st_end,
+            ld_bs           => st_bs,
+            ld_bl           => st_bl,
+            ld_os           => st_os,
+            ld_ol           => st_os,
+            ld_data         => st_data
         );
 
     -- Clock Generation

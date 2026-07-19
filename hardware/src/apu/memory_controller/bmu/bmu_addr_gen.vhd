@@ -140,10 +140,8 @@ begin
                     bram2_port0_en <= '1'; bram3_port0_en <= '1';
 
                     if LANES = 8 then
-                        -- 1. Tentatively increment row cursor by 1
                         temp_port1_row := resize(row_cursor, BUFFER_ADDR_WIDTH+1) + 1;
                         
-                        -- 2. Fast wrap check: if it exceeds ring_end, subtract ring_len_rows
                         if temp_port1_row >= ring_end then
                             next_port1_row := resize(temp_port1_row - ring_len_rows, BUFFER_ADDR_WIDTH);
                         else
@@ -160,10 +158,8 @@ begin
                 end if;
 
                 if row_advance = '1' then
-                    -- 1. Tentatively increment row cursor by ROW_STEP
                     temp_row_step := resize(row_cursor, BUFFER_ADDR_WIDTH+1) + ROW_STEP;
                     
-                    -- 2. Fast wrap check: if it exceeds ring_end, subtract ring_len_rows
                     if temp_row_step >= ring_end then
                         row_cursor <= resize(temp_row_step - ring_len_rows, BUFFER_ADDR_WIDTH);
                     else
