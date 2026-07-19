@@ -27,6 +27,7 @@ set rtl_files [glob -nocomplain \
     "$repo_root/src/apu/audioIO/zedboard_audio/hdl/*.{v,vhd}" \
     "$repo_root/src/apu/memory_controller/*.{v,vhd}" \
     "$repo_root/src/apu/memory_controller/bmu/*.{v,vhd}" \
+    "$repo_root/src/apu/store/*.{v,vhd,sv}" \
 ]
 if {[llength $rtl_files] > 0} {
     add_files $rtl_files

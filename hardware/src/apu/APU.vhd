@@ -68,19 +68,18 @@ architecture Behavioral of APU is
     -- AudioCU <-> audioIO (CU control side)
     signal aio_new_grain_sig, aio_in_end_sig, aio_out_end_sig : std_logic;
     signal aio_in_en_sig, aio_in_lr_sig   : std_logic;
-    signal aio_in_bs_sig, aio_in_bl_sig, aio_in_os_sig, aio_in_ol_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal aio_in_bs_sig, aio_in_os_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal aio_in_bl_sig, aio_in_ol_sig : std_logic_vector(ARAM_ADDR_SIZE+2 downto 0);
     signal aio_out_en_sig, aio_out_lr_sig : std_logic;
-    signal aio_out_bs_sig, aio_out_bl_sig, aio_out_os_sig, aio_out_ol_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal aio_out_bs_sig, aio_out_os_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal aio_out_bl_sig, aio_out_ol_sig : std_logic_vector(ARAM_ADDR_SIZE+2 downto 0);
     signal grain_ready_l_sig, grain_ready_r_sig : std_logic;
 
     -- AudioCU <-> store
-    signal st_en : std_logic;
-    signal st_bs : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
-    signal st_bl : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
-    signal st_os : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
-    signal st_ol : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal st_en, st_end : std_logic;
+    signal st_bs, st_os : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal st_bl, st_ol : std_logic_vector(ARAM_ADDR_SIZE+2 downto 0);
     signal st_data : std_logic_vector(ARAM_WORD_SIZE-1 downto 0);
-    signal st_end : std_logic;
 
     -- audioIO <-> aram_mux (audio in unit's raw a-ram bus)
     signal ain_bram0_port0_addr_sig, ain_bram1_port0_addr_sig, ain_bram2_port0_addr_sig, ain_bram3_port0_addr_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
@@ -139,6 +138,7 @@ begin
         generic map (
             ARAM_WORD_SIZE  => ARAM_WORD_SIZE,
             ARAM_ADDR_SIZE  => ARAM_ADDR_SIZE,
+            ARAM_COUNT_SIZE => ARAM_ADDR_SIZE+3,
             INSTR_ADDR_SIZE => INSTR_ADDR_SIZE,
             UPARAM_SIZE     => UPARAM_SIZE,
             INSTR_SIZE      => INSTR_SIZE,
@@ -169,7 +169,7 @@ begin
             vec_en => open, vec_op => open, vec_scalar => open,
             vec_bsr1 => open, vec_blr1 => open, vec_osr1 => open, vec_olr1 => open,
             vec_bsr2 => open, vec_blr2 => open, vec_osr2 => open, vec_olr2 => open,
-            vec_bsw => open, vec_blw => open, vec_osw => open, vec_olw => open
+            vec_bsw => open, vec_blw => open, vec_osw => open, vec_olw => open,
 
             st_en => st_en, st_end => st_end,
             st_bs => st_bs, st_bl => st_bl, st_os => st_os, st_ol => st_ol,
@@ -179,7 +179,7 @@ begin
     aio : entity work.audioIO
         generic map (
             BUFFER_ADDR_WIDTH => ARAM_ADDR_SIZE,
-            BUFFER_SIZE_BITS  => ARAM_WORD_SIZE
+            BUFFER_SIZE_BITS  => ARAM_ADDR_SIZE + 3
         )
         port map (
             clk => clk, rst => rst,
@@ -198,7 +198,7 @@ begin
             audio_in_enable          => aio_in_en_sig,
             audio_in_left_right      => aio_in_lr_sig,
             audio_in_buffer_start    => aio_in_bs_sig,
-            audio_in_buffer_length   => std_logic_vector(resize(unsigned(aio_in_bl_sig), ARAM_WORD_SIZE)),
+            audio_in_buffer_length   => std_logic_vector(resize(unsigned(aio_in_bl_sig), ARAM_ADDR_SIZE+3)),
             audio_in_operation_start => aio_in_os_sig,
             audio_in_finished        => aio_in_end_sig,
             grain_ready_l            => grain_ready_l_sig,
@@ -207,7 +207,7 @@ begin
             audio_out_enable          => aio_out_en_sig,
             audio_out_left_right      => aio_out_lr_sig,
             audio_out_buffer_start    => aio_out_bs_sig,
-            audio_out_buffer_length   => std_logic_vector(resize(unsigned(aio_out_bl_sig), ARAM_WORD_SIZE)),
+            audio_out_buffer_length   => std_logic_vector(resize(unsigned(aio_out_bl_sig), ARAM_ADDR_SIZE+3)),
             audio_out_operation_start => aio_out_os_sig,
             audio_out_finished        => aio_out_end_sig,
             need_grain_l              => open,
@@ -267,7 +267,7 @@ begin
     st : entity work.store_unit
         generic map (
             BUFFER_ADDR_WIDTH => ARAM_ADDR_SIZE,
-            BUFFER_SIZE_BITS  => ARAM_WORD_SIZE -- TODO use ARAM_ADDR_SIZE+3
+            BUFFER_SIZE_BITS  => ARAM_ADDR_SIZE + 3
         )
         port map (
             clk => clk, rst => rst,
@@ -280,61 +280,61 @@ begin
             data => st_data,
             finished => st_end,
 
-            bram0_port0_addr => st_bram0_port0_addr,
-            bram1_port0_addr => st_bram1_port0_addr,
-            bram2_port0_addr => st_bram2_port0_addr,
-            bram3_port0_addr => st_bram3_port0_addr,
+            bram0_port0_addr => st_bram0_port0_addr_sig,
+            bram1_port0_addr => st_bram1_port0_addr_sig,
+            bram2_port0_addr => st_bram2_port0_addr_sig,
+            bram3_port0_addr => st_bram3_port0_addr_sig,
 
-            bram0_port1_addr => st_bram0_port1_addr,
-            bram1_port1_addr => st_bram1_port1_addr,
-            bram2_port1_addr => st_bram2_port1_addr,
-            bram3_port1_addr => st_bram3_port1_addr,
+            bram0_port1_addr => st_bram0_port1_addr_sig,
+            bram1_port1_addr => st_bram1_port1_addr_sig,
+            bram2_port1_addr => st_bram2_port1_addr_sig,
+            bram3_port1_addr => st_bram3_port1_addr_sig,
 
-            bram0_port0_we => st_bram0_port0_we,
-            bram1_port0_we => st_bram1_port0_we,
-            bram2_port0_we => st_bram2_port0_we,
-            bram3_port0_we => st_bram3_port0_we,
+            bram0_port0_we => st_bram0_port0_we_sig,
+            bram1_port0_we => st_bram1_port0_we_sig,
+            bram2_port0_we => st_bram2_port0_we_sig,
+            bram3_port0_we => st_bram3_port0_we_sig,
 
-            bram0_port1_we => st_bram0_port1_we,
-            bram1_port1_we => st_bram1_port1_we,
-            bram2_port1_we => st_bram2_port1_we,
-            bram3_port1_we => st_bram3_port1_we,
+            bram0_port1_we => st_bram0_port1_we_sig,
+            bram1_port1_we => st_bram1_port1_we_sig,
+            bram2_port1_we => st_bram2_port1_we_sig,
+            bram3_port1_we => st_bram3_port1_we_sig,
 
-            bram0_port0_en => st_bram0_port0_en,
-            bram1_port0_en => st_bram1_port0_en,
-            bram2_port0_en => st_bram2_port0_en,
-            bram3_port0_en => st_bram3_port0_en,
+            bram0_port0_en => st_bram0_port0_en_sig,
+            bram1_port0_en => st_bram1_port0_en_sig,
+            bram2_port0_en => st_bram2_port0_en_sig,
+            bram3_port0_en => st_bram3_port0_en_sig,
 
-            bram0_port1_en => st_bram0_port1_en,
-            bram1_port1_en => st_bram1_port1_en,
-            bram2_port1_en => st_bram2_port1_en,
-            bram3_port1_en => st_bram3_port1_en,
+            bram0_port1_en => st_bram0_port1_en_sig,
+            bram1_port1_en => st_bram1_port1_en_sig,
+            bram2_port1_en => st_bram2_port1_en_sig,
+            bram3_port1_en => st_bram3_port1_en_sig,
 
-            bram0_port0_data_in => st_bram0_port0_data_in,
-            bram1_port0_data_in => st_bram1_port0_data_in,
-            bram2_port0_data_in => st_bram2_port0_data_in,
-            bram3_port0_data_in => st_bram3_port0_data_in,
+            bram0_port0_data_in => st_bram0_port0_data_in_sig,
+            bram1_port0_data_in => st_bram1_port0_data_in_sig,
+            bram2_port0_data_in => st_bram2_port0_data_in_sig,
+            bram3_port0_data_in => st_bram3_port0_data_in_sig,
 
-            bram0_port1_data_in => st_bram0_port1_data_in,
-            bram1_port1_data_in => st_bram1_port1_data_in,
-            bram2_port1_data_in => st_bram2_port1_data_in,
-            bram3_port1_data_in => st_bram3_port1_data_in,
+            bram0_port1_data_in => st_bram0_port1_data_in_sig,
+            bram1_port1_data_in => st_bram1_port1_data_in_sig,
+            bram2_port1_data_in => st_bram2_port1_data_in_sig,
+            bram3_port1_data_in => st_bram3_port1_data_in_sig,
 
-            bram0_port0_data_out => st_bram0_port0_data_out,
-            bram1_port0_data_out => st_bram1_port0_data_out,
-            bram2_port0_data_out => st_bram2_port0_data_out,
-            bram3_port0_data_out => st_bram3_port0_data_out,
+            bram0_port0_data_out => st_bram0_port0_data_out_sig,
+            bram1_port0_data_out => st_bram1_port0_data_out_sig,
+            bram2_port0_data_out => st_bram2_port0_data_out_sig,
+            bram3_port0_data_out => st_bram3_port0_data_out_sig,
 
-            bram0_port1_data_out => st_bram0_port1_data_out,
-            bram1_port1_data_out => st_bram1_port1_data_out,
-            bram2_port1_data_out => st_bram2_port1_data_out,
-            bram3_port1_data_out => st_bram3_port1_data_out
+            bram0_port1_data_out => st_bram0_port1_data_out_sig,
+            bram1_port1_data_out => st_bram1_port1_data_out_sig,
+            bram2_port1_data_out => st_bram2_port1_data_out_sig,
+            bram3_port1_data_out => st_bram3_port1_data_out_sig
         );
 
     mux : entity work.aram_mux
         generic map (
             BUFFER_ADDR_WIDTH => ARAM_ADDR_SIZE,
-            BUFFER_SIZE_BITS  => ARAM_WORD_SIZE
+            BUFFER_SIZE_BITS  => ARAM_ADDR_SIZE+3
         )
         port map (
             unit_select => unit_select_sig,

@@ -7,7 +7,8 @@ use work.apu_internal_pkg.all;
 entity AudioCU is
     Generic(
         ARAM_WORD_SIZE : integer := 32;     -- word size of aram and iram
-        ARAM_ADDR_SIZE : integer := 16;     -- size needed to address a ARAM location
+        ARAM_ADDR_SIZE : integer := 15;     -- size needed to address a ARAM location
+        ARAM_COUNT_SIZE: integer := 18;     -- size needed to represent the max number of samples
         INSTR_ADDR_SIZE : integer := 11;    -- size needed to address a instruction RAM location
         UPARAM_SIZE : integer := 9;         -- size of a uniform param
         INSTR_SIZE : integer := 128;        -- currently the max is 4*ARAM_WORD_SIZE
@@ -28,29 +29,37 @@ entity AudioCU is
         -- Audio IO Interfacing
         aio_new_grain, aio_in_end, aio_out_end : in std_logic;
         aio_in_en, aio_in_lr : out std_logic;
-        aio_in_bs, aio_in_bl, aio_in_os, aio_in_ol : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        aio_in_bs, aio_in_os : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        aio_in_bl, aio_in_ol : out std_logic_vector(ARAM_COUNT_SIZE-1 downto 0);
         aio_out_en, aio_out_lr : out std_logic;
-        aio_out_bs, aio_out_bl, aio_out_os, aio_out_ol : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        aio_out_bs, aio_out_os : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        aio_out_bl, aio_out_ol : out std_logic_vector(ARAM_COUNT_SIZE-1 downto 0);
 
         -- FFT Unit Interfacing
         fft_end : in std_logic;
         fft_en, fft_size, fwd_inv : out std_logic;
-        fft_bsr, fft_blr, fft_osr, fft_olr : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
-        fft_bsw, fft_blw, fft_osw, fft_olw : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        fft_bsr, fft_osr : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        fft_blr, fft_olr : out std_logic_vector(ARAM_COUNT_SIZE-1 downto 0);
+        fft_bsw, fft_osw : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        fft_blw, fft_olw : out std_logic_vector(ARAM_COUNT_SIZE-1 downto 0);
 
         -- Parallel ALU Interfacing
         vec_end : in std_logic;
         vec_en : out std_logic;
         vec_op : out vec_op_t;
         vec_scalar : out std_logic_vector(15 downto 0);
-        vec_bsr1, vec_blr1, vec_osr1, vec_olr1 : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
-        vec_bsr2, vec_blr2, vec_osr2, vec_olr2 : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
-        vec_bsw, vec_blw, vec_osw, vec_olw : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        vec_bsr1, vec_osr1 : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        vec_blr1, vec_olr1 : out std_logic_vector(ARAM_COUNT_SIZE-1 downto 0);
+        vec_bsr2, vec_osr2 : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        vec_blr2, vec_olr2 : out std_logic_vector(ARAM_COUNT_SIZE-1 downto 0);
+        vec_bsw, vec_osw : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        vec_blw, vec_olw : out std_logic_vector(ARAM_COUNT_SIZE-1 downto 0);
 
         -- Store Unit Interfacing
         st_end : in std_logic;
         st_en : out std_logic;
-        st_bs, st_bl, st_os, st_ol : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        st_bs, st_os : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        st_bl, st_ol : out std_logic_vector(ARAM_COUNT_SIZE-1 downto 0);
         st_data : out std_logic_vector(ARAM_WORD_SIZE-1 downto 0)
     );
 end AudioCU;
@@ -73,6 +82,8 @@ architecture Behavioral of AudioCU is
 
     constant TO_CPU_ADDR : std_logic_vector(INSTR_ADDR_SIZE-1 downto 0) := (others => '0');
     constant FROM_CPU_ADDR : std_logic_vector(INSTR_ADDR_SIZE-1 downto 0) := std_logic_vector(to_unsigned(1, INSTR_ADDR_SIZE));
+
+    constant COUNT_POSTFIX : std_logic_vector(ARAM_COUNT_SIZE-ARAM_ADDR_SIZE-1 downto 0) := (others => '0');
 
 begin
 
@@ -310,9 +321,9 @@ begin
                         unit_select <= APU_UNIT_AUDIO_IN;
                         aio_in_en <= '1';
                         aio_in_bs <= buf1(ARAM_ADDR_SIZE*1-1 downto 0);
-                        aio_in_bl <= buf1(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1);
+                        aio_in_bl <= buf1(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1) & COUNT_POSTFIX;
                         aio_in_os <= buf1(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2);
-                        aio_in_ol <= op_len;
+                        aio_in_ol <= op_len & COUNT_POSTFIX;
 
                         if aio_in_end = '1' then
                             next_state <= FETCH;
@@ -328,9 +339,9 @@ begin
                         unit_select <= APU_UNIT_AUDIO_OUT;
                         aio_out_en <= '1';
                         aio_out_bs <= buf1(ARAM_ADDR_SIZE*1-1 downto 0);
-                        aio_out_bl <= buf1(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1);
+                        aio_out_bl <= buf1(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1) & COUNT_POSTFIX;
                         aio_out_os <= buf1(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2);
-                        aio_out_ol <= op_len;
+                        aio_out_ol <= op_len & COUNT_POSTFIX;
 
                         if aio_out_end = '1' then
                             next_state <= FETCH;
@@ -351,14 +362,14 @@ begin
                         fft_size <= instr(122);
                         
                         fft_bsr <= buf1(ARAM_ADDR_SIZE*1-1 downto 0);
-                        fft_blr <= buf1(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1);
+                        fft_blr <= buf1(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1) & COUNT_POSTFIX;
                         fft_osr <= buf1(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2);
-                        fft_olr <= op_len;
+                        fft_olr <= op_len & COUNT_POSTFIX;
                         
                         fft_bsw <= buf3(ARAM_ADDR_SIZE*1-1 downto 0);
-                        fft_blw <= buf3(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1);
+                        fft_blw <= buf3(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1) & COUNT_POSTFIX;
                         fft_osw <= buf3(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2);
-                        fft_olw <= op_len;
+                        fft_olw <= op_len & COUNT_POSTFIX;
 
                         if fft_end = '1' then
                             next_state <= FETCH;
@@ -389,14 +400,14 @@ begin
                         end case;
 
                         vec_bsr1 <= buf1(ARAM_ADDR_SIZE*1-1 downto 0);
-                        vec_blr1 <= buf1(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1);
+                        vec_blr1 <= buf1(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1) & COUNT_POSTFIX;
                         vec_osr1 <= buf1(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2);
-                        vec_olr1 <= op_len;
+                        vec_olr1 <= op_len & COUNT_POSTFIX;
                         
                         vec_bsw <= buf3(ARAM_ADDR_SIZE*1-1 downto 0);
-                        vec_blw <= buf3(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1);
+                        vec_blw <= buf3(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1) & COUNT_POSTFIX;
                         vec_osw <= buf3(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2);
-                        vec_olw <= op_len;
+                        vec_olw <= op_len & COUNT_POSTFIX;
 
                         if (op = APU_OP_ADD_SCALAR or op = APU_OP_SUB_SCALAR or op = APU_OP_MUL_SCALAR) then
                             -- Extracted immediate scalar parameter based on ISA
@@ -408,9 +419,9 @@ begin
                         else
                             vec_scalar <= (others => '0');
                             vec_bsr2 <= buf2(ARAM_ADDR_SIZE*1-1 downto 0);
-                            vec_blr2 <= buf2(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1);
+                            vec_blr2 <= buf2(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1) & COUNT_POSTFIX;
                             vec_osr2 <= buf2(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2);
-                            vec_olr2 <= op_len;
+                            vec_olr2 <= op_len & COUNT_POSTFIX;
                         end if;
 
                         if vec_end = '1' then
@@ -427,9 +438,9 @@ begin
                         st_en <= '1';
 
                         st_bs <= buf1(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2);
-                        st_bl <= buf1(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1);
+                        st_bl <= buf1(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1) & COUNT_POSTFIX;
                         st_os <= buf1(ARAM_ADDR_SIZE*1-1 downto 0);
-                        st_ol <= op_len;
+                        st_ol <= op_len & COUNT_POSTFIX;
 
                         ien <= '1'; iwe <= '0';
                         iaddr <= std_logic_vector(to_unsigned(1024, INSTR_ADDR_SIZE) + unsigned(counter));  -- 1024 + offset

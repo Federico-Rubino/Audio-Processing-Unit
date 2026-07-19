@@ -4,7 +4,7 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity store_unit is
     generic (
-        BUFFER_ADDR_WIDTH : integer := 15,
+        BUFFER_ADDR_WIDTH : integer := 15;
         BUFFER_SIZE_BITS : integer := 17    -- TODO check generic values
     );
     Port (
