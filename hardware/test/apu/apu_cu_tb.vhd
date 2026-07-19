@@ -136,13 +136,13 @@ begin
             vec_blw         => vec_blw,
             vec_osw         => vec_osw,
             vec_olw         => vec_olw,
-            ld_en           => st_en,
-            ld_end          => st_end,
-            ld_bs           => st_bs,
-            ld_bl           => st_bl,
-            ld_os           => st_os,
-            ld_ol           => st_os,
-            ld_data         => st_data
+            st_en           => st_en,
+            st_end          => st_end,
+            st_bs           => st_bs,
+            st_bl           => st_bl,
+            st_os           => st_os,
+            st_ol           => st_os,
+            st_data         => st_data
         );
 
     -- Clock Generation

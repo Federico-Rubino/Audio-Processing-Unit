@@ -47,16 +47,15 @@ entity AudioCU is
         vec_bsr2, vec_blr2, vec_osr2, vec_olr2 : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
         vec_bsw, vec_blw, vec_osw, vec_olw : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
 
-        -- Load Unit Interfacing
-        ld_end : in std_logic;
-        ld_en : out std_logic;
-        ld_bs, ld_bl, ld_os, ld_ol : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
-        ld_data : out std_logic_vector(ARAM_WORD_SIZE-1 downto 0)
+        -- Store Unit Interfacing
+        st_end : in std_logic;
+        st_en : out std_logic;
+        st_bs, st_bl, st_os, st_ol : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        st_data : out std_logic_vector(ARAM_WORD_SIZE-1 downto 0)
     );
 end AudioCU;
 
 architecture Behavioral of AudioCU is
-    -- TODO implement load operation with a STORE stage
     type cu_state is (IDLE, SETUP, FETCH, DECODE, LOAD, EXECUTE);
     signal state, next_state : cu_state;
     signal lr, next_lr : std_logic; -- 0=left, 1=right
@@ -70,7 +69,7 @@ architecture Behavioral of AudioCU is
     signal op_len, next_op_len : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
     signal new_grain, next_new_grain : std_logic;
     signal start_addr, next_start_addr : std_logic_vector(INSTR_ADDR_SIZE-2 downto 0);
-    signal single_channel, next_single_channel : std_logic; -- shaders with a load instruction are only executed once (the parameters are not usable for a full shader execution)
+    signal single_channel, next_single_channel : std_logic; -- shaders with a 'store' instruction are only executed once (the parameters are not usable for a full shader execution)
 
     constant TO_CPU_ADDR : std_logic_vector(INSTR_ADDR_SIZE-1 downto 0) := (others => '0');
     constant FROM_CPU_ADDR : std_logic_vector(INSTR_ADDR_SIZE-1 downto 0) := std_logic_vector(to_unsigned(1, INSTR_ADDR_SIZE));
@@ -145,9 +144,9 @@ begin
         vec_bsr2 <= (others => '0'); vec_blr2 <= (others => '0'); vec_osr2 <= (others => '0'); vec_olr2 <= (others => '0');
         vec_bsw <= (others => '0'); vec_blw <= (others => '0'); vec_osw <= (others => '0'); vec_olw <= (others => '0');
 
-        ld_en <= '0';
-        ld_bs <= (others => '0'); ld_bl <= (others => '0'); ld_os <= (others => '0'); ld_ol <= (others => '0');
-        ld_data <= (others => '0');
+        st_en <= '0';
+        st_bs <= (others => '0'); st_bl <= (others => '0'); st_os <= (others => '0'); st_ol <= (others => '0');
+        st_data <= (others => '0');
 
         case state is
             when IDLE =>
@@ -259,12 +258,12 @@ begin
                             iaddr(UPARAM_SIZE) <= lr;
                             iaddr(UPARAM_SIZE-1 downto 0) <= instr(10*UPARAM_SIZE-1 downto 9*UPARAM_SIZE);
 
-                        when APU_OP_LOAD =>
+                        when APU_OP_STORE =>
                             -- store immediate buffer values
                             next_buf1 <= instr(ARAM_ADDR_SIZE*4-1 downto ARAM_ADDR_SIZE);
                             next_op_len <= instr(ARAM_ADDR_SIZE-1 downto 0);
 
-                            next_state <= EXECUTE;  -- load operation doesn't use parameters, so LOAD stage is skipped
+                            next_state <= EXECUTE;  -- store operation doesn't use parameters, so LOAD stage is skipped
                             next_single_channel <= '1';
                             next_counter <= std_logic_vector(to_unsigned(1, COUNTER_SIZE));
                             
@@ -423,24 +422,24 @@ begin
                             next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / ARAM_WORD_SIZE - 1, COUNTER_SIZE));
                         end if;
 
-                    when APU_OP_LOAD =>
-                        unit_select <= APU_UNIT_LOAD;
-                        ld_en <= '1';
+                    when APU_OP_STORE =>
+                        unit_select <= APU_UNIT_STORE;
+                        st_en <= '1';
 
-                        ld_bs <= buf1(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2);
-                        ld_bl <= buf1(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1);
-                        ld_os <= buf1(ARAM_ADDR_SIZE*1-1 downto 0);
-                        ld_ol <= op_len;
+                        st_bs <= buf1(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2);
+                        st_bl <= buf1(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1);
+                        st_os <= buf1(ARAM_ADDR_SIZE*1-1 downto 0);
+                        st_ol <= op_len;
 
                         ien <= '1'; iwe <= '0';
                         iaddr <= std_logic_vector(to_unsigned(1024, INSTR_ADDR_SIZE) + unsigned(counter));  -- 1024 + offset
-                        ld_data <= idata_out;
+                        st_data <= idata_out;
                         
                         if unsigned(counter) <= unsigned(op_len) then
                             next_counter <= std_logic_vector(unsigned(counter) + 1);
                         end if;
 
-                        if ld_end = '1' then
+                        if st_end = '1' then
                             next_state <= FETCH;
                             ien <= '1'; iwe <= '0';
                             iaddr <= (others => '0');

@@ -17,7 +17,7 @@ package apu_opcode_pkg is
     constant APU_OP_MUL_SCALAR  : apu_code_t := "1000";
     constant APU_OP_PITCH_SHIFT : apu_code_t := "1001";
     constant APU_OP_FOND_FREQ   : apu_code_t := "1010";
-    constant APU_OP_LOAD        : apu_code_t := "1011";
+    constant APU_OP_STORE       : apu_code_t := "1011";
     constant APU_OP_AUDIO_IN    : apu_code_t := "1100";
     constant APU_OP_AUDIO_OUT   : apu_code_t := "1101";
     constant APU_OP_MULC_VECTOR : apu_code_t := "1110";
