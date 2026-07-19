@@ -2,7 +2,7 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
-entity load_unit is
+entity store_unit is
     generic (
         BUFFER_ADDR_WIDTH : integer := 15,
         BUFFER_SIZE_BITS : integer := 17    -- TODO check generic values
@@ -70,9 +70,9 @@ entity load_unit is
         bram2_port1_data_out : in std_logic_vector(31 downto 0);
         bram3_port1_data_out : in std_logic_vector(31 downto 0)
     );
-end load_unit;
+end store_unit;
 
-architecture Behavioral of load_unit is
+architecture Behavioral of store_unit is
     signal last_enable : std_logic;
     signal done_sig    : std_logic;
     signal start_sig   : std_logic;

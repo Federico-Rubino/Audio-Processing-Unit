@@ -73,6 +73,15 @@ architecture Behavioral of APU is
     signal aio_out_bs_sig, aio_out_bl_sig, aio_out_os_sig, aio_out_ol_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
     signal grain_ready_l_sig, grain_ready_r_sig : std_logic;
 
+    -- AudioCU <-> store
+    signal st_en : std_logic;
+    signal st_bs : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal st_bl : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal st_os : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal st_ol : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal st_data : std_logic_vector(ARAM_WORD_SIZE-1 downto 0);
+    signal st_end : std_logic;
+
     -- audioIO <-> aram_mux (audio in unit's raw a-ram bus)
     signal ain_bram0_port0_addr_sig, ain_bram1_port0_addr_sig, ain_bram2_port0_addr_sig, ain_bram3_port0_addr_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
     signal ain_bram0_port1_addr_sig, ain_bram1_port1_addr_sig, ain_bram2_port1_addr_sig, ain_bram3_port1_addr_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
@@ -96,6 +105,18 @@ architecture Behavioral of APU is
     signal aout_bram0_port1_data_in_sig, aout_bram1_port1_data_in_sig, aout_bram2_port1_data_in_sig, aout_bram3_port1_data_in_sig : std_logic_vector(31 downto 0);
     signal aout_bram0_port0_data_out_sig, aout_bram1_port0_data_out_sig, aout_bram2_port0_data_out_sig, aout_bram3_port0_data_out_sig : std_logic_vector(31 downto 0);
     signal aout_bram0_port1_data_out_sig, aout_bram1_port1_data_out_sig, aout_bram2_port1_data_out_sig, aout_bram3_port1_data_out_sig : std_logic_vector(31 downto 0);
+
+    -- store <-> aram_mux (store unit's raw a-ram bus)
+    signal st_bram0_port0_addr_sig, st_bram1_port0_addr_sig, st_bram2_port0_addr_sig, st_bram3_port0_addr_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal st_bram0_port1_addr_sig, st_bram1_port1_addr_sig, st_bram2_port1_addr_sig, st_bram3_port1_addr_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal st_bram0_port0_we_sig, st_bram1_port0_we_sig, st_bram2_port0_we_sig, st_bram3_port0_we_sig : std_logic;
+    signal st_bram0_port1_we_sig, st_bram1_port1_we_sig, st_bram2_port1_we_sig, st_bram3_port1_we_sig : std_logic;
+    signal st_bram0_port0_en_sig, st_bram1_port0_en_sig, st_bram2_port0_en_sig, st_bram3_port0_en_sig : std_logic;
+    signal st_bram0_port1_en_sig, st_bram1_port1_en_sig, st_bram2_port1_en_sig, st_bram3_port1_en_sig : std_logic;
+    signal st_bram0_port0_data_in_sig, st_bram1_port0_data_in_sig, st_bram2_port0_data_in_sig, st_bram3_port0_data_in_sig : std_logic_vector(31 downto 0);
+    signal st_bram0_port1_data_in_sig, st_bram1_port1_data_in_sig, st_bram2_port1_data_in_sig, st_bram3_port1_data_in_sig : std_logic_vector(31 downto 0);
+    signal st_bram0_port0_data_out_sig, st_bram1_port0_data_out_sig, st_bram2_port0_data_out_sig, st_bram3_port0_data_out_sig : std_logic_vector(31 downto 0);
+    signal st_bram0_port1_data_out_sig, st_bram1_port1_data_out_sig, st_bram2_port1_data_out_sig, st_bram3_port1_data_out_sig : std_logic_vector(31 downto 0);
 
     -- aram_mux <-> the 4 internal a-ram blocks (real, physical side)
     signal bram0_port0_addr_sig, bram1_port0_addr_sig, bram2_port0_addr_sig, bram3_port0_addr_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
@@ -149,6 +170,10 @@ begin
             vec_bsr1 => open, vec_blr1 => open, vec_osr1 => open, vec_olr1 => open,
             vec_bsr2 => open, vec_blr2 => open, vec_osr2 => open, vec_olr2 => open,
             vec_bsw => open, vec_blw => open, vec_osw => open, vec_olw => open
+
+            st_en => st_en, st_end => st_end,
+            st_bs => st_bs, st_bl => st_bl, st_os => st_os, st_ol => st_ol,
+            st_data => st_data
         );
 
     aio : entity work.audioIO
@@ -237,6 +262,73 @@ begin
             aout_bram2_port0_data_out => aout_bram2_port0_data_out_sig, aout_bram3_port0_data_out => aout_bram3_port0_data_out_sig,
             aout_bram0_port1_data_out => aout_bram0_port1_data_out_sig, aout_bram1_port1_data_out => aout_bram1_port1_data_out_sig,
             aout_bram2_port1_data_out => aout_bram2_port1_data_out_sig, aout_bram3_port1_data_out => aout_bram3_port1_data_out_sig
+        );
+
+    st : entity work.store_unit
+        generic map (
+            BUFFER_ADDR_WIDTH => ARAM_ADDR_SIZE,
+            BUFFER_SIZE_BITS  => ARAM_WORD_SIZE -- TODO use ARAM_ADDR_SIZE+3
+        )
+        port map (
+            clk => clk, rst => rst,
+
+            enable => st_en,
+            buffer_start => st_bs,
+            buffer_length => st_bl,
+            operation_start => st_os,
+            operation_length => st_ol,
+            data => st_data,
+            finished => st_end,
+
+            bram0_port0_addr => st_bram0_port0_addr,
+            bram1_port0_addr => st_bram1_port0_addr,
+            bram2_port0_addr => st_bram2_port0_addr,
+            bram3_port0_addr => st_bram3_port0_addr,
+
+            bram0_port1_addr => st_bram0_port1_addr,
+            bram1_port1_addr => st_bram1_port1_addr,
+            bram2_port1_addr => st_bram2_port1_addr,
+            bram3_port1_addr => st_bram3_port1_addr,
+
+            bram0_port0_we => st_bram0_port0_we,
+            bram1_port0_we => st_bram1_port0_we,
+            bram2_port0_we => st_bram2_port0_we,
+            bram3_port0_we => st_bram3_port0_we,
+
+            bram0_port1_we => st_bram0_port1_we,
+            bram1_port1_we => st_bram1_port1_we,
+            bram2_port1_we => st_bram2_port1_we,
+            bram3_port1_we => st_bram3_port1_we,
+
+            bram0_port0_en => st_bram0_port0_en,
+            bram1_port0_en => st_bram1_port0_en,
+            bram2_port0_en => st_bram2_port0_en,
+            bram3_port0_en => st_bram3_port0_en,
+
+            bram0_port1_en => st_bram0_port1_en,
+            bram1_port1_en => st_bram1_port1_en,
+            bram2_port1_en => st_bram2_port1_en,
+            bram3_port1_en => st_bram3_port1_en,
+
+            bram0_port0_data_in => st_bram0_port0_data_in,
+            bram1_port0_data_in => st_bram1_port0_data_in,
+            bram2_port0_data_in => st_bram2_port0_data_in,
+            bram3_port0_data_in => st_bram3_port0_data_in,
+
+            bram0_port1_data_in => st_bram0_port1_data_in,
+            bram1_port1_data_in => st_bram1_port1_data_in,
+            bram2_port1_data_in => st_bram2_port1_data_in,
+            bram3_port1_data_in => st_bram3_port1_data_in,
+
+            bram0_port0_data_out => st_bram0_port0_data_out,
+            bram1_port0_data_out => st_bram1_port0_data_out,
+            bram2_port0_data_out => st_bram2_port0_data_out,
+            bram3_port0_data_out => st_bram3_port0_data_out,
+
+            bram0_port1_data_out => st_bram0_port1_data_out,
+            bram1_port1_data_out => st_bram1_port1_data_out,
+            bram2_port1_data_out => st_bram2_port1_data_out,
+            bram3_port1_data_out => st_bram3_port1_data_out
         );
 
     mux : entity work.aram_mux
