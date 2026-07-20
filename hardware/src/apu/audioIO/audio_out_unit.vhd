@@ -122,7 +122,6 @@ end audio_out_unit;
 architecture Behavioral of audio_out_unit is
 
     constant GRAIN_SAMPLES : integer := 256;
-    constant GRAIN_CELLS   : integer := GRAIN_SAMPLES / 2; -- 2 samples/cell
 
     type state_t is (IDLE, START, RUN, FLUSH1, FLUSH2);
     signal state : state_t := IDLE;
@@ -152,7 +151,7 @@ begin
             buffer_start     => buffer_start,
             buffer_length    => buffer_length,
             operation_start  => operation_start,
-            operation_length => std_logic_vector(to_unsigned(GRAIN_CELLS, BUFFER_SIZE_BITS)),
+            operation_length => std_logic_vector(to_unsigned(GRAIN_SAMPLES, BUFFER_SIZE_BITS)),
 
             bram0_port0_addr => bram0_port0_addr, bram1_port0_addr => bram1_port0_addr,
             bram2_port0_addr => bram2_port0_addr, bram3_port0_addr => bram3_port0_addr,
