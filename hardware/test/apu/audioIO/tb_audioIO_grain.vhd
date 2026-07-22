@@ -9,8 +9,9 @@ use IEEE.NUMERIC_STD.ALL;
 -- APU arbiter) and the CU (enable audio_in_unit, wait, enable
 -- audio_out_unit, wait).
 --
--- line_in_l/r count up 0..255; correct round trip -> sample_out_l 0..255.
--- lengths in samples, addresses in rows.
+-- line_in_l/r count up 0..255, so a correct round trip shows sample_out_l
+-- counting 0..255 too. Each a-ram cell packs 2 samples, so a 256-sample
+-- grain is 128 cells; buffer_length below is in cells, not samples.
 entity tb_audioIO_grain is
 end tb_audioIO_grain;
 
@@ -413,7 +414,7 @@ begin
     process(clk)
     begin
         if rising_edge(clk) then
-            if rst = '0' then
+            if rst = '1' then
                 tick_div   <= 0;
                 new_sample <= '0';
                 sample_ctr <= (others => '0');
@@ -433,7 +434,9 @@ begin
     end process;
 
     ------------------------------------------------------------------
-    -- fake CU: same a-ram location both ways
+    -- fake CU: same a-ram location both ways, so audio_out reads back
+    -- exactly what audio_in wrote. buffer_length is in cells (128), not
+    -- samples (256), since each cell now packs 2 samples.
     ------------------------------------------------------------------
     stim : process
     begin
@@ -443,12 +446,12 @@ begin
 
         audio_in_left_right      <= '0'; -- left
         audio_in_buffer_start    <= std_logic_vector(to_unsigned(0, ADDR_W));
-        audio_in_buffer_length   <= std_logic_vector(to_unsigned(256, SIZE_W));
+        audio_in_buffer_length   <= std_logic_vector(to_unsigned(128, SIZE_W));
         audio_in_operation_start <= std_logic_vector(to_unsigned(0, ADDR_W));
 
         audio_out_left_right      <= '0'; -- left
         audio_out_buffer_start    <= std_logic_vector(to_unsigned(0, ADDR_W));
-        audio_out_buffer_length   <= std_logic_vector(to_unsigned(256, SIZE_W));
+        audio_out_buffer_length   <= std_logic_vector(to_unsigned(128, SIZE_W));
         audio_out_operation_start <= std_logic_vector(to_unsigned(0, ADDR_W));
 
         wait until grain_ready_l = '1';

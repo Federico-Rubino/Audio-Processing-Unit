@@ -8,10 +8,10 @@
 #define APU  ((apu_t*)  0x00030000) //base address of APU peripheral
 
 int main() {
-    apu_load_param(APU, GRAIN_START, 0, 256);
-    apu_load_param(APU, GRAIN_LEN, 256, 256);
+    apu_load_param(APU, GRAIN_START, 0, 128);
+    apu_load_param(APU, GRAIN_LEN, 128, 128);
     apu_load_param(APU, OP_START, 0, 0);
-    apu_load_param(APU, OP_LEN, 256, 256);
+    apu_load_param(APU, OP_LEN, 128, 128);
 
     while (1)
     {

@@ -7,12 +7,12 @@ entity bmu_addr_gen is
     generic (
         BUFFER_ADDR_WIDTH : integer := 10; -- row-address width, shared by all 4 BRAM blocks
         BUFFER_SIZE_BITS  : integer := 18; -- width of sample-count fields
-        LANES             : integer := 4  -- cells per pulse: 1/4/8
+        LANES             : integer := 4  -- samples moved per count_en pulse: 1 (serial), 4 (parallel4), 8 (parallel8)
     );
     Port (
         clk, rst : in std_logic; -- synchronous, active low
         start    : in std_logic; -- pulse: load a new operation
-        count_en : in std_logic; -- pulse: advance by LANES cells
+        count_en : in std_logic; -- pulse: advance the operation by LANES samples
 
         buffer_start     : in std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0); -- ring start (row address)
         buffer_length    : in std_logic_vector(BUFFER_SIZE_BITS-1 downto 0);  -- ring length, in samples
@@ -46,8 +46,8 @@ end bmu_addr_gen;
 
 architecture Behavioral of bmu_addr_gen is
 
-    constant ROW_SHIFT  : integer := 3; -- samples to rows
-    constant CELL_SHIFT : integer := 1; -- samples to cells
+    constant ROW_SAMPLES : integer := 4; 
+    constant ROW_SHIFT    : integer := 2; 
 
     function calc_row_step(l : integer) return integer is
     begin
@@ -115,7 +115,7 @@ begin
                 -- Pre-calculate the physical end of the buffer (takes 1 cycle, during 'start' routine)
                 ring_end      <= resize(temp_ring_start, BUFFER_ADDR_WIDTH+1) + temp_ring_len;
                 
-                op_length_lat <= shift_right(unsigned(operation_length), CELL_SHIFT);
+                op_length_lat <= unsigned(operation_length);
                 row_cursor    <= unsigned(operation_start);
                 samples_done  <= (others => '0');
                 lane_cnt      <= (others => '0');
