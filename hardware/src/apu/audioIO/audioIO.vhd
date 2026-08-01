@@ -1,12 +1,6 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
--- Top-level AudioIO subsystem: talks to the ADAU codec internally, and
--- exposes the Audio In/Audio Out Units' CU control ports plus their raw
--- a-ram BMU ports. The physical a-ram (4 BRAM blocks) and the arbiter that
--- routes whichever Unit is currently active onto it live one level up, in
--- the top-level APU, since they're shared with every other Unit (VPU, FFT,
--- ...) -- not something AudioIO owns.
 entity audioIO is
   generic (
     BUFFER_ADDR_WIDTH : integer := 10;
@@ -175,6 +169,8 @@ architecture Behavioral of audioIO is
     signal row_data_out_r_8,  row_data_out_r_9,  row_data_out_r_10, row_data_out_r_11 : std_logic_vector(15 downto 0);
     signal row_data_out_r_12, row_data_out_r_13, row_data_out_r_14, row_data_out_r_15 : std_logic_vector(15 downto 0);
 
+    signal hphone_valid : std_logic;
+    
 begin
     audio_in_inst: entity work.audio_in
         port map(
@@ -391,9 +387,9 @@ begin
             AC_SDA   => AC_SDA,
 
             hphone_l  => line_out_l_24b,
-            hphone_l_valid => new_sample,
+            hphone_l_valid => hphone_valid,
             hphone_r  => line_out_r_24b,
-            hphone_r_valid_dummy => new_sample,   --  this valid will be discarded later
+            hphone_r_valid_dummy => hphone_valid,   --  this valid will be discarded later
 
             line_in_l => line_in_l_24b,
             line_in_r => line_in_r_24b,
@@ -401,11 +397,12 @@ begin
             new_sample => new_sample,
             sample_clk_48k => sample_clk_48k
         );
+        
+    line_in_l <= line_in_l_24b(23 downto 8);
+    line_in_r <= line_in_r_24b(23 downto 8);
 
     line_out_l_24b <= line_out_l & x"00";
     line_out_r_24b <= line_out_r & x"00";
-
-    line_in_l <= line_in_l_24b(23 downto 8);
-    line_in_r <= line_in_r_24b(23 downto 8);
+    hphone_valid   <= new_sample;
 
 end Behavioral;

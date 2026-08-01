@@ -60,7 +60,6 @@ architecture Behavioral of bmu_addr_gen is
 
     constant ROW_STEP : integer := calc_row_step(LANES);
 
-    signal ring_start    : unsigned(BUFFER_ADDR_WIDTH-1 downto 0) := (others => '0');
     signal ring_len_rows : unsigned(BUFFER_ADDR_WIDTH downto 0) := (others => '0'); 
     -- Pre-calculated physical boundary of the ring (start + len) to make comparison fast
     signal ring_end      : unsigned(BUFFER_ADDR_WIDTH downto 0) := (others => '0'); 
@@ -90,7 +89,6 @@ begin
         
         -- Calculated during 'start'
         variable temp_ring_len  : unsigned(BUFFER_ADDR_WIDTH downto 0);
-        variable temp_ring_start : unsigned(BUFFER_ADDR_WIDTH-1 downto 0);
     begin
         if rising_edge(clk) then
             done <= '0';
@@ -107,13 +105,10 @@ begin
                 ring_end     <= (others => '0');
 
             elsif start = '1' then
-                temp_ring_start := unsigned(buffer_start);
                 temp_ring_len   := resize(shift_right(unsigned(buffer_length), ROW_SHIFT), BUFFER_ADDR_WIDTH+1);
-                
-                ring_start    <= temp_ring_start;
+
                 ring_len_rows <= temp_ring_len;
-                -- Pre-calculate the physical end of the buffer (takes 1 cycle, during 'start' routine)
-                ring_end      <= resize(temp_ring_start, BUFFER_ADDR_WIDTH+1) + temp_ring_len;
+                ring_end <= resize(unsigned(buffer_start), BUFFER_ADDR_WIDTH+1) + temp_ring_len;
                 
                 op_length_lat <= unsigned(operation_length);
                 row_cursor    <= unsigned(operation_start);
