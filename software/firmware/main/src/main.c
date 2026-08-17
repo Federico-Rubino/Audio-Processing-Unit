@@ -16,7 +16,7 @@ int main() {
     while (1)
     {
         if(apu_has_new_grain(APU)){
-            apu_start_shader(APU, &(APU->shader_mem));
+            apu_start_shader(APU, 0);
         }
     }
 }

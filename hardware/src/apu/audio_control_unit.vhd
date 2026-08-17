@@ -67,6 +67,7 @@ architecture Behavioral of AudioCU is
 
     constant TO_CPU_ADDR : std_logic_vector(INSTR_ADDR_SIZE-1 downto 0) := (others => '0');
     constant FROM_CPU_ADDR : std_logic_vector(INSTR_ADDR_SIZE-1 downto 0) := std_logic_vector(to_unsigned(1, INSTR_ADDR_SIZE));
+    constant SHADER_MEM_OFFSET : integer := 2; -- shader_mem[0] is instr_bram word 2, after status (word 0) and control (word 1)
 
 begin
 
@@ -163,11 +164,11 @@ begin
             when SETUP =>
                 next_state <= FETCH;
                 next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / ARAM_WORD_SIZE - 1, COUNTER_SIZE));
-                next_pc <= std_logic_vector(unsigned(start_addr) + 1);
+                next_pc <= std_logic_vector(unsigned(start_addr) + SHADER_MEM_OFFSET + 1);
 
                 ien <= '1'; iwe <= '0';
                 iaddr <= (others => '0');
-                iaddr(INSTR_ADDR_SIZE-2 downto 0) <= start_addr;
+                iaddr(INSTR_ADDR_SIZE-2 downto 0) <= std_logic_vector(unsigned(start_addr) + SHADER_MEM_OFFSET);
 
             when FETCH =>
                 next_counter <= std_logic_vector(unsigned(counter) - 1);
@@ -199,12 +200,12 @@ begin
                         next_state <= FETCH;
                         next_lr <= '1';
 
-                        next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / ARAM_WORD_SIZE - 1, COUNTER_SIZE)); 
-                        next_pc <= std_logic_vector(unsigned(start_addr) + 1);
+                        next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / ARAM_WORD_SIZE - 1, COUNTER_SIZE));
+                        next_pc <= std_logic_vector(unsigned(start_addr) + SHADER_MEM_OFFSET + 1);
 
                         ien <= '1'; iwe <= '0';
                         iaddr <= (others => '0');
-                        iaddr(INSTR_ADDR_SIZE-2 downto 0) <= start_addr;
+                        iaddr(INSTR_ADDR_SIZE-2 downto 0) <= std_logic_vector(unsigned(start_addr) + SHADER_MEM_OFFSET);
                     else                -- last channel was right, going to idle
                         next_state <= IDLE;
                         next_lr <= '0';

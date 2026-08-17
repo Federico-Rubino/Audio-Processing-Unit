@@ -433,9 +433,13 @@ proc create_root_design { parentCell } {
 
 
   # Create instance: xlslice_5, and set properties
+  # DIN_FROM/DIN_TO select bits [12:2] of the byte address (bram_addr_a) to
+  # produce an 11-bit word address, matching APU_0/addr (INSTR_ADDR_SIZE=11,
+  # covering the 8K/2048-word instr_bram range). Was previously [15:2] (14
+  # bits), wider than APU_0/addr actually is.
   set xlslice_5 [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlslice:1.0 xlslice_5 ]
   set_property -dict [list \
-    CONFIG.DIN_FROM {15} \
+    CONFIG.DIN_FROM {12} \
     CONFIG.DIN_TO {2} \
     CONFIG.DIN_WIDTH {16} \
   ] $xlslice_5
@@ -584,7 +588,7 @@ proc create_root_design { parentCell } {
   # Create address segments
   assign_bd_address -offset 0x00020000 -range 0x00008000 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_bram_ctrl_0/S_AXI/Mem0] -force
   assign_bd_address -offset 0x00010000 -range 0x00010000 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_bram_ctrl_1/S_AXI/Mem0] -force
-  assign_bd_address -offset 0x00030000 -range 0x00001000 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_bram_ctrl_2/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00030000 -range 0x00002000 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_bram_ctrl_2/S_AXI/Mem0] -force
   assign_bd_address -offset 0x00029000 -range 0x00000080 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_gpio_0/S_AXI/Reg] -force
   assign_bd_address -offset 0x00028000 -range 0x00000080 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_uartlite_0/S_AXI/Reg] -force
 

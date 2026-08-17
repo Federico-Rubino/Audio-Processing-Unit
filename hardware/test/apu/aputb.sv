@@ -39,6 +39,29 @@
 // 5. instr_bram is assumed to have one cycle of read latency (typical
 //    Block Memory Generator default with an output register). Adjust
 //    INSTR_READ_WAIT below if the real IP is configured differently.
+//
+// 6. KNOWN OPEN BUG, not worked around here: aram_mux is a plain
+//    single-select mux (unit_select), not a request/grant arbiter --
+//    whichever unit unit_select currently points at gets a-ram access
+//    this cycle, everyone else's writes/reads are silently dropped.
+//    AudioCU only ever drives unit_select to AUDIO_IN/AUDIO_OUT briefly,
+//    while actually executing that shader instruction (audio_control_
+//    unit.vhd: default APU_UNIT_NONE, only overridden in the EXECUTE case
+//    for that opcode). But audio_in_unit/audio_out_unit need CONTINUOUS
+//    a-ram access while they background-fill/drain a grain over ~5.3ms
+//    (one row roughly every 333us, paced by the real-time I2S sample
+//    clock) -- access that has nothing to do with whether AudioCU happens
+//    to be mid-instruction on that opcode. Left as-is, this is a deadlock:
+//    audio_in_unit can never write a single row before the shader has
+//    run, but the shader can't run until new_grain is set, which needs
+//    audio_in_unit to have already written a full grain -- so this
+//    testbench will currently hang at wait_new_grain until its 20ms
+//    timeout. Tried forcing dut.unit_select_sig directly from this SV
+//    testbench as a workaround; XSIM rejects that outright (43-4618/4619:
+//    writing a VHDL hierarchical signal from Verilog isn't supported).
+//    Fixing this needs either a change to APU.vhd/aram_mux/AudioCU, or a
+//    VHDL-side (not SV) testbench mechanism -- deliberately not attempted
+//    here yet.
 
 `timescale 1ns / 1ps
 
@@ -309,8 +332,6 @@ module aputb;
         $display("[%0t] new_grain seen, starting shader", $time);
         bram_write(11'd1, CONTROL_START_VALUE);
 
-        collecting = 1'b1;
-
         fork
             begin : wait_busy_clear
                 logic [31:0] status;
@@ -329,6 +350,15 @@ module aputb;
         join_any
         disable fork;
         $display("[%0t] shader finished (busy cleared)", $time);
+
+        // only start collecting once the shader has actually finished
+        // dispatching AUDIO_OUT -- arming this any earlier (e.g. right
+        // after writing the control register) captures whatever stale/idle
+        // content AC_GPIO0 was shifting out while the shader was still
+        // running, padding the front of collected_left/right with bogus
+        // entries that happen to read back as 0 (indistinguishable from a
+        // real first sample).
+        collecting = 1'b1;
 
         // audio_out keeps streaming the grain out over I2S at its own pace
         // after 'busy' clears -- give it time to actually shift the samples
