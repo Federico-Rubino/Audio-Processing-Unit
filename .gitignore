@@ -5,6 +5,7 @@
 **/.vscode/
 **/.vscode-test/
 **/bin/
+!/software/firmware/main/bin
 
 # Simulation
 .sim/

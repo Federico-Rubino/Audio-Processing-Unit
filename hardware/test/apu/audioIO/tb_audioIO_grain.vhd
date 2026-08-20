@@ -414,7 +414,7 @@ begin
     process(clk)
     begin
         if rising_edge(clk) then
-            if rst = '1' then
+            if rst = '0' then
                 tick_div   <= 0;
                 new_sample <= '0';
                 sample_ctr <= (others => '0');
@@ -434,9 +434,9 @@ begin
     end process;
 
     ------------------------------------------------------------------
-    -- fake CU: same a-ram location both ways, so audio_out reads back
-    -- exactly what audio_in wrote. buffer_length is in cells (128), not
-    -- samples (256), since each cell now packs 2 samples.
+    -- fake CU: same a-ram location both ways. Loops several grains on
+    -- BOTH channels back-to-back, continuously -- matching a real
+    -- continuous-capture scenario, not just a single one-shot grain.
     ------------------------------------------------------------------
     stim : process
     begin
@@ -444,32 +444,60 @@ begin
         wait for CLK_PERIOD * 4;
         rst <= '1';
 
-        audio_in_left_right      <= '0'; -- left
         audio_in_buffer_start    <= std_logic_vector(to_unsigned(0, ADDR_W));
         audio_in_buffer_length   <= std_logic_vector(to_unsigned(128, SIZE_W));
         audio_in_operation_start <= std_logic_vector(to_unsigned(0, ADDR_W));
 
-        audio_out_left_right      <= '0'; -- left
         audio_out_buffer_start    <= std_logic_vector(to_unsigned(0, ADDR_W));
         audio_out_buffer_length   <= std_logic_vector(to_unsigned(128, SIZE_W));
         audio_out_operation_start <= std_logic_vector(to_unsigned(0, ADDR_W));
 
-        wait until grain_ready_l = '1';
-        report "grain_ready_l seen, enabling audio_in_unit";
-        audio_in_enable <= '1';
-        wait for CLK_PERIOD;
-        audio_in_enable <= '0';
+        for grain_num in 0 to 4 loop
+            -- LEFT channel round trip
+            audio_in_left_right  <= '0';
+            audio_out_left_right <= '0';
 
-        wait until audio_in_finished = '1';
-        report "audio_in_unit finished, enabling audio_out_unit";
-        audio_out_enable <= '1';
-        wait for CLK_PERIOD;
-        audio_out_enable <= '0';
+            if grain_ready_l /= '1' then
+                wait until grain_ready_l = '1';
+            end if;
+            report "grain " & integer'image(grain_num) & " L: grain_ready_l seen";
+            audio_in_enable <= '1';
+            wait for CLK_PERIOD;
+            audio_in_enable <= '0';
 
-        wait until audio_out_finished = '1';
-        report "audio_out_unit finished -- watch sample_out_l for 0..255 over the next ~1024 cycles";
+            wait until audio_in_finished = '1';
+            audio_out_enable <= '1';
+            wait for CLK_PERIOD;
+            audio_out_enable <= '0';
 
-        wait for CLK_PERIOD * 1200;
+            wait until audio_out_finished = '1';
+            report "grain " & integer'image(grain_num) & " L: done, streaming out";
+
+            wait for CLK_PERIOD * 1050;
+
+            -- RIGHT channel round trip
+            audio_in_left_right  <= '1';
+            audio_out_left_right <= '1';
+
+            if grain_ready_r /= '1' then
+                wait until grain_ready_r = '1';
+            end if;
+            report "grain " & integer'image(grain_num) & " R: grain_ready_r seen";
+            audio_in_enable <= '1';
+            wait for CLK_PERIOD;
+            audio_in_enable <= '0';
+
+            wait until audio_in_finished = '1';
+            audio_out_enable <= '1';
+            wait for CLK_PERIOD;
+            audio_out_enable <= '0';
+
+            wait until audio_out_finished = '1';
+            report "grain " & integer'image(grain_num) & " R: done, streaming out";
+
+            wait for CLK_PERIOD * 1050;
+        end loop;
+
         report "simulation finished";
         wait;
     end process;
