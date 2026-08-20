@@ -73,6 +73,11 @@ architecture Behavioral of APU is
     signal aio_out_bs_sig, aio_out_bl_sig, aio_out_os_sig, aio_out_ol_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
     signal grain_ready_l_sig, grain_ready_r_sig : std_logic;
 
+    -- AudioCU <-> fft
+    signal fft_en_sig, fft_size_sig, fft_fwd_inv_sig, fft_end_sig : std_logic;
+    signal fft_bsr_sig, fft_osr_sig, fft_blr_sig, fft_olr_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal fft_bsw_sig, fft_osw_sig, fft_blw_sig, fft_olw_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+
     -- audioIO <-> aram_mux (audio in unit's raw a-ram bus)
     signal ain_bram0_port0_addr_sig, ain_bram1_port0_addr_sig, ain_bram2_port0_addr_sig, ain_bram3_port0_addr_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
     signal ain_bram0_port1_addr_sig, ain_bram1_port1_addr_sig, ain_bram2_port1_addr_sig, ain_bram3_port1_addr_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
@@ -96,6 +101,18 @@ architecture Behavioral of APU is
     signal aout_bram0_port1_data_in_sig, aout_bram1_port1_data_in_sig, aout_bram2_port1_data_in_sig, aout_bram3_port1_data_in_sig : std_logic_vector(31 downto 0);
     signal aout_bram0_port0_data_out_sig, aout_bram1_port0_data_out_sig, aout_bram2_port0_data_out_sig, aout_bram3_port0_data_out_sig : std_logic_vector(31 downto 0);
     signal aout_bram0_port1_data_out_sig, aout_bram1_port1_data_out_sig, aout_bram2_port1_data_out_sig, aout_bram3_port1_data_out_sig : std_logic_vector(31 downto 0);
+    
+    -- fft <-> aram_mux
+    signal fft_bram0_port0_addr_sig, fft_bram1_port0_addr_sig, fft_bram2_port0_addr_sig, fft_bram3_port0_addr_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal fft_bram0_port1_addr_sig, fft_bram1_port1_addr_sig, fft_bram2_port1_addr_sig, fft_bram3_port1_addr_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal fft_bram0_port0_we_sig, fft_bram1_port0_we_sig, fft_bram2_port0_we_sig, fft_bram3_port0_we_sig : std_logic;
+    signal fft_bram0_port1_we_sig, fft_bram1_port1_we_sig, fft_bram2_port1_we_sig, fft_bram3_port1_we_sig : std_logic;
+    signal fft_bram0_port0_en_sig, fft_bram1_port0_en_sig, fft_bram2_port0_en_sig, fft_bram3_port0_en_sig : std_logic;
+    signal fft_bram0_port1_en_sig, fft_bram1_port1_en_sig, fft_bram2_port1_en_sig, fft_bram3_port1_en_sig : std_logic;
+    signal fft_bram0_port0_data_in_sig, fft_bram1_port0_data_in_sig, fft_bram2_port0_data_in_sig, fft_bram3_port0_data_in_sig : std_logic_vector(31 downto 0);
+    signal fft_bram0_port1_data_in_sig, fft_bram1_port1_data_in_sig, fft_bram2_port1_data_in_sig, fft_bram3_port1_data_in_sig : std_logic_vector(31 downto 0);
+    signal fft_bram0_port0_data_out_sig, fft_bram1_port0_data_out_sig, fft_bram2_port0_data_out_sig, fft_bram3_port0_data_out_sig : std_logic_vector(31 downto 0);
+    signal fft_bram0_port1_data_out_sig, fft_bram1_port1_data_out_sig, fft_bram2_port1_data_out_sig, fft_bram3_port1_data_out_sig : std_logic_vector(31 downto 0);
 
     -- aram_mux <-> the 4 internal a-ram blocks (real, physical side)
     signal bram0_port0_addr_sig, bram1_port0_addr_sig, bram2_port0_addr_sig, bram3_port0_addr_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
@@ -137,11 +154,10 @@ begin
             aio_out_en => aio_out_en_sig, aio_out_lr => aio_out_lr_sig,
             aio_out_bs => aio_out_bs_sig, aio_out_bl => aio_out_bl_sig, aio_out_os => aio_out_os_sig, aio_out_ol => aio_out_ol_sig,
 
-            -- no FFT unit yet: end tied low (would stall a shader using FFT/IFFT forever), outputs unused
-            fft_end => '0',
-            fft_en => open, fft_size => open, fwd_inv => open,
-            fft_bsr => open, fft_blr => open, fft_osr => open, fft_olr => open,
-            fft_bsw => open, fft_blw => open, fft_osw => open, fft_olw => open,
+            fft_end => fft_end_sig,
+            fft_en => fft_en_sig, fft_size => fft_size_sig, fwd_inv => fft_fwd_inv_sig,
+            fft_bsr => fft_bsr_sig, fft_blr => fft_blr_sig, fft_osr => fft_osr_sig, fft_olr => fft_olr_sig,
+            fft_bsw => fft_bsw_sig, fft_blw => fft_blw_sig, fft_osw => fft_osw_sig, fft_olw => fft_olw_sig,
 
             -- no Parallel ALU / VPU unit yet: same treatment
             vec_end => '0',
@@ -239,6 +255,36 @@ begin
             aout_bram2_port1_data_out => aout_bram2_port1_data_out_sig, aout_bram3_port1_data_out => aout_bram3_port1_data_out_sig
         );
 
+    fft : entity work.fft_unit
+        generic map (
+            ARAM_ADDR_SIZE => ARAM_ADDR_SIZE,
+            ARAM_COUNT_SIZE => ARAM_COUNT_SIZE
+        )
+        port map (
+            clk => clk, rst => rst,
+            en => fft_en, size => fft_size, fwd_inv => fft_fwd_inv, finished => fft_finished,
+
+            bsr => fft_bsr, osr => fft_osr, blr => fft_blr, olr => fft_olr,
+            bsw => fft_bsw, osw => fft_osw, blw => fft_blw, olw => fft_olw,
+
+            fft_bram0_port0_addr => fft_bram0_port0_addr_sig, fft_bram1_port0_addr => fft_bram1_port0_addr_sig,
+            fft_bram2_port0_addr => fft_bram2_port0_addr_sig, fft_bram3_port0_addr => fft_bram3_port0_addr_sig,
+            fft_bram0_port1_addr => fft_bram0_port1_addr_sig, fft_bram1_port1_addr => fft_bram1_port1_addr_sig,
+            fft_bram2_port1_addr => fft_bram2_port1_addr_sig, fft_bram3_port1_addr => fft_bram3_port1_add_sigr,
+            fft_bram0_port0_we => fft_bram0_port0_we_sig, fft_bram1_port0_we => fft_bram1_port0_we_sig, fft_bram2_port0_we => fft_bram2_port0_we_sig, fft_bram3_port0_we => fft_bram3_port0_we_sig,
+            fft_bram0_port1_we => fft_bram0_port1_we_sig, fft_bram1_port1_we => fft_bram1_port1_we_sig, fft_bram2_port1_we => fft_bram2_port1_we_sig, fft_bram3_port1_we => fft_bram3_port1_we_sig,
+            fft_bram0_port0_en => fft_bram0_port0_en_sig, fft_bram1_port0_en => fft_bram1_port0_en_sig, fft_bram2_port0_en => fft_bram2_port0_en_sig, fft_bram3_port0_en => fft_bram3_port0_en_sig,
+            fft_bram0_port1_en => fft_bram0_port1_en_sig, fft_bram1_port1_en => fft_bram1_port1_en_sig, fft_bram2_port1_en => fft_bram2_port1_en_sig, fft_bram3_port1_en => fft_bram3_port1_en_sig,
+            fft_bram0_port0_data_in => fft_bram0_port0_data_in_sig, fft_bram1_port0_data_in => fft_bram1_port0_data_in_sig,
+            fft_bram2_port0_data_in => fft_bram2_port0_data_in_sig, fft_bram3_port0_data_in => fft_bram3_port0_data_in_sig,
+            fft_bram0_port1_data_in => fft_bram0_port1_data_in_sig, fft_bram1_port1_data_in => fft_bram1_port1_data_in_sig,
+            fft_bram2_port1_data_in => fft_bram2_port1_data_in_sig, fft_bram3_port1_data_in => fft_bram3_port1_data_in_sig,
+            fft_bram0_port0_data_out => fft_bram0_port0_data_out_sig, fft_bram1_port0_data_out => fft_bram1_port0_data_out_sig,
+            fft_bram2_port0_data_out => fft_bram2_port0_data_out_sig, fft_bram3_port0_data_out => fft_bram3_port0_data_out_sig,
+            fft_bram0_port1_data_out => fft_bram0_port1_data_out_sig, fft_bram1_port1_data_out => fft_bram1_port1_data_out_sig,
+            fft_bram2_port1_data_out => fft_bram2_port1_data_out_sig, fft_bram3_port1_data_out => fft_bram3_port1_data_out_sig
+        );
+
     mux : entity work.aram_mux
         generic map (
             BUFFER_ADDR_WIDTH => ARAM_ADDR_SIZE,
@@ -307,23 +353,23 @@ begin
             vpu_bram0_port1_data_out => open, vpu_bram1_port1_data_out => open,
             vpu_bram2_port1_data_out => open, vpu_bram3_port1_data_out => open,
 
-            -- no FFT unit yet: same treatment
-            fft_bram0_port0_addr => (others => '0'), fft_bram1_port0_addr => (others => '0'),
-            fft_bram2_port0_addr => (others => '0'), fft_bram3_port0_addr => (others => '0'),
-            fft_bram0_port1_addr => (others => '0'), fft_bram1_port1_addr => (others => '0'),
-            fft_bram2_port1_addr => (others => '0'), fft_bram3_port1_addr => (others => '0'),
-            fft_bram0_port0_we => '0', fft_bram1_port0_we => '0', fft_bram2_port0_we => '0', fft_bram3_port0_we => '0',
-            fft_bram0_port1_we => '0', fft_bram1_port1_we => '0', fft_bram2_port1_we => '0', fft_bram3_port1_we => '0',
-            fft_bram0_port0_en => '0', fft_bram1_port0_en => '0', fft_bram2_port0_en => '0', fft_bram3_port0_en => '0',
-            fft_bram0_port1_en => '0', fft_bram1_port1_en => '0', fft_bram2_port1_en => '0', fft_bram3_port1_en => '0',
-            fft_bram0_port0_data_in => (others => '0'), fft_bram1_port0_data_in => (others => '0'),
-            fft_bram2_port0_data_in => (others => '0'), fft_bram3_port0_data_in => (others => '0'),
-            fft_bram0_port1_data_in => (others => '0'), fft_bram1_port1_data_in => (others => '0'),
-            fft_bram2_port1_data_in => (others => '0'), fft_bram3_port1_data_in => (others => '0'),
-            fft_bram0_port0_data_out => open, fft_bram1_port0_data_out => open,
-            fft_bram2_port0_data_out => open, fft_bram3_port0_data_out => open,
-            fft_bram0_port1_data_out => open, fft_bram1_port1_data_out => open,
-            fft_bram2_port1_data_out => open, fft_bram3_port1_data_out => open,
+            -- FFT unit
+            fft_bram0_port0_addr => fft_bram0_port0_addr_sig, fft_bram1_port0_addr => fft_bram1_port0_addr_sig,
+            fft_bram2_port0_addr => fft_bram2_port0_addr_sig, fft_bram3_port0_addr => fft_bram3_port0_addr_sig,
+            fft_bram0_port1_addr => fft_bram0_port1_addr_sig, fft_bram1_port1_addr => fft_bram1_port1_addr_sig,
+            fft_bram2_port1_addr => fft_bram2_port1_addr_sig, fft_bram3_port1_addr => fft_bram3_port1_addr_sig,
+            fft_bram0_port0_we => fft_bram0_port0_we_sig, fft_bram1_port0_we => fft_bram1_port0_we_sig, fft_bram2_port0_we => fft_bram2_port0_we_sig, fft_bram3_port0_we => fft_bram3_port0_we_sig,
+            fft_bram0_port1_we => fft_bram0_port1_we_sig, fft_bram1_port1_we => fft_bram1_port1_we_sig, fft_bram2_port1_we => fft_bram2_port1_we_sig, fft_bram3_port1_we => fft_bram3_port1_we_sig,
+            fft_bram0_port0_en => fft_bram0_port0_en_sig, fft_bram1_port0_en => fft_bram1_port0_en_sig, fft_bram2_port0_en => fft_bram2_port0_en_sig, fft_bram3_port0_en => fft_bram3_port0_en_sig,
+            fft_bram0_port1_en => fft_bram0_port1_en_sig, fft_bram1_port1_en => fft_bram1_port1_en_sig, fft_bram2_port1_en => fft_bram2_port1_en_sig, fft_bram3_port1_en => fft_bram3_port1_en_sig,
+            fft_bram0_port0_data_in => fft_bram0_port0_data_in_sig, fft_bram1_port0_data_in => fft_bram1_port0_data_in_sig,
+            fft_bram2_port0_data_in => fft_bram2_port0_data_in_sig, fft_bram3_port0_data_in => fft_bram3_port0_data_in_sig,
+            fft_bram0_port1_data_in => fft_bram0_port1_data_in_sig, fft_bram1_port1_data_in => fft_bram1_port1_data_in_sig,
+            fft_bram2_port1_data_in => fft_bram2_port1_data_in_sig, fft_bram3_port1_data_in => fft_bram3_port1_data_in_sig,
+            fft_bram0_port0_data_out => fft_bram0_port0_data_out_sig, fft_bram1_port0_data_out => fft_bram1_port0_data_out_sig,
+            fft_bram2_port0_data_out => fft_bram2_port0_data_out_sig, fft_bram3_port0_data_out => fft_bram3_port0_data_out_sig,
+            fft_bram0_port1_data_out => fft_bram0_port1_data_out_sig, fft_bram1_port1_data_out => fft_bram1_port1_data_out_sig,
+            fft_bram2_port1_data_out => fft_bram2_port1_data_out_sig, fft_bram3_port1_data_out => fft_bram3_port1_data_out_sig,
 
             -- no Pitch Shift unit yet: same treatment
             ps_bram0_port0_addr => (others => '0'), ps_bram1_port0_addr => (others => '0'),
