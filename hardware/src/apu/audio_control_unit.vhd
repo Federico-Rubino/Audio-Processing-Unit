@@ -383,8 +383,9 @@ begin
                         vec_olw <= op_len;
 
                         if (op = APU_OP_ADD_SCALAR or op = APU_OP_SUB_SCALAR or op = APU_OP_MUL_SCALAR) then
-                            -- Extracted immediate scalar parameter based on ISA
-                            vec_scalar <= instr(51 downto 36);
+                            -- scalar resolved from param memory via the in2_bs slot, unused
+                            -- by scalar ops otherwise (same indirection as a buffer descriptor field)
+                            vec_scalar <= std_logic_vector(resize(unsigned(buf2(ARAM_ADDR_SIZE*1-1 downto 0)), 16));
                             vec_bsr2 <= (others => '0');
                             vec_blr2 <= (others => '0');
                             vec_osr2 <= (others => '0');
