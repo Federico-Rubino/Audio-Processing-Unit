@@ -257,32 +257,31 @@ begin
 
     fft : entity work.fft_unit
         generic map (
-            ARAM_ADDR_SIZE => ARAM_ADDR_SIZE,
-            ARAM_COUNT_SIZE => ARAM_COUNT_SIZE
+            ARAM_ADDR_SIZE => ARAM_ADDR_SIZE
         )
         port map (
             clk => clk, rst => rst,
-            en => fft_en, size => fft_size, fwd_inv => fft_fwd_inv, finished => fft_finished,
+            en => fft_en_sig, size => fft_size_sig, fwd_inv => fft_fwd_inv_sig, finished => fft_end_sig,
 
-            bsr => fft_bsr, osr => fft_osr, blr => fft_blr, olr => fft_olr,
-            bsw => fft_bsw, osw => fft_osw, blw => fft_blw, olw => fft_olw,
+            bsr => fft_bsr_sig, osr => fft_osr_sig, blr => fft_blr_sig, olr => fft_olr_sig,
+            bsw => fft_bsw_sig, osw => fft_osw_sig, blw => fft_blw_sig, olw => fft_olw_sig,
 
-            fft_bram0_port0_addr => fft_bram0_port0_addr_sig, fft_bram1_port0_addr => fft_bram1_port0_addr_sig,
-            fft_bram2_port0_addr => fft_bram2_port0_addr_sig, fft_bram3_port0_addr => fft_bram3_port0_addr_sig,
-            fft_bram0_port1_addr => fft_bram0_port1_addr_sig, fft_bram1_port1_addr => fft_bram1_port1_addr_sig,
-            fft_bram2_port1_addr => fft_bram2_port1_addr_sig, fft_bram3_port1_addr => fft_bram3_port1_add_sigr,
-            fft_bram0_port0_we => fft_bram0_port0_we_sig, fft_bram1_port0_we => fft_bram1_port0_we_sig, fft_bram2_port0_we => fft_bram2_port0_we_sig, fft_bram3_port0_we => fft_bram3_port0_we_sig,
-            fft_bram0_port1_we => fft_bram0_port1_we_sig, fft_bram1_port1_we => fft_bram1_port1_we_sig, fft_bram2_port1_we => fft_bram2_port1_we_sig, fft_bram3_port1_we => fft_bram3_port1_we_sig,
-            fft_bram0_port0_en => fft_bram0_port0_en_sig, fft_bram1_port0_en => fft_bram1_port0_en_sig, fft_bram2_port0_en => fft_bram2_port0_en_sig, fft_bram3_port0_en => fft_bram3_port0_en_sig,
-            fft_bram0_port1_en => fft_bram0_port1_en_sig, fft_bram1_port1_en => fft_bram1_port1_en_sig, fft_bram2_port1_en => fft_bram2_port1_en_sig, fft_bram3_port1_en => fft_bram3_port1_en_sig,
-            fft_bram0_port0_data_in => fft_bram0_port0_data_in_sig, fft_bram1_port0_data_in => fft_bram1_port0_data_in_sig,
-            fft_bram2_port0_data_in => fft_bram2_port0_data_in_sig, fft_bram3_port0_data_in => fft_bram3_port0_data_in_sig,
-            fft_bram0_port1_data_in => fft_bram0_port1_data_in_sig, fft_bram1_port1_data_in => fft_bram1_port1_data_in_sig,
-            fft_bram2_port1_data_in => fft_bram2_port1_data_in_sig, fft_bram3_port1_data_in => fft_bram3_port1_data_in_sig,
-            fft_bram0_port0_data_out => fft_bram0_port0_data_out_sig, fft_bram1_port0_data_out => fft_bram1_port0_data_out_sig,
-            fft_bram2_port0_data_out => fft_bram2_port0_data_out_sig, fft_bram3_port0_data_out => fft_bram3_port0_data_out_sig,
-            fft_bram0_port1_data_out => fft_bram0_port1_data_out_sig, fft_bram1_port1_data_out => fft_bram1_port1_data_out_sig,
-            fft_bram2_port1_data_out => fft_bram2_port1_data_out_sig, fft_bram3_port1_data_out => fft_bram3_port1_data_out_sig
+            bram0_port0_addr => fft_bram0_port0_addr_sig, bram1_port0_addr => fft_bram1_port0_addr_sig,
+            bram2_port0_addr => fft_bram2_port0_addr_sig, bram3_port0_addr => fft_bram3_port0_addr_sig,
+            bram0_port1_addr => fft_bram0_port1_addr_sig, bram1_port1_addr => fft_bram1_port1_addr_sig,
+            bram2_port1_addr => fft_bram2_port1_addr_sig, bram3_port1_addr => fft_bram3_port1_addr_sig,
+            bram0_port0_we => fft_bram0_port0_we_sig, bram1_port0_we => fft_bram1_port0_we_sig, bram2_port0_we => fft_bram2_port0_we_sig, bram3_port0_we => fft_bram3_port0_we_sig,
+            bram0_port1_we => fft_bram0_port1_we_sig, bram1_port1_we => fft_bram1_port1_we_sig, bram2_port1_we => fft_bram2_port1_we_sig, bram3_port1_we => fft_bram3_port1_we_sig,
+            bram0_port0_en => fft_bram0_port0_en_sig, bram1_port0_en => fft_bram1_port0_en_sig, bram2_port0_en => fft_bram2_port0_en_sig, bram3_port0_en => fft_bram3_port0_en_sig,
+            bram0_port1_en => fft_bram0_port1_en_sig, bram1_port1_en => fft_bram1_port1_en_sig, bram2_port1_en => fft_bram2_port1_en_sig, bram3_port1_en => fft_bram3_port1_en_sig,
+            bram0_port0_data_in => fft_bram0_port0_data_in_sig, bram1_port0_data_in => fft_bram1_port0_data_in_sig,
+            bram2_port0_data_in => fft_bram2_port0_data_in_sig, bram3_port0_data_in => fft_bram3_port0_data_in_sig,
+            bram0_port1_data_in => fft_bram0_port1_data_in_sig, bram1_port1_data_in => fft_bram1_port1_data_in_sig,
+            bram2_port1_data_in => fft_bram2_port1_data_in_sig, bram3_port1_data_in => fft_bram3_port1_data_in_sig,
+            bram0_port0_data_out => fft_bram0_port0_data_out_sig, bram1_port0_data_out => fft_bram1_port0_data_out_sig,
+            bram2_port0_data_out => fft_bram2_port0_data_out_sig, bram3_port0_data_out => fft_bram3_port0_data_out_sig,
+            bram0_port1_data_out => fft_bram0_port1_data_out_sig, bram1_port1_data_out => fft_bram1_port1_data_out_sig,
+            bram2_port1_data_out => fft_bram2_port1_data_out_sig, bram3_port1_data_out => fft_bram3_port1_data_out_sig
         );
 
     mux : entity work.aram_mux

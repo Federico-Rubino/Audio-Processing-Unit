@@ -4,10 +4,7 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity fft_unit is
     generic (
-        ARAM_ADDR_SIZE    : integer := 15;
-        ARAM_COUNT_SIZE   : integer := 18;
-        BUFFER_ADDR_WIDTH : integer := 10;
-        BUFFER_SIZE_BITS  : integer := 18
+        ARAM_ADDR_SIZE    : integer := 15
     );
     port (
         clk : in std_logic;
@@ -22,21 +19,21 @@ entity fft_unit is
         -- Circular buffer parameters
         bsr : in std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
         osr : in std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
-        blr : in std_logic_vector(ARAM_COUNT_SIZE-1 downto 0);
-        olr : in std_logic_vector(ARAM_COUNT_SIZE-1 downto 0);
+        blr : in std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        olr : in std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
         bsw : in std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
         osw : in std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
-        blw : in std_logic_vector(ARAM_COUNT_SIZE-1 downto 0);
-        olw : in std_logic_vector(ARAM_COUNT_SIZE-1 downto 0);
+        blw : in std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        olw : in std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
 
-        bram0_port0_addr : out std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
-        bram1_port0_addr : out std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
-        bram2_port0_addr : out std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
-        bram3_port0_addr : out std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
-        bram0_port1_addr : out std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
-        bram1_port1_addr : out std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
-        bram2_port1_addr : out std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
-        bram3_port1_addr : out std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
+        bram0_port0_addr : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        bram1_port0_addr : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        bram2_port0_addr : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        bram3_port0_addr : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        bram0_port1_addr : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        bram1_port1_addr : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        bram2_port1_addr : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        bram3_port1_addr : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
 
         bram0_port0_we   : out std_logic;
         bram1_port0_we   : out std_logic;
@@ -115,12 +112,12 @@ architecture Behavioral of fft_unit is
     -- BMU read pipeline registers
     signal br_data_valid : std_logic;
     signal br_data_last  : std_logic;
-    signal read_cnt      : unsigned(BUFFER_SIZE_BITS-1 downto 0);
-    signal block_size    : unsigned(BUFFER_SIZE_BITS-1 downto 0);
+    signal read_cnt      : unsigned(ARAM_ADDR_SIZE-1 downto 0);
+    signal block_size    : unsigned(ARAM_ADDR_SIZE-1 downto 0);
 
     -- intermediate BRAM signals
-    signal bw_p0_addr, br_p0_addr : std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
-    signal bw_p1_addr, br_p1_addr : std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
+    signal bw_p0_addr, br_p0_addr : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal bw_p1_addr, br_p1_addr : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
     signal bw_p0_en,   br_p0_en   : std_logic;
     signal bw_p1_en,   br_p1_en   : std_logic;
     signal bw_p0_we,   bw_p1_we   : std_logic;
@@ -136,7 +133,7 @@ architecture Behavioral of fft_unit is
 begin
 
     xilinx_fft_fwd_inv <= '1' when reg_fwd_inv = '0' else '0';
-    block_size <= to_unsigned(256, BUFFER_SIZE_BITS) when reg_size = '0' else to_unsigned(512, BUFFER_SIZE_BITS);
+    block_size <= to_unsigned(256, ARAM_ADDR_SIZE) when reg_size = '0' else to_unsigned(512, ARAM_ADDR_SIZE);
 
     fft_inst : entity work.fft
     port map (
@@ -195,17 +192,17 @@ begin
 
     bw : entity work.bmu_write
         generic map (
-            BUFFER_ADDR_WIDTH => BUFFER_ADDR_WIDTH,
-            BUFFER_SIZE_BITS  => BUFFER_SIZE_BITS,
+            BUFFER_ADDR_WIDTH => ARAM_ADDR_SIZE,
+            BUFFER_SIZE_BITS  => ARAM_ADDR_SIZE,
             LANES             => 1 -- serial streaming
         )
         port map (
             clk => clk, rst => rst, start => bw_start, count_en => bw_count_en,
 
-            buffer_start     => bsw(BUFFER_ADDR_WIDTH-1 downto 0),
-            buffer_length    => blw(BUFFER_SIZE_BITS-1 downto 0),
-            operation_start  => osw(BUFFER_ADDR_WIDTH-1 downto 0),
-            operation_length => olw(BUFFER_SIZE_BITS-1 downto 0),
+            buffer_start     => bsw(ARAM_ADDR_SIZE-1 downto 0),
+            buffer_length    => blw(ARAM_ADDR_SIZE-1 downto 0),
+            operation_start  => osw(ARAM_ADDR_SIZE-1 downto 0),
+            operation_length => olw(ARAM_ADDR_SIZE-1 downto 0),
 
             bram0_port0_addr => bw_p0_addr, bram1_port0_addr => open,
             bram2_port0_addr => open,       bram3_port0_addr => open,
@@ -242,17 +239,17 @@ begin
 
     br : entity work.bmu_read
         generic map (
-            BUFFER_ADDR_WIDTH => BUFFER_ADDR_WIDTH,
-            BUFFER_SIZE_BITS  => BUFFER_SIZE_BITS,
+            BUFFER_ADDR_WIDTH => ARAM_ADDR_SIZE,
+            BUFFER_SIZE_BITS  => ARAM_ADDR_SIZE,
             LANES             => 1 -- serial streaming
         )
         port map (
             clk => clk, rst => rst, start => br_start, count_en => br_count_en,
 
-            buffer_start     => bsr(BUFFER_ADDR_WIDTH-1 downto 0),
-            buffer_length    => blr(BUFFER_SIZE_BITS-1 downto 0),
-            operation_start  => osr(BUFFER_ADDR_WIDTH-1 downto 0),
-            operation_length => olr(BUFFER_SIZE_BITS-1 downto 0),
+            buffer_start     => bsr(ARAM_ADDR_SIZE-1 downto 0),
+            buffer_length    => blr(ARAM_ADDR_SIZE-1 downto 0),
+            operation_start  => osr(ARAM_ADDR_SIZE-1 downto 0),
+            operation_length => olr(ARAM_ADDR_SIZE-1 downto 0),
 
             bram0_port0_addr => br_p0_addr, bram1_port0_addr => open,
             bram2_port0_addr => open,       bram3_port0_addr => open,
