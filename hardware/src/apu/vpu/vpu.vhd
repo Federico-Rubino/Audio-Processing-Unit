@@ -22,29 +22,21 @@ entity vpu is
     vec_bsr2, vec_blr2, vec_osr2, vec_olr2 : in std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
     vec_bsw, vec_blw, vec_osw, vec_olw : in std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
 
-    --shared read bus <-> a-ram (bmu_read_1/bmu_read_2 muxed)
-    bmu_read_bram0_port0_addr, bmu_read_bram1_port0_addr, bmu_read_bram2_port0_addr, bmu_read_bram3_port0_addr : out std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
-    bmu_read_bram0_port1_addr, bmu_read_bram1_port1_addr, bmu_read_bram2_port1_addr, bmu_read_bram3_port1_addr : out std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
-    bmu_read_bram0_port0_we, bmu_read_bram1_port0_we, bmu_read_bram2_port0_we, bmu_read_bram3_port0_we : out std_logic;
-    bmu_read_bram0_port1_we, bmu_read_bram1_port1_we, bmu_read_bram2_port1_we, bmu_read_bram3_port1_we : out std_logic;
-    bmu_read_bram0_port0_en, bmu_read_bram1_port0_en, bmu_read_bram2_port0_en, bmu_read_bram3_port0_en : out std_logic;
-    bmu_read_bram0_port1_en, bmu_read_bram1_port1_en, bmu_read_bram2_port1_en, bmu_read_bram3_port1_en : out std_logic;
-    bmu_read_bram0_port0_data_in, bmu_read_bram1_port0_data_in, bmu_read_bram2_port0_data_in, bmu_read_bram3_port0_data_in : out std_logic_vector(31 downto 0);
-    bmu_read_bram0_port1_data_in, bmu_read_bram1_port1_data_in, bmu_read_bram2_port1_data_in, bmu_read_bram3_port1_data_in : out std_logic_vector(31 downto 0);
-    bmu_read_bram0_port0_data_out, bmu_read_bram1_port0_data_out, bmu_read_bram2_port0_data_out, bmu_read_bram3_port0_data_out : in std_logic_vector(31 downto 0);
-    bmu_read_bram0_port1_data_out, bmu_read_bram1_port1_data_out, bmu_read_bram2_port1_data_out, bmu_read_bram3_port1_data_out : in std_logic_vector(31 downto 0);
+    -- shared read bus <-> a-ram (bmu_read_1/bmu_read_2 muxed). LANES=4 on both,
+    -- so only one physical BRAM port is ever driven -- no port0/port1 split
+    -- here, the caller decides which physical port this bus lands on.
+    bmu_read_bram0_addr, bmu_read_bram1_addr, bmu_read_bram2_addr, bmu_read_bram3_addr : out std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
+    bmu_read_bram0_we, bmu_read_bram1_we, bmu_read_bram2_we, bmu_read_bram3_we : out std_logic;
+    bmu_read_bram0_en, bmu_read_bram1_en, bmu_read_bram2_en, bmu_read_bram3_en : out std_logic;
+    bmu_read_bram0_data_in, bmu_read_bram1_data_in, bmu_read_bram2_data_in, bmu_read_bram3_data_in : out std_logic_vector(31 downto 0);
+    bmu_read_bram0_data_out, bmu_read_bram1_data_out, bmu_read_bram2_data_out, bmu_read_bram3_data_out : in std_logic_vector(31 downto 0);
 
-    --bmu_write <-> a-ram
-    bmu_write_bram0_port0_addr, bmu_write_bram1_port0_addr, bmu_write_bram2_port0_addr, bmu_write_bram3_port0_addr : out std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
-    bmu_write_bram0_port1_addr, bmu_write_bram1_port1_addr, bmu_write_bram2_port1_addr, bmu_write_bram3_port1_addr : out std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
-    bmu_write_bram0_port0_we, bmu_write_bram1_port0_we, bmu_write_bram2_port0_we, bmu_write_bram3_port0_we : out std_logic;
-    bmu_write_bram0_port1_we, bmu_write_bram1_port1_we, bmu_write_bram2_port1_we, bmu_write_bram3_port1_we : out std_logic;
-    bmu_write_bram0_port0_en, bmu_write_bram1_port0_en, bmu_write_bram2_port0_en, bmu_write_bram3_port0_en : out std_logic;
-    bmu_write_bram0_port1_en, bmu_write_bram1_port1_en, bmu_write_bram2_port1_en, bmu_write_bram3_port1_en : out std_logic;
-    bmu_write_bram0_port0_data_in, bmu_write_bram1_port0_data_in, bmu_write_bram2_port0_data_in, bmu_write_bram3_port0_data_in : out std_logic_vector(31 downto 0);
-    bmu_write_bram0_port1_data_in, bmu_write_bram1_port1_data_in, bmu_write_bram2_port1_data_in, bmu_write_bram3_port1_data_in : out std_logic_vector(31 downto 0);
-    bmu_write_bram0_port0_data_out, bmu_write_bram1_port0_data_out, bmu_write_bram2_port0_data_out, bmu_write_bram3_port0_data_out : in std_logic_vector(31 downto 0);
-    bmu_write_bram0_port1_data_out, bmu_write_bram1_port1_data_out, bmu_write_bram2_port1_data_out, bmu_write_bram3_port1_data_out : in std_logic_vector(31 downto 0)
+    -- bmu_write <-> a-ram. Also LANES=4, same single-port note as above.
+    bmu_write_bram0_addr, bmu_write_bram1_addr, bmu_write_bram2_addr, bmu_write_bram3_addr : out std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
+    bmu_write_bram0_we, bmu_write_bram1_we, bmu_write_bram2_we, bmu_write_bram3_we : out std_logic;
+    bmu_write_bram0_en, bmu_write_bram1_en, bmu_write_bram2_en, bmu_write_bram3_en : out std_logic;
+    bmu_write_bram0_data_in, bmu_write_bram1_data_in, bmu_write_bram2_data_in, bmu_write_bram3_data_in : out std_logic_vector(31 downto 0);
+    bmu_write_bram0_data_out, bmu_write_bram1_data_out, bmu_write_bram2_data_out, bmu_write_bram3_data_out : in std_logic_vector(31 downto 0)
    );
 end vpu;
 
@@ -84,17 +76,13 @@ architecture Behavioral of vpu is
   signal sel_output_odd : std_logic; -- odd DSP; 0 = take DSP output, 1 = shift for fixed point alignement
   signal sel_bmu_read : std_logic; -- 0 = bmu_read_1, 1 = bmu_read_2
 
-  --bmu_read_1 pre-mux
+  --bmu_read_1 pre-mux (own port1 unused at LANES=4, tied off at instantiation)
   signal r1_bram0_port0_addr, r1_bram1_port0_addr, r1_bram2_port0_addr, r1_bram3_port0_addr : std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
-  signal r1_bram0_port1_addr, r1_bram1_port1_addr, r1_bram2_port1_addr, r1_bram3_port1_addr : std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
   signal r1_bram0_port0_en, r1_bram1_port0_en, r1_bram2_port0_en, r1_bram3_port0_en : std_logic;
-  signal r1_bram0_port1_en, r1_bram1_port1_en, r1_bram2_port1_en, r1_bram3_port1_en : std_logic;
 
-  --bmu_read_2 pre-mux
+  --bmu_read_2 pre-mux (own port1 unused at LANES=4, tied off at instantiation)
   signal r2_bram0_port0_addr, r2_bram1_port0_addr, r2_bram2_port0_addr, r2_bram3_port0_addr : std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
-  signal r2_bram0_port1_addr, r2_bram1_port1_addr, r2_bram2_port1_addr, r2_bram3_port1_addr : std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
   signal r2_bram0_port0_en, r2_bram1_port0_en, r2_bram2_port0_en, r2_bram3_port0_en : std_logic;
-  signal r2_bram0_port1_en, r2_bram1_port1_en, r2_bram2_port1_en, r2_bram3_port1_en : std_logic;
 
   --bmu_read_1/bmu_read_2 lane data + muxed result
   signal bmu_read_1_data : bmu_lane_data_t;
@@ -159,24 +147,22 @@ begin
 
       bram0_port0_addr => r1_bram0_port0_addr, bram1_port0_addr => r1_bram1_port0_addr,
       bram2_port0_addr => r1_bram2_port0_addr, bram3_port0_addr => r1_bram3_port0_addr,
-      bram0_port1_addr => r1_bram0_port1_addr, bram1_port1_addr => r1_bram1_port1_addr,
-      bram2_port1_addr => r1_bram2_port1_addr, bram3_port1_addr => r1_bram3_port1_addr,
+      bram0_port1_addr => open, bram1_port1_addr => open, bram2_port1_addr => open, bram3_port1_addr => open,
 
       bram0_port0_we => open, bram1_port0_we => open, bram2_port0_we => open, bram3_port0_we => open,
       bram0_port1_we => open, bram1_port1_we => open, bram2_port1_we => open, bram3_port1_we => open,
 
       bram0_port0_en => r1_bram0_port0_en, bram1_port0_en => r1_bram1_port0_en,
       bram2_port0_en => r1_bram2_port0_en, bram3_port0_en => r1_bram3_port0_en,
-      bram0_port1_en => r1_bram0_port1_en, bram1_port1_en => r1_bram1_port1_en,
-      bram2_port1_en => r1_bram2_port1_en, bram3_port1_en => r1_bram3_port1_en,
+      bram0_port1_en => open, bram1_port1_en => open, bram2_port1_en => open, bram3_port1_en => open,
 
       bram0_port0_data_in => open, bram1_port0_data_in => open, bram2_port0_data_in => open, bram3_port0_data_in => open,
       bram0_port1_data_in => open, bram1_port1_data_in => open, bram2_port1_data_in => open, bram3_port1_data_in => open,
 
-      bram0_port0_data_out => bmu_read_bram0_port0_data_out, bram1_port0_data_out => bmu_read_bram1_port0_data_out,
-      bram2_port0_data_out => bmu_read_bram2_port0_data_out, bram3_port0_data_out => bmu_read_bram3_port0_data_out,
-      bram0_port1_data_out => bmu_read_bram0_port1_data_out, bram1_port1_data_out => bmu_read_bram1_port1_data_out,
-      bram2_port1_data_out => bmu_read_bram2_port1_data_out, bram3_port1_data_out => bmu_read_bram3_port1_data_out,
+      bram0_port0_data_out => bmu_read_bram0_data_out, bram1_port0_data_out => bmu_read_bram1_data_out,
+      bram2_port0_data_out => bmu_read_bram2_data_out, bram3_port0_data_out => bmu_read_bram3_data_out,
+      bram0_port1_data_out => (others => '0'), bram1_port1_data_out => (others => '0'),
+      bram2_port1_data_out => (others => '0'), bram3_port1_data_out => (others => '0'),
 
       data_out_0 => bmu_read_1_data(0), data_out_1 => bmu_read_1_data(1),
       data_out_2 => bmu_read_1_data(2), data_out_3 => bmu_read_1_data(3),
@@ -204,24 +190,22 @@ begin
 
       bram0_port0_addr => r2_bram0_port0_addr, bram1_port0_addr => r2_bram1_port0_addr,
       bram2_port0_addr => r2_bram2_port0_addr, bram3_port0_addr => r2_bram3_port0_addr,
-      bram0_port1_addr => r2_bram0_port1_addr, bram1_port1_addr => r2_bram1_port1_addr,
-      bram2_port1_addr => r2_bram2_port1_addr, bram3_port1_addr => r2_bram3_port1_addr,
+      bram0_port1_addr => open, bram1_port1_addr => open, bram2_port1_addr => open, bram3_port1_addr => open,
 
       bram0_port0_we => open, bram1_port0_we => open, bram2_port0_we => open, bram3_port0_we => open,
       bram0_port1_we => open, bram1_port1_we => open, bram2_port1_we => open, bram3_port1_we => open,
 
       bram0_port0_en => r2_bram0_port0_en, bram1_port0_en => r2_bram1_port0_en,
       bram2_port0_en => r2_bram2_port0_en, bram3_port0_en => r2_bram3_port0_en,
-      bram0_port1_en => r2_bram0_port1_en, bram1_port1_en => r2_bram1_port1_en,
-      bram2_port1_en => r2_bram2_port1_en, bram3_port1_en => r2_bram3_port1_en,
+      bram0_port1_en => open, bram1_port1_en => open, bram2_port1_en => open, bram3_port1_en => open,
 
       bram0_port0_data_in => open, bram1_port0_data_in => open, bram2_port0_data_in => open, bram3_port0_data_in => open,
       bram0_port1_data_in => open, bram1_port1_data_in => open, bram2_port1_data_in => open, bram3_port1_data_in => open,
 
-      bram0_port0_data_out => bmu_read_bram0_port0_data_out, bram1_port0_data_out => bmu_read_bram1_port0_data_out,
-      bram2_port0_data_out => bmu_read_bram2_port0_data_out, bram3_port0_data_out => bmu_read_bram3_port0_data_out,
-      bram0_port1_data_out => bmu_read_bram0_port1_data_out, bram1_port1_data_out => bmu_read_bram1_port1_data_out,
-      bram2_port1_data_out => bmu_read_bram2_port1_data_out, bram3_port1_data_out => bmu_read_bram3_port1_data_out,
+      bram0_port0_data_out => bmu_read_bram0_data_out, bram1_port0_data_out => bmu_read_bram1_data_out,
+      bram2_port0_data_out => bmu_read_bram2_data_out, bram3_port0_data_out => bmu_read_bram3_data_out,
+      bram0_port1_data_out => (others => '0'), bram1_port1_data_out => (others => '0'),
+      bram2_port1_data_out => (others => '0'), bram3_port1_data_out => (others => '0'),
 
       data_out_0 => bmu_read_2_data(0), data_out_1 => bmu_read_2_data(1),
       data_out_2 => bmu_read_2_data(2), data_out_3 => bmu_read_2_data(3),
@@ -231,31 +215,20 @@ begin
     );
 
   --read mux
-  bmu_read_bram0_port0_addr <= r1_bram0_port0_addr when sel_bmu_read = '0' else r2_bram0_port0_addr;
-  bmu_read_bram1_port0_addr <= r1_bram1_port0_addr when sel_bmu_read = '0' else r2_bram1_port0_addr;
-  bmu_read_bram2_port0_addr <= r1_bram2_port0_addr when sel_bmu_read = '0' else r2_bram2_port0_addr;
-  bmu_read_bram3_port0_addr <= r1_bram3_port0_addr when sel_bmu_read = '0' else r2_bram3_port0_addr;
-  bmu_read_bram0_port1_addr <= r1_bram0_port1_addr when sel_bmu_read = '0' else r2_bram0_port1_addr;
-  bmu_read_bram1_port1_addr <= r1_bram1_port1_addr when sel_bmu_read = '0' else r2_bram1_port1_addr;
-  bmu_read_bram2_port1_addr <= r1_bram2_port1_addr when sel_bmu_read = '0' else r2_bram2_port1_addr;
-  bmu_read_bram3_port1_addr <= r1_bram3_port1_addr when sel_bmu_read = '0' else r2_bram3_port1_addr;
+  bmu_read_bram0_addr <= r1_bram0_port0_addr when sel_bmu_read = '0' else r2_bram0_port0_addr;
+  bmu_read_bram1_addr <= r1_bram1_port0_addr when sel_bmu_read = '0' else r2_bram1_port0_addr;
+  bmu_read_bram2_addr <= r1_bram2_port0_addr when sel_bmu_read = '0' else r2_bram2_port0_addr;
+  bmu_read_bram3_addr <= r1_bram3_port0_addr when sel_bmu_read = '0' else r2_bram3_port0_addr;
 
-  bmu_read_bram0_port0_en <= r1_bram0_port0_en when sel_bmu_read = '0' else r2_bram0_port0_en;
-  bmu_read_bram1_port0_en <= r1_bram1_port0_en when sel_bmu_read = '0' else r2_bram1_port0_en;
-  bmu_read_bram2_port0_en <= r1_bram2_port0_en when sel_bmu_read = '0' else r2_bram2_port0_en;
-  bmu_read_bram3_port0_en <= r1_bram3_port0_en when sel_bmu_read = '0' else r2_bram3_port0_en;
-  bmu_read_bram0_port1_en <= r1_bram0_port1_en when sel_bmu_read = '0' else r2_bram0_port1_en;
-  bmu_read_bram1_port1_en <= r1_bram1_port1_en when sel_bmu_read = '0' else r2_bram1_port1_en;
-  bmu_read_bram2_port1_en <= r1_bram2_port1_en when sel_bmu_read = '0' else r2_bram2_port1_en;
-  bmu_read_bram3_port1_en <= r1_bram3_port1_en when sel_bmu_read = '0' else r2_bram3_port1_en;
+  bmu_read_bram0_en <= r1_bram0_port0_en when sel_bmu_read = '0' else r2_bram0_port0_en;
+  bmu_read_bram1_en <= r1_bram1_port0_en when sel_bmu_read = '0' else r2_bram1_port0_en;
+  bmu_read_bram2_en <= r1_bram2_port0_en when sel_bmu_read = '0' else r2_bram2_port0_en;
+  bmu_read_bram3_en <= r1_bram3_port0_en when sel_bmu_read = '0' else r2_bram3_port0_en;
 
-  bmu_read_bram0_port0_we <= '0'; bmu_read_bram1_port0_we <= '0'; bmu_read_bram2_port0_we <= '0'; bmu_read_bram3_port0_we <= '0';
-  bmu_read_bram0_port1_we <= '0'; bmu_read_bram1_port1_we <= '0'; bmu_read_bram2_port1_we <= '0'; bmu_read_bram3_port1_we <= '0';
+  bmu_read_bram0_we <= '0'; bmu_read_bram1_we <= '0'; bmu_read_bram2_we <= '0'; bmu_read_bram3_we <= '0';
 
-  bmu_read_bram0_port0_data_in <= (others => '0'); bmu_read_bram1_port0_data_in <= (others => '0');
-  bmu_read_bram2_port0_data_in <= (others => '0'); bmu_read_bram3_port0_data_in <= (others => '0');
-  bmu_read_bram0_port1_data_in <= (others => '0'); bmu_read_bram1_port1_data_in <= (others => '0');
-  bmu_read_bram2_port1_data_in <= (others => '0'); bmu_read_bram3_port1_data_in <= (others => '0');
+  bmu_read_bram0_data_in <= (others => '0'); bmu_read_bram1_data_in <= (others => '0');
+  bmu_read_bram2_data_in <= (others => '0'); bmu_read_bram3_data_in <= (others => '0');
 
   bmu_read_sel_data <= bmu_read_1_data when sel_bmu_read = '0' else bmu_read_2_data;
 
@@ -298,30 +271,26 @@ begin
       operation_start  => vec_osw,
       operation_length => std_logic_vector(resize(unsigned(vec_olw), BUFFER_SIZE_BITS)),
 
-      bram0_port0_addr => bmu_write_bram0_port0_addr, bram1_port0_addr => bmu_write_bram1_port0_addr,
-      bram2_port0_addr => bmu_write_bram2_port0_addr, bram3_port0_addr => bmu_write_bram3_port0_addr,
-      bram0_port1_addr => bmu_write_bram0_port1_addr, bram1_port1_addr => bmu_write_bram1_port1_addr,
-      bram2_port1_addr => bmu_write_bram2_port1_addr, bram3_port1_addr => bmu_write_bram3_port1_addr,
+      bram0_port0_addr => bmu_write_bram0_addr, bram1_port0_addr => bmu_write_bram1_addr,
+      bram2_port0_addr => bmu_write_bram2_addr, bram3_port0_addr => bmu_write_bram3_addr,
+      bram0_port1_addr => open, bram1_port1_addr => open, bram2_port1_addr => open, bram3_port1_addr => open,
 
-      bram0_port0_we => bmu_write_bram0_port0_we, bram1_port0_we => bmu_write_bram1_port0_we,
-      bram2_port0_we => bmu_write_bram2_port0_we, bram3_port0_we => bmu_write_bram3_port0_we,
-      bram0_port1_we => bmu_write_bram0_port1_we, bram1_port1_we => bmu_write_bram1_port1_we,
-      bram2_port1_we => bmu_write_bram2_port1_we, bram3_port1_we => bmu_write_bram3_port1_we,
+      bram0_port0_we => bmu_write_bram0_we, bram1_port0_we => bmu_write_bram1_we,
+      bram2_port0_we => bmu_write_bram2_we, bram3_port0_we => bmu_write_bram3_we,
+      bram0_port1_we => open, bram1_port1_we => open, bram2_port1_we => open, bram3_port1_we => open,
 
-      bram0_port0_en => bmu_write_bram0_port0_en, bram1_port0_en => bmu_write_bram1_port0_en,
-      bram2_port0_en => bmu_write_bram2_port0_en, bram3_port0_en => bmu_write_bram3_port0_en,
-      bram0_port1_en => bmu_write_bram0_port1_en, bram1_port1_en => bmu_write_bram1_port1_en,
-      bram2_port1_en => bmu_write_bram2_port1_en, bram3_port1_en => bmu_write_bram3_port1_en,
+      bram0_port0_en => bmu_write_bram0_en, bram1_port0_en => bmu_write_bram1_en,
+      bram2_port0_en => bmu_write_bram2_en, bram3_port0_en => bmu_write_bram3_en,
+      bram0_port1_en => open, bram1_port1_en => open, bram2_port1_en => open, bram3_port1_en => open,
 
-      bram0_port0_data_in => bmu_write_bram0_port0_data_in, bram1_port0_data_in => bmu_write_bram1_port0_data_in,
-      bram2_port0_data_in => bmu_write_bram2_port0_data_in, bram3_port0_data_in => bmu_write_bram3_port0_data_in,
-      bram0_port1_data_in => bmu_write_bram0_port1_data_in, bram1_port1_data_in => bmu_write_bram1_port1_data_in,
-      bram2_port1_data_in => bmu_write_bram2_port1_data_in, bram3_port1_data_in => bmu_write_bram3_port1_data_in,
+      bram0_port0_data_in => bmu_write_bram0_data_in, bram1_port0_data_in => bmu_write_bram1_data_in,
+      bram2_port0_data_in => bmu_write_bram2_data_in, bram3_port0_data_in => bmu_write_bram3_data_in,
+      bram0_port1_data_in => open, bram1_port1_data_in => open, bram2_port1_data_in => open, bram3_port1_data_in => open,
 
-      bram0_port0_data_out => bmu_write_bram0_port0_data_out, bram1_port0_data_out => bmu_write_bram1_port0_data_out,
-      bram2_port0_data_out => bmu_write_bram2_port0_data_out, bram3_port0_data_out => bmu_write_bram3_port0_data_out,
-      bram0_port1_data_out => bmu_write_bram0_port1_data_out, bram1_port1_data_out => bmu_write_bram1_port1_data_out,
-      bram2_port1_data_out => bmu_write_bram2_port1_data_out, bram3_port1_data_out => bmu_write_bram3_port1_data_out,
+      bram0_port0_data_out => bmu_write_bram0_data_out, bram1_port0_data_out => bmu_write_bram1_data_out,
+      bram2_port0_data_out => bmu_write_bram2_data_out, bram3_port0_data_out => bmu_write_bram3_data_out,
+      bram0_port1_data_out => (others => '0'), bram1_port1_data_out => (others => '0'),
+      bram2_port1_data_out => (others => '0'), bram3_port1_data_out => (others => '0'),
 
       data_in_0 => bmu_write_data(0), data_in_1 => bmu_write_data(1),
       data_in_2 => bmu_write_data(2), data_in_3 => bmu_write_data(3),

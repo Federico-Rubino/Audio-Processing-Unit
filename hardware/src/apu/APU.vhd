@@ -4,8 +4,8 @@ use IEEE.NUMERIC_STD.ALL;
 use work.apu_opcode_pkg.all;
 use work.apu_internal_pkg.all;
 
--- Top-level APU: AudioCU (instruction fetch/decode/execute) + AudioIO unit,
--- connected to the shared a-ram through aram_mux.
+-- Top-level APU: AudioCU (instruction fetch/decode/execute) + AudioIO unit +
+-- VPU, connected to the shared a-ram through aram_mux.
 --
 -- All memory lives inside APU, as named BRAM instances below -- create
 -- matching Vivado Block Memory Generator IPs with these same names to back
@@ -18,11 +18,16 @@ use work.apu_internal_pkg.all;
 -- connects here, giving the CPU AXI access. Port B is AudioCU's own,
 -- entirely internal.
 --
--- FFT/Parallel-ALU units don't exist yet, so AudioCU's fft_*/vec_* control
--- outputs are left open and their *_end inputs tied low -- shaders using
--- those opcodes will stall forever until those units are built. Same for
--- aram_mux's vpu_*/fft_*/ps_* ports: tied to idle/open since only AudioIO
--- is wired up "for now" per the current scope.
+-- VPU's two internal buses (bmu_read_bram*, shared read for both its input
+-- operands; bmu_write_bram*, its output) both only ever use port0 (LANES=4),
+-- so they fold onto aram_mux's single vpu_bram* reservation without
+-- colliding: read -> vpu_bram*_port0_*, write -> vpu_bram*_port1_*.
+--
+-- FFT unit doesn't exist yet, so AudioCU's fft_* control outputs are left
+-- open and fft_end is tied low -- shaders using FFT/IFFT will stall
+-- forever until it's built. Same for aram_mux's fft_*/ps_* ports: tied to
+-- idle/open since only AudioIO and VPU are wired up "for now" per the
+-- current scope.
 entity APU is
     Generic (
         ARAM_WORD_SIZE    : integer := 32;    -- word size of aram and iram
@@ -73,6 +78,14 @@ architecture Behavioral of APU is
     signal aio_out_bs_sig, aio_out_bl_sig, aio_out_os_sig, aio_out_ol_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
     signal grain_ready_l_sig, grain_ready_r_sig : std_logic;
 
+    -- AudioCU <-> vpu (CU control side)
+    signal vec_end_sig, vec_en_sig : std_logic;
+    signal vec_op_sig     : vec_op_t;
+    signal vec_scalar_sig : std_logic_vector(15 downto 0);
+    signal vec_bsr1_sig, vec_blr1_sig, vec_osr1_sig, vec_olr1_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal vec_bsr2_sig, vec_blr2_sig, vec_osr2_sig, vec_olr2_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal vec_bsw_sig, vec_blw_sig, vec_osw_sig, vec_olw_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+
     -- audioIO <-> aram_mux (audio in unit's raw a-ram bus)
     signal ain_bram0_port0_addr_sig, ain_bram1_port0_addr_sig, ain_bram2_port0_addr_sig, ain_bram3_port0_addr_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
     signal ain_bram0_port1_addr_sig, ain_bram1_port1_addr_sig, ain_bram2_port1_addr_sig, ain_bram3_port1_addr_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
@@ -96,6 +109,20 @@ architecture Behavioral of APU is
     signal aout_bram0_port1_data_in_sig, aout_bram1_port1_data_in_sig, aout_bram2_port1_data_in_sig, aout_bram3_port1_data_in_sig : std_logic_vector(31 downto 0);
     signal aout_bram0_port0_data_out_sig, aout_bram1_port0_data_out_sig, aout_bram2_port0_data_out_sig, aout_bram3_port0_data_out_sig : std_logic_vector(31 downto 0);
     signal aout_bram0_port1_data_out_sig, aout_bram1_port1_data_out_sig, aout_bram2_port1_data_out_sig, aout_bram3_port1_data_out_sig : std_logic_vector(31 downto 0);
+
+    -- vpu <-> aram_mux, read bus (bmu_read_1/bmu_read_2 shared inside vpu) -> real port0
+    signal vpur_bram0_addr_sig, vpur_bram1_addr_sig, vpur_bram2_addr_sig, vpur_bram3_addr_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal vpur_bram0_we_sig, vpur_bram1_we_sig, vpur_bram2_we_sig, vpur_bram3_we_sig : std_logic;
+    signal vpur_bram0_en_sig, vpur_bram1_en_sig, vpur_bram2_en_sig, vpur_bram3_en_sig : std_logic;
+    signal vpur_bram0_data_in_sig, vpur_bram1_data_in_sig, vpur_bram2_data_in_sig, vpur_bram3_data_in_sig : std_logic_vector(31 downto 0);
+    signal vpur_bram0_data_out_sig, vpur_bram1_data_out_sig, vpur_bram2_data_out_sig, vpur_bram3_data_out_sig : std_logic_vector(31 downto 0);
+
+    -- vpu <-> aram_mux, write bus (bmu_write inside vpu) -> real port1
+    signal vpuw_bram0_addr_sig, vpuw_bram1_addr_sig, vpuw_bram2_addr_sig, vpuw_bram3_addr_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal vpuw_bram0_we_sig, vpuw_bram1_we_sig, vpuw_bram2_we_sig, vpuw_bram3_we_sig : std_logic;
+    signal vpuw_bram0_en_sig, vpuw_bram1_en_sig, vpuw_bram2_en_sig, vpuw_bram3_en_sig : std_logic;
+    signal vpuw_bram0_data_in_sig, vpuw_bram1_data_in_sig, vpuw_bram2_data_in_sig, vpuw_bram3_data_in_sig : std_logic_vector(31 downto 0);
+    signal vpuw_bram0_data_out_sig, vpuw_bram1_data_out_sig, vpuw_bram2_data_out_sig, vpuw_bram3_data_out_sig : std_logic_vector(31 downto 0);
 
     -- aram_mux <-> the 4 internal a-ram blocks (real, physical side)
     signal bram0_port0_addr_sig, bram1_port0_addr_sig, bram2_port0_addr_sig, bram3_port0_addr_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
@@ -143,12 +170,11 @@ begin
             fft_bsr => open, fft_blr => open, fft_osr => open, fft_olr => open,
             fft_bsw => open, fft_blw => open, fft_osw => open, fft_olw => open,
 
-            -- no Parallel ALU / VPU unit yet: same treatment
-            vec_end => '0',
-            vec_en => open, vec_op => open, vec_scalar => open,
-            vec_bsr1 => open, vec_blr1 => open, vec_osr1 => open, vec_olr1 => open,
-            vec_bsr2 => open, vec_blr2 => open, vec_osr2 => open, vec_olr2 => open,
-            vec_bsw => open, vec_blw => open, vec_osw => open, vec_olw => open
+            vec_end => vec_end_sig,
+            vec_en => vec_en_sig, vec_op => vec_op_sig, vec_scalar => vec_scalar_sig,
+            vec_bsr1 => vec_bsr1_sig, vec_blr1 => vec_blr1_sig, vec_osr1 => vec_osr1_sig, vec_olr1 => vec_olr1_sig,
+            vec_bsr2 => vec_bsr2_sig, vec_blr2 => vec_blr2_sig, vec_osr2 => vec_osr2_sig, vec_olr2 => vec_olr2_sig,
+            vec_bsw => vec_bsw_sig, vec_blw => vec_blw_sig, vec_osw => vec_osw_sig, vec_olw => vec_olw_sig
         );
 
     aio : entity work.audioIO
@@ -239,6 +265,45 @@ begin
             aout_bram2_port1_data_out => aout_bram2_port1_data_out_sig, aout_bram3_port1_data_out => aout_bram3_port1_data_out_sig
         );
 
+    -- VPU's two internal buses only ever use their own port0 (LANES=4); the
+    -- port1 sides are left open/tied since they're never enabled.
+    vpu_inst : entity work.vpu
+        generic map (
+            BUFFER_ADDR_WIDTH => ARAM_ADDR_SIZE,
+            BUFFER_SIZE_BITS  => ARAM_WORD_SIZE
+        )
+        port map (
+            clk => clk, rst => rst,
+
+            vec_end => vec_end_sig,
+            vec_en => vec_en_sig, vec_op => vec_op_sig, vec_scalar => vec_scalar_sig,
+            vec_bsr1 => vec_bsr1_sig, vec_blr1 => vec_blr1_sig, vec_osr1 => vec_osr1_sig, vec_olr1 => vec_olr1_sig,
+            vec_bsr2 => vec_bsr2_sig, vec_blr2 => vec_blr2_sig, vec_osr2 => vec_osr2_sig, vec_olr2 => vec_olr2_sig,
+            vec_bsw => vec_bsw_sig, vec_blw => vec_blw_sig, vec_osw => vec_osw_sig, vec_olw => vec_olw_sig,
+
+            bmu_read_bram0_addr => vpur_bram0_addr_sig, bmu_read_bram1_addr => vpur_bram1_addr_sig,
+            bmu_read_bram2_addr => vpur_bram2_addr_sig, bmu_read_bram3_addr => vpur_bram3_addr_sig,
+            bmu_read_bram0_we => vpur_bram0_we_sig, bmu_read_bram1_we => vpur_bram1_we_sig,
+            bmu_read_bram2_we => vpur_bram2_we_sig, bmu_read_bram3_we => vpur_bram3_we_sig,
+            bmu_read_bram0_en => vpur_bram0_en_sig, bmu_read_bram1_en => vpur_bram1_en_sig,
+            bmu_read_bram2_en => vpur_bram2_en_sig, bmu_read_bram3_en => vpur_bram3_en_sig,
+            bmu_read_bram0_data_in => vpur_bram0_data_in_sig, bmu_read_bram1_data_in => vpur_bram1_data_in_sig,
+            bmu_read_bram2_data_in => vpur_bram2_data_in_sig, bmu_read_bram3_data_in => vpur_bram3_data_in_sig,
+            bmu_read_bram0_data_out => vpur_bram0_data_out_sig, bmu_read_bram1_data_out => vpur_bram1_data_out_sig,
+            bmu_read_bram2_data_out => vpur_bram2_data_out_sig, bmu_read_bram3_data_out => vpur_bram3_data_out_sig,
+
+            bmu_write_bram0_addr => vpuw_bram0_addr_sig, bmu_write_bram1_addr => vpuw_bram1_addr_sig,
+            bmu_write_bram2_addr => vpuw_bram2_addr_sig, bmu_write_bram3_addr => vpuw_bram3_addr_sig,
+            bmu_write_bram0_we => vpuw_bram0_we_sig, bmu_write_bram1_we => vpuw_bram1_we_sig,
+            bmu_write_bram2_we => vpuw_bram2_we_sig, bmu_write_bram3_we => vpuw_bram3_we_sig,
+            bmu_write_bram0_en => vpuw_bram0_en_sig, bmu_write_bram1_en => vpuw_bram1_en_sig,
+            bmu_write_bram2_en => vpuw_bram2_en_sig, bmu_write_bram3_en => vpuw_bram3_en_sig,
+            bmu_write_bram0_data_in => vpuw_bram0_data_in_sig, bmu_write_bram1_data_in => vpuw_bram1_data_in_sig,
+            bmu_write_bram2_data_in => vpuw_bram2_data_in_sig, bmu_write_bram3_data_in => vpuw_bram3_data_in_sig,
+            bmu_write_bram0_data_out => vpuw_bram0_data_out_sig, bmu_write_bram1_data_out => vpuw_bram1_data_out_sig,
+            bmu_write_bram2_data_out => vpuw_bram2_data_out_sig, bmu_write_bram3_data_out => vpuw_bram3_data_out_sig
+        );
+
     mux : entity work.aram_mux
         generic map (
             BUFFER_ADDR_WIDTH => ARAM_ADDR_SIZE,
@@ -289,23 +354,28 @@ begin
             aout_bram0_port1_data_out => aout_bram0_port1_data_out_sig, aout_bram1_port1_data_out => aout_bram1_port1_data_out_sig,
             aout_bram2_port1_data_out => aout_bram2_port1_data_out_sig, aout_bram3_port1_data_out => aout_bram3_port1_data_out_sig,
 
-            -- no VPU unit yet: inputs tied idle, outputs unused
-            vpu_bram0_port0_addr => (others => '0'), vpu_bram1_port0_addr => (others => '0'),
-            vpu_bram2_port0_addr => (others => '0'), vpu_bram3_port0_addr => (others => '0'),
-            vpu_bram0_port1_addr => (others => '0'), vpu_bram1_port1_addr => (others => '0'),
-            vpu_bram2_port1_addr => (others => '0'), vpu_bram3_port1_addr => (others => '0'),
-            vpu_bram0_port0_we => '0', vpu_bram1_port0_we => '0', vpu_bram2_port0_we => '0', vpu_bram3_port0_we => '0',
-            vpu_bram0_port1_we => '0', vpu_bram1_port1_we => '0', vpu_bram2_port1_we => '0', vpu_bram3_port1_we => '0',
-            vpu_bram0_port0_en => '0', vpu_bram1_port0_en => '0', vpu_bram2_port0_en => '0', vpu_bram3_port0_en => '0',
-            vpu_bram0_port1_en => '0', vpu_bram1_port1_en => '0', vpu_bram2_port1_en => '0', vpu_bram3_port1_en => '0',
-            vpu_bram0_port0_data_in => (others => '0'), vpu_bram1_port0_data_in => (others => '0'),
-            vpu_bram2_port0_data_in => (others => '0'), vpu_bram3_port0_data_in => (others => '0'),
-            vpu_bram0_port1_data_in => (others => '0'), vpu_bram1_port1_data_in => (others => '0'),
-            vpu_bram2_port1_data_in => (others => '0'), vpu_bram3_port1_data_in => (others => '0'),
-            vpu_bram0_port0_data_out => open, vpu_bram1_port0_data_out => open,
-            vpu_bram2_port0_data_out => open, vpu_bram3_port0_data_out => open,
-            vpu_bram0_port1_data_out => open, vpu_bram1_port1_data_out => open,
-            vpu_bram2_port1_data_out => open, vpu_bram3_port1_data_out => open,
+            -- VPU read bus (4 read lanes) -> real port0, one per BRAM
+            -- VPU write bus (4 write lanes) -> real port1, one per BRAM
+            vpu_bram0_port0_addr => vpur_bram0_addr_sig, vpu_bram1_port0_addr => vpur_bram1_addr_sig,
+            vpu_bram2_port0_addr => vpur_bram2_addr_sig, vpu_bram3_port0_addr => vpur_bram3_addr_sig,
+            vpu_bram0_port1_addr => vpuw_bram0_addr_sig, vpu_bram1_port1_addr => vpuw_bram1_addr_sig,
+            vpu_bram2_port1_addr => vpuw_bram2_addr_sig, vpu_bram3_port1_addr => vpuw_bram3_addr_sig,
+            vpu_bram0_port0_we => vpur_bram0_we_sig, vpu_bram1_port0_we => vpur_bram1_we_sig,
+            vpu_bram2_port0_we => vpur_bram2_we_sig, vpu_bram3_port0_we => vpur_bram3_we_sig,
+            vpu_bram0_port1_we => vpuw_bram0_we_sig, vpu_bram1_port1_we => vpuw_bram1_we_sig,
+            vpu_bram2_port1_we => vpuw_bram2_we_sig, vpu_bram3_port1_we => vpuw_bram3_we_sig,
+            vpu_bram0_port0_en => vpur_bram0_en_sig, vpu_bram1_port0_en => vpur_bram1_en_sig,
+            vpu_bram2_port0_en => vpur_bram2_en_sig, vpu_bram3_port0_en => vpur_bram3_en_sig,
+            vpu_bram0_port1_en => vpuw_bram0_en_sig, vpu_bram1_port1_en => vpuw_bram1_en_sig,
+            vpu_bram2_port1_en => vpuw_bram2_en_sig, vpu_bram3_port1_en => vpuw_bram3_en_sig,
+            vpu_bram0_port0_data_in => vpur_bram0_data_in_sig, vpu_bram1_port0_data_in => vpur_bram1_data_in_sig,
+            vpu_bram2_port0_data_in => vpur_bram2_data_in_sig, vpu_bram3_port0_data_in => vpur_bram3_data_in_sig,
+            vpu_bram0_port1_data_in => vpuw_bram0_data_in_sig, vpu_bram1_port1_data_in => vpuw_bram1_data_in_sig,
+            vpu_bram2_port1_data_in => vpuw_bram2_data_in_sig, vpu_bram3_port1_data_in => vpuw_bram3_data_in_sig,
+            vpu_bram0_port0_data_out => vpur_bram0_data_out_sig, vpu_bram1_port0_data_out => vpur_bram1_data_out_sig,
+            vpu_bram2_port0_data_out => vpur_bram2_data_out_sig, vpu_bram3_port0_data_out => vpur_bram3_data_out_sig,
+            vpu_bram0_port1_data_out => vpuw_bram0_data_out_sig, vpu_bram1_port1_data_out => vpuw_bram1_data_out_sig,
+            vpu_bram2_port1_data_out => vpuw_bram2_data_out_sig, vpu_bram3_port1_data_out => vpuw_bram3_data_out_sig,
 
             -- no FFT unit yet: same treatment
             fft_bram0_port0_addr => (others => '0'), fft_bram1_port0_addr => (others => '0'),
