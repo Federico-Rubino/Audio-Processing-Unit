@@ -12,7 +12,7 @@
         output_buffer_start_reg=buf
         output_buffer_length_reg=len
         output_operation_start_reg=op_start
-        scalar_parameter=gain
+        scalar_parameter_reg=gain
         input_buffer_1_start_reg=buf
         input_buffer_1_length_reg=len
         input_operation_1_start_reg=op_start

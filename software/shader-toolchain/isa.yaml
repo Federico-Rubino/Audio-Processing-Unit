@@ -56,7 +56,8 @@ opcodes:
     fields: *audio_io_fields
 
   LOAD:
-    value: 0xB
+    value: 0x
+    implemented: false
     fields:
       - {name: instr_ram_start_addr, msb: 45, lsb: 36}
       - {name: buffer_start_reg, msb: 35, lsb: 27}
