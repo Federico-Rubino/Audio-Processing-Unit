@@ -5,7 +5,7 @@
 #
 # IMPORTANT -- every param field below is an OFFSET, not an immediate value.
 # There are no literal/immediate param fields in this ISA -- that includes
-# scalar_parameter, despite the name suggesting otherwise.
+# scalar_parameter_reg, despite older revisions of this ISA treating it as one.
 #
 # A param field is an index into the shared CPU<->APU BRAM's param table
 # (see software/apu/include/apu.h: apu_t.param_mem_left / param_mem_right,
@@ -66,7 +66,7 @@ opcodes:
 
   ADD_VEC:
     value: 0x3
-    fields:
+    fields: &vector_op_fields
       - {name: output_buffer_start_reg, msb: 89, lsb: 81}
       - {name: output_buffer_length_reg, msb: 80, lsb: 72}
       - {name: output_operation_start_reg, msb: 71, lsb: 63}
@@ -80,12 +80,16 @@ opcodes:
 
   ADD_SCALAR:
     value: 0x4
-    fields:
+    fields: &scalar_op_fields
       - {name: output_buffer_start_reg, msb: 89, lsb: 81}
       - {name: output_buffer_length_reg, msb: 80, lsb: 72}
       - {name: output_operation_start_reg, msb: 71, lsb: 63}
-      # bits 62:52 unused
-      - {name: scalar_parameter, msb: 51, lsb: 36}
+      # scalar reuses the input_buffer_2_start_reg slot -- scalar ops never
+      # consult a second input buffer, so the CU repurposes that one param
+      # read as the scalar's offset instead
+      - {name: scalar_parameter_reg, msb: 62, lsb: 54}
+      # bits 53:36 unused (input_buffer_2_length/operation_2_start slots
+      # are still fetched by the CU's uniform param loop, but discarded)
       - {name: input_buffer_1_start_reg, msb: 35, lsb: 27}
       - {name: input_buffer_1_length_reg, msb: 26, lsb: 18}
       - {name: input_operation_1_start_reg, msb: 17, lsb: 9}
@@ -114,23 +118,19 @@ opcodes:
 
   SUB_VECTOR:
     value: 0x5
-    implemented: false
-    fields: []
+    fields: *vector_op_fields
 
   SUB_SCALAR:
     value: 0x6
-    implemented: false
-    fields: []
+    fields: *scalar_op_fields
 
   MUL_VECTOR:
     value: 0x7
-    implemented: false
-    fields: []
+    fields: *vector_op_fields
 
   MUL_SCALAR:
     value: 0x8
-    implemented: false
-    fields: []
+    fields: *scalar_op_fields
 
   PITCH_SHIFT:
     value: 0x9
@@ -144,5 +144,4 @@ opcodes:
 
   MULC_VECTOR:
     value: 0xE
-    implemented: false
-    fields: []
+    fields: *vector_op_fields
