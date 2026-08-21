@@ -40,7 +40,7 @@ end vpuCU;
 
 architecture Behavioral of vpuCU is
 
-    type vpu_state is (IDLE, SETUP, INJECT, HOLD, DRAIN, DONE);
+    type vpu_state is (IDLE, SETUP, INJECT, HOLD, DRAIN, FINISH);
     signal state, next_state : vpu_state;
 
     signal dsp_op_sel_decoded : dsp_op_sel_array_t;
@@ -143,10 +143,10 @@ begin
 
             when DRAIN =>
                 if bmu_write_done = '1' then
-                    next_state <= DONE;
+                    next_state <= FINISH;
                 end if;
 
-            when DONE =>
+            when FINISH =>
                 next_state <= IDLE;
                 done <= '1';
 

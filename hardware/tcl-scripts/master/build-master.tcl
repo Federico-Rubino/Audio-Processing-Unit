@@ -45,6 +45,7 @@ set rtl_files [glob -nocomplain \
     "$repo_root/src/apu/audioIO/zedboard_audio/hdl/*.{v,vhd,sv}" \
     "$repo_root/src/apu/memory_controller/*.{v,vhd,sv}" \
     "$repo_root/src/apu/memory_controller/bmu/*.{v,vhd,sv}" \
+    "$repo_root/src/apu/vpu/*.{v,vhd,sv}" \
 ]
 if {[llength $rtl_files] > 0} {
     add_files $rtl_files
@@ -144,6 +145,12 @@ if {[llength $sim_files] > 0} {
 
 # 7. Add Testbenches & Simulation Assets (test/apu)
 set sim_files [glob -nocomplain "$repo_root/test/apu/*.{v,vhd,sv}"]
+if {[llength $sim_files] > 0} {
+    add_files -fileset sim_1 $sim_files
+    puts "Added [llength $sim_files] simulation files."
+}
+
+set sim_files [glob -nocomplain "$repo_root/test/apu/vpu/*.{v,vhd,sv}"]
 if {[llength $sim_files] > 0} {
     add_files -fileset sim_1 $sim_files
     puts "Added [llength $sim_files] simulation files."

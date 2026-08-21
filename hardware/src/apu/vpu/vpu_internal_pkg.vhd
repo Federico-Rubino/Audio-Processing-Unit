@@ -36,8 +36,10 @@ package body vpu_internal_pkg is
                     end if;
             end loop;
 
-            when others => return;
+            when others => null;
         end case;
+
+        return result;
     end function;
 
 end package body;
