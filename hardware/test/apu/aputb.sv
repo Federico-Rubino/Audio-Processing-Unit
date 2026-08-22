@@ -189,7 +189,7 @@ module aputb;
 
     // shader placed at word 3 instead of the "natural" word 2 -- see caveat 4
     localparam logic [10:0] SHADER_START_ADDR = 11'd3;
-    localparam logic [31:0] CONTROL_START_VALUE = 32'h00000007;
+    localparam logic [31:0] CONTROL_START_VALUE = 32'h00000003;
 
     // param offsets from the assembler's --emit-params manifest
     localparam int IN_BS = 0, IN_BL = 1, IN_OS = 2, IN_OL = 3;
