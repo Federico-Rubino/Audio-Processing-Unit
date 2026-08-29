@@ -47,7 +47,7 @@ module adau_sim #(
     parameter int BCLK_HALF_PERIOD_NS = 163,  // ~3.07 MHz BCLK
     parameter int SLOT_BITS           = 32,   // bits per channel slot
     parameter logic [15:0] WAVE_L_INIT = 16'h0000,
-    parameter logic [15:0] WAVE_R_INIT = 16'hA000
+    parameter logic [15:0] WAVE_R_INIT = 16'h0020
 ) (
     input  logic rst,
 
@@ -111,14 +111,14 @@ module adau_sim #(
                 // -- only do it once per frame, on the slot-1 -> slot-0 wrap
                 if (lrclk_r) begin
                     if (!wave_dir_l) begin
-                        if (wave_val_l == 16'hFFFF) begin
+                        if (wave_val_l == 16'h003F) begin
                             wave_dir_l <= 1'b1;
                             wave_val_l <= wave_val_l - 16'd1;
                         end else begin
                             wave_val_l <= wave_val_l + 16'd1;
                         end
                     end else begin
-                        if (wave_val_l == 16'h0000) begin
+                        if (wave_val_l == 16'hFFC0) begin
                             wave_dir_l <= 1'b0;
                             wave_val_l <= wave_val_l + 16'd1;
                         end else begin
@@ -127,14 +127,14 @@ module adau_sim #(
                     end
 
                     if (!wave_dir_r) begin
-                        if (wave_val_r == 16'hFFFF) begin
+                        if (wave_val_r == 16'h003F) begin
                             wave_dir_r <= 1'b1;
                             wave_val_r <= wave_val_r - 16'd1;
                         end else begin
                             wave_val_r <= wave_val_r + 16'd1;
                         end
                     end else begin
-                        if (wave_val_r == 16'h0000) begin
+                        if (wave_val_r == 16'hFFC0) begin
                             wave_dir_r <= 1'b0;
                             wave_val_r <= wave_val_r + 16'd1;
                         end else begin
