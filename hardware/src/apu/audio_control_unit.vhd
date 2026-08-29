@@ -330,19 +330,25 @@ begin
                         unit_select <= APU_UNIT_FFT;
                         fft_en <= '1';
                         
-                        -- Immediate flags directly from instruction bits
                         fwd_inv <= instr(123);
                         fft_size <= instr(122);
                         
                         fft_bsr <= buf1(ARAM_ADDR_SIZE*1-1 downto 0);
                         fft_blr <= buf1(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1);
                         fft_osr <= buf1(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2);
-                        fft_olr <= op_len;
                         
                         fft_bsw <= buf3(ARAM_ADDR_SIZE*1-1 downto 0);
                         fft_blw <= buf3(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1);
                         fft_osw <= buf3(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2);
-                        fft_olw <= op_len;
+
+                        -- FFT input is real and output is complex, so the size is double (opposite for IFFT)
+                        if op = APU_OP_FFT then
+                            fft_olr <= op_len;
+                            fft_olw <= op_len(ARAM_ADDR_SIZE-1 downto 1) & "0";
+                        else
+                            fft_olr <= op_len(ARAM_ADDR_SIZE-1 downto 1) & "0";
+                            fft_olw <= op_len;
+                        end if;
 
                         if fft_end = '1' then
                             next_state <= FETCH;

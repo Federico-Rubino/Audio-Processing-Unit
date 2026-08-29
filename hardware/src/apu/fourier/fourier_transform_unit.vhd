@@ -123,17 +123,39 @@ architecture Behavioral of fft_unit is
     signal bw_p0_we,   bw_p1_we   : std_logic;
     signal bw_p0_din,  bw_p1_din  : std_logic_vector(31 downto 0);
 
+    -- per-bank (lane) enables for banks 1-3: LANES=1 round-robins one
+    -- physical BRAM bank at a time, so each bank needs its own en/we pulse
+    -- instead of collapsing them all onto bank0's
+    signal bw_p0_en1, bw_p0_en2, bw_p0_en3 : std_logic;
+    signal bw_p0_we1, bw_p0_we2, bw_p0_we3 : std_logic;
+    signal br_p0_en1, br_p0_en2, br_p0_en3 : std_logic;
+
     -- FSM signals
     type state_type is (IDLE, CONFIG_FFT, PROCESSING, DONE);
     signal state, next_state : state_type;
     signal reg_fwd_inv : std_logic;
     signal reg_size    : std_logic;
     signal xilinx_fft_fwd_inv : std_logic;
+    signal tlast_seen  : std_logic;
+
+    -- Packing/Unpacking pipeline registers
+    signal fwd_phase        : std_logic;
+    signal fwd_data_reg     : std_logic_vector(31 downto 0);
+    signal fwd_last_reg     : std_logic;
+    signal fwd_data_valid   : std_logic;
+    signal br_read_pending  : std_logic;
+
+    signal inv_phase        : std_logic;
+    signal inv_pack_reg     : std_logic_vector(15 downto 0);
+    
+    signal bw_count_en_int  : std_logic;
+    signal bw_data_in_0_int : std_logic_vector(31 downto 0);
 
 begin
 
     xilinx_fft_fwd_inv <= '1' when reg_fwd_inv = '0' else '0';
-    block_size <= to_unsigned(256, ARAM_ADDR_SIZE) when reg_size = '0' else to_unsigned(512, ARAM_ADDR_SIZE);
+    --block_size <= to_unsigned(256, ARAM_ADDR_SIZE) when reg_size = '0' else to_unsigned(512, ARAM_ADDR_SIZE);
+    block_size <= to_unsigned(128, ARAM_ADDR_SIZE) when reg_size = '0' else to_unsigned(256, ARAM_ADDR_SIZE);
 
     fft_inst : entity work.fft
     port map (
@@ -209,13 +231,13 @@ begin
             bram0_port1_addr => bw_p1_addr, bram1_port1_addr => open,
             bram2_port1_addr => open,       bram3_port1_addr => open,
 
-            bram0_port0_we   => bw_p0_we,   bram1_port0_we   => open,
-            bram2_port0_we   => open,       bram3_port0_we   => open,
+            bram0_port0_we   => bw_p0_we,   bram1_port0_we   => bw_p0_we1,
+            bram2_port0_we   => bw_p0_we2,  bram3_port0_we   => bw_p0_we3,
             bram0_port1_we   => bw_p1_we,   bram1_port1_we   => open,
             bram2_port1_we   => open,       bram3_port1_we   => open,
 
-            bram0_port0_en   => bw_p0_en,   bram1_port0_en   => open,
-            bram2_port0_en   => open,       bram3_port0_en   => open,
+            bram0_port0_en   => bw_p0_en,   bram1_port0_en   => bw_p0_en1,
+            bram2_port0_en   => bw_p0_en2,  bram3_port0_en   => bw_p0_en3,
             bram0_port1_en   => bw_p1_en,   bram1_port1_en   => open,
             bram2_port1_en   => open,       bram3_port1_en   => open,
 
@@ -261,8 +283,8 @@ begin
             bram0_port1_we   => open,       bram1_port1_we   => open,
             bram2_port1_we   => open,       bram3_port1_we   => open,
 
-            bram0_port0_en   => br_p0_en,   bram1_port0_en   => open,   -- TODO check: we need to write on all brams, not only bram0
-            bram2_port0_en   => open,       bram3_port0_en   => open,
+            bram0_port0_en   => br_p0_en,   bram1_port0_en   => br_p0_en1,
+            bram2_port0_en   => br_p0_en2,  bram3_port0_en   => br_p0_en3,
             bram0_port1_en   => br_p1_en,   bram1_port1_en   => open,
             bram2_port1_en   => open,       bram3_port1_en   => open,
 
@@ -285,28 +307,28 @@ begin
         );
 
     -- BRAM multiplexing
-    bram0_port0_addr    <= bw_p0_addr when bw_p0_en = '1' else br_p0_addr;
-    bram1_port0_addr    <= bw_p0_addr when bw_p0_en = '1' else br_p0_addr;
-    bram2_port0_addr    <= bw_p0_addr when bw_p0_en = '1' else br_p0_addr;
-    bram3_port0_addr    <= bw_p0_addr when bw_p0_en = '1' else br_p0_addr;
+    bram0_port0_addr    <= bw_p0_addr when bw_p0_en  = '1' else br_p0_addr;
+    bram1_port0_addr    <= bw_p0_addr when bw_p0_en1 = '1' else br_p0_addr;
+    bram2_port0_addr    <= bw_p0_addr when bw_p0_en2 = '1' else br_p0_addr;
+    bram3_port0_addr    <= bw_p0_addr when bw_p0_en3 = '1' else br_p0_addr;
 
     bram0_port1_addr    <= bw_p1_addr when bw_p1_en = '1' else br_p1_addr;
     bram1_port1_addr    <= bw_p1_addr when bw_p1_en = '1' else br_p1_addr;
     bram2_port1_addr    <= bw_p1_addr when bw_p1_en = '1' else br_p1_addr;
     bram3_port1_addr    <= bw_p1_addr when bw_p1_en = '1' else br_p1_addr;
 
-    bram0_port0_en      <= bw_p0_en or br_p0_en;
-    bram1_port0_en      <= bw_p0_en or br_p0_en;
-    bram2_port0_en      <= bw_p0_en or br_p0_en;
-    bram3_port0_en      <= bw_p0_en or br_p0_en;
+    bram0_port0_en      <= bw_p0_en  or br_p0_en;
+    bram1_port0_en      <= bw_p0_en1 or br_p0_en1;
+    bram2_port0_en      <= bw_p0_en2 or br_p0_en2;
+    bram3_port0_en      <= bw_p0_en3 or br_p0_en3;
 
     bram0_port1_en      <= bw_p1_en or br_p1_en;
     bram1_port1_en      <= bw_p1_en or br_p1_en;
     bram2_port1_en      <= bw_p1_en or br_p1_en;
     bram3_port1_en      <= bw_p1_en or br_p1_en;
 
-    bram0_port0_we      <= bw_p0_we;  bram1_port0_we <= bw_p0_we;
-    bram2_port0_we      <= bw_p0_we;  bram3_port0_we <= bw_p0_we;
+    bram0_port0_we      <= bw_p0_we;  bram1_port0_we <= bw_p0_we1;
+    bram2_port0_we      <= bw_p0_we2; bram3_port0_we <= bw_p0_we3;
     bram0_port1_we      <= bw_p1_we;  bram1_port1_we <= bw_p1_we;
     bram2_port1_we      <= bw_p1_we;  bram3_port1_we <= bw_p1_we;
 
@@ -348,11 +370,21 @@ begin
                 state       <= IDLE;
                 reg_fwd_inv <= '0';
                 reg_size    <= '0';
+                tlast_seen  <= '0';
             else
                 state <= next_state;
-                if state = IDLE and en = '1' then
-                    reg_fwd_inv <= fwd_inv;
-                    reg_size    <= size;
+                
+                if state = IDLE then
+                    tlast_seen <= '0';
+                    if en = '1' then
+                        reg_fwd_inv <= fwd_inv;
+                        reg_size    <= size;
+                    end if;
+                elsif state = PROCESSING then
+                    if (reg_fwd_inv = '0' and m_axis_cordic_fwd_tlast = '1' and m_axis_cordic_fwd_tvalid = '1') or
+                       (reg_fwd_inv = '1' and m_axis_fft_data_tlast = '1' and m_axis_fft_data_tvalid = '1') then
+                        tlast_seen <= '1';  -- latch the tlast event
+                    end if;
                 end if;
             end if;
         end if;
@@ -391,11 +423,11 @@ begin
 
             when PROCESSING =>
                 if reg_fwd_inv = '0' then
-                    if m_axis_cordic_fwd_tlast = '1' and m_axis_cordic_fwd_tvalid = '1' and bw_done = '1' then
+                    if (tlast_seen = '1' or (m_axis_cordic_fwd_tlast = '1' and m_axis_cordic_fwd_tvalid = '1')) and bw_done = '1' then
                         next_state <= DONE;
                     end if;
                 else
-                    if m_axis_fft_data_tlast = '1' and m_axis_fft_data_tvalid = '1' and bw_done = '1' then
+                    if (tlast_seen = '1' or (m_axis_fft_data_tlast = '1' and m_axis_fft_data_tvalid = '1')) and bw_done = '1' then
                         next_state <= DONE;
                     end if;
                 end if;
@@ -411,37 +443,89 @@ begin
         end case;
     end process;
 
-    process(reg_fwd_inv, br_data_out_0, br_data_valid, br_data_last, br_done,
-            s_axis_fft_data_tready, m_axis_fft_data_tdata, m_axis_fft_data_tvalid, 
-            m_axis_fft_data_tlast, m_axis_fft_data_tuser, s_axis_cordic_inv_tready_cart, 
-            m_axis_cordic_inv_tdata, m_axis_cordic_inv_tvalid, m_axis_cordic_inv_tlast,
-            m_axis_cordic_fwd_tdata, m_axis_cordic_fwd_tvalid, s_axis_cordic_fwd_tready)
+    process(all)
     begin
         if reg_fwd_inv = '0' then
             -- FORWARD MODE: ARAM -> FFT -> CORDIC FWD -> ARAM
-            s_axis_fft_data_tdata  <= br_data_out_0;
-            s_axis_fft_data_tvalid <= br_data_valid;
-            s_axis_fft_data_tlast  <= br_data_last;
+            br_count_en <= not br_done and not br_read_pending and 
+                       (not fwd_data_valid or (fwd_phase and s_axis_fft_data_tready));
             
-            br_count_en <= s_axis_fft_data_tready and not br_done;
+            if fwd_phase = '0' then
+                s_axis_fft_data_tdata <= x"0000" & fwd_data_reg(15 downto 0);
+            else
+                s_axis_fft_data_tdata <= x"0000" & fwd_data_reg(31 downto 16);
+            end if;
+            
+            s_axis_fft_data_tvalid <= fwd_data_valid;
+            s_axis_fft_data_tlast  <= fwd_last_reg and fwd_phase;
+
             bw_data_in_0 <= m_axis_cordic_fwd_tdata;
             bw_count_en  <= m_axis_cordic_fwd_tvalid;
-
             m_axis_fft_data_tready <= s_axis_cordic_fwd_tready;
 
         else
             -- INVERSE MODE: ARAM -> CORDIC INV -> FFT -> ARAM
-            
             br_count_en <= s_axis_cordic_inv_tready_cart and not br_done;
 
             s_axis_fft_data_tdata  <= m_axis_cordic_inv_tdata;
             s_axis_fft_data_tvalid <= m_axis_cordic_inv_tvalid;
             s_axis_fft_data_tlast  <= m_axis_cordic_inv_tlast;
 
-            bw_data_in_0 <= m_axis_fft_data_tdata;
-            bw_count_en  <= m_axis_fft_data_tvalid;
+            bw_data_in_0 <= bw_data_in_0_int;
+            bw_count_en  <= bw_count_en_int;
+            m_axis_fft_data_tready <= not bw_done;
+            
+        end if;
+    end process;
 
-            m_axis_fft_data_tready <= '1';
+    -- phase and buffer management process
+    process(clk)
+    begin
+        if rising_edge(clk) then
+            if rst = '0' or state = IDLE then
+                fwd_phase <= '0';
+                fwd_data_valid <= '0';
+                br_read_pending <= '0';
+                inv_phase <= '0';
+                bw_count_en_int <= '0';
+            else
+                bw_count_en_int <= '0';
+
+                if reg_fwd_inv = '0' then
+                    -- track pending BRAM reads
+                    if br_count_en = '1' then
+                        br_read_pending <= '1';
+                    elsif br_data_valid = '1' then
+                        br_read_pending <= '0';
+                        fwd_data_reg <= br_data_out_0;
+                        fwd_last_reg <= br_data_last;
+                        fwd_data_valid <= '1';
+                    end if;
+
+                    -- unpack 32-bit word into two 16-bit real samples (FFT)
+                    if fwd_data_valid = '1' and s_axis_fft_data_tready = '1' then
+                        if fwd_phase = '0' then
+                            fwd_phase <= '1';
+                        else
+                            fwd_phase <= '0';
+                            fwd_data_valid <= '0';
+                        end if;
+                    end if;
+
+                else
+                    -- pack two 16-bit real samples into one 32-bit word (IFFT)
+                    if m_axis_fft_data_tvalid = '1' and bw_done = '0' then
+                        if inv_phase = '0' then
+                            inv_pack_reg <= m_axis_fft_data_tdata(15 downto 0);
+                            inv_phase <= '1';
+                        else
+                            bw_data_in_0_int <= m_axis_fft_data_tdata(15 downto 0) & inv_pack_reg;
+                            bw_count_en_int <= '1';
+                            inv_phase <= '0';
+                        end if;
+                    end if;
+                end if;
+            end if;
         end if;
     end process;
 

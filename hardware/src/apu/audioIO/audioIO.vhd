@@ -402,20 +402,6 @@ begin
         
     line_in_l <= line_in_l_24b(23 downto 8);
     line_in_r <= line_in_r_24b(23 downto 8);
-    
---    process (new_sample)
---    begin
---        line_out_l_24b <= (others => '0');
---        line_out_r_24b <= (others => '0');
---        hphone_valid <= '0';
-        
---        if new_sample = '1' then
---            line_out_l_24b <= line_out_l & x"00";
---            line_out_r_24b <= line_out_r & x"00";
---            hphone_valid <= '1';
---        end if;
-    
---    end process;
 
     line_out_l_24b <= line_out_l & x"00";
     line_out_r_24b <= line_out_r & x"00";
@@ -423,9 +409,5 @@ begin
 
     sample_in <= line_in_l;
     sample_out <= line_out_l;
-
-    line_out_l_24b <= line_out_l & x"00";
-    line_out_r_24b <= line_out_r & x"00";
-    hphone_valid   <= new_sample;
 
 end Behavioral;
