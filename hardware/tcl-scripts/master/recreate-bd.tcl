@@ -272,13 +272,13 @@ proc create_root_design { parentCell } {
   # Create instance: RV32I_AXI_Bridge_0, and set properties
   set RV32I_AXI_Bridge_0 [ create_bd_cell -type ip -vlnv xilinx.com:user:RV32I_AXI_Bridge:1.0 RV32I_AXI_Bridge_0 ]
 
-  # Create instance: axi_bram_ctrl_0, and set properties
-  set axi_bram_ctrl_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_bram_ctrl:4.1 axi_bram_ctrl_0 ]
-  set_property CONFIG.SINGLE_PORT_BRAM {1} $axi_bram_ctrl_0
+  # Create instance: data_mem_ctrl, and set properties
+  set data_mem_ctrl [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_bram_ctrl:4.1 data_mem_ctrl ]
+  set_property CONFIG.SINGLE_PORT_BRAM {1} $data_mem_ctrl
 
 
-  # Create instance: axi_bram_ctrl_0_bram, and set properties
-  set axi_bram_ctrl_0_bram [ create_bd_cell -type ip -vlnv xilinx.com:ip:blk_mem_gen:8.4 axi_bram_ctrl_0_bram ]
+  # Create instance: data_mem_bram, and set properties
+  set data_mem_bram [ create_bd_cell -type ip -vlnv xilinx.com:ip:blk_mem_gen:8.4 data_mem_bram ]
   set_property -dict [list \
     CONFIG.Byte_Size {8} \
     CONFIG.Coe_File {c:/Users/campi/Documents/Uni/Audio-Processing-Unit/hardware/src/master/coe/bootloader_data_mem.coe} \
@@ -291,7 +291,7 @@ proc create_root_design { parentCell } {
     CONFIG.Write_Depth_A {8192} \
     CONFIG.Write_Width_A {32} \
     CONFIG.use_bram_block {Stand_Alone} \
-  ] $axi_bram_ctrl_0_bram
+  ] $data_mem_bram
 
 
   # Create instance: axi_smc, and set properties
@@ -305,17 +305,17 @@ proc create_root_design { parentCell } {
   # Create instance: rst_clk_wiz_100M, and set properties
   set rst_clk_wiz_100M [ create_bd_cell -type ip -vlnv xilinx.com:ip:proc_sys_reset:5.0 rst_clk_wiz_100M ]
 
-  # Create instance: xlslice_0, and set properties
-  set xlslice_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlslice:1.0 xlslice_0 ]
+  # Create instance: data_mem_addr_slice, and set properties
+  set data_mem_addr_slice [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlslice:1.0 data_mem_addr_slice ]
   set_property -dict [list \
     CONFIG.DIN_FROM {14} \
     CONFIG.DIN_TO {2} \
     CONFIG.DIN_WIDTH {15} \
-  ] $xlslice_0
+  ] $data_mem_addr_slice
 
 
-  # Create instance: blk_mem_gen_0, and set properties
-  set blk_mem_gen_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:blk_mem_gen:8.4 blk_mem_gen_0 ]
+  # Create instance: instr_mem_bram, and set properties
+  set instr_mem_bram [ create_bd_cell -type ip -vlnv xilinx.com:ip:blk_mem_gen:8.4 instr_mem_bram ]
   set_property -dict [list \
     CONFIG.Assume_Synchronous_Clk {false} \
     CONFIG.Byte_Size {8} \
@@ -329,15 +329,19 @@ proc create_root_design { parentCell } {
     CONFIG.Write_Depth_A {16384} \
     CONFIG.Write_Width_A {32} \
     CONFIG.use_bram_block {Stand_Alone} \
-  ] $blk_mem_gen_0
+  ] $instr_mem_bram
 
 
-  # Create instance: xlslice_1, and set properties
-  set xlslice_1 [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlslice:1.0 xlslice_1 ]
+  # Create instance: instr_fetch_addr_slice, and set properties
+  # DIN_FROM/DIN_TO select bits [15:2] of the 32-bit byte address from
+  # instr_mem_mux_0/instr_mem_addr_out to produce a 14-bit word address,
+  # matching instr_mem_bram/addra (Write_Depth_A=16384 -> 14-bit address).
+  set instr_fetch_addr_slice [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlslice:1.0 instr_fetch_addr_slice ]
   set_property -dict [list \
-    CONFIG.DIN_FROM {31} \
+    CONFIG.DIN_FROM {15} \
     CONFIG.DIN_TO {2} \
-  ] $xlslice_1
+    CONFIG.DIN_WIDTH {32} \
+  ] $instr_fetch_addr_slice
 
 
   # Create instance: axi_uartlite_0, and set properties
@@ -356,13 +360,13 @@ proc create_root_design { parentCell } {
      return 1
    }
   
-  # Create instance: axi_bram_ctrl_1, and set properties
-  set axi_bram_ctrl_1 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_bram_ctrl:4.1 axi_bram_ctrl_1 ]
-  set_property CONFIG.SINGLE_PORT_BRAM {1} $axi_bram_ctrl_1
+  # Create instance: instr_mem_ctrl, and set properties
+  set instr_mem_ctrl [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_bram_ctrl:4.1 instr_mem_ctrl ]
+  set_property CONFIG.SINGLE_PORT_BRAM {1} $instr_mem_ctrl
 
 
-  # Create instance: blk_mem_gen_1, and set properties
-  set blk_mem_gen_1 [ create_bd_cell -type ip -vlnv xilinx.com:ip:blk_mem_gen:8.4 blk_mem_gen_1 ]
+  # Create instance: boot_mem_bram, and set properties
+  set boot_mem_bram [ create_bd_cell -type ip -vlnv xilinx.com:ip:blk_mem_gen:8.4 boot_mem_bram ]
   set_property -dict [list \
     CONFIG.Coe_File {c:/Users/campi/Documents/Uni/Audio-Processing-Unit/hardware/src/master/coe/boot_loader_instr.coe} \
     CONFIG.Enable_32bit_Address {false} \
@@ -371,7 +375,7 @@ proc create_root_design { parentCell } {
     CONFIG.Register_PortA_Output_of_Memory_Primitives {true} \
     CONFIG.Write_Depth_A {1024} \
     CONFIG.use_bram_block {Stand_Alone} \
-  ] $blk_mem_gen_1
+  ] $boot_mem_bram
 
 
   # Create instance: clk_wiz_0, and set properties
@@ -388,21 +392,25 @@ proc create_root_design { parentCell } {
   ] $clk_wiz_0
 
 
-  # Create instance: xlslice_3, and set properties
-  set xlslice_3 [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlslice:1.0 xlslice_3 ]
+  # Create instance: boot_mem_addr_slice, and set properties
+  # DIN_FROM/DIN_TO select bits [11:2] of the 32-bit byte address from
+  # instr_mem_mux_0/boot_mem_addr_out to produce a 10-bit word address,
+  # matching boot_mem_bram/addra (Write_Depth_A=1024 -> 10-bit address).
+  set boot_mem_addr_slice [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlslice:1.0 boot_mem_addr_slice ]
   set_property -dict [list \
-    CONFIG.DIN_FROM {31} \
+    CONFIG.DIN_FROM {11} \
     CONFIG.DIN_TO {2} \
-  ] $xlslice_3
+    CONFIG.DIN_WIDTH {32} \
+  ] $boot_mem_addr_slice
 
 
-  # Create instance: xlslice_4, and set properties
-  set xlslice_4 [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlslice:1.0 xlslice_4 ]
+  # Create instance: instr_load_addr_slice, and set properties
+  set instr_load_addr_slice [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlslice:1.0 instr_load_addr_slice ]
   set_property -dict [list \
     CONFIG.DIN_FROM {15} \
     CONFIG.DIN_TO {2} \
     CONFIG.DIN_WIDTH {16} \
-  ] $xlslice_4
+  ] $instr_load_addr_slice
 
 
   # Create instance: axi_gpio_0, and set properties
@@ -427,34 +435,36 @@ proc create_root_design { parentCell } {
      return 1
    }
   
-  # Create instance: axi_bram_ctrl_2, and set properties
-  set axi_bram_ctrl_2 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_bram_ctrl:4.1 axi_bram_ctrl_2 ]
-  set_property CONFIG.SINGLE_PORT_BRAM {1} $axi_bram_ctrl_2
+  # Create instance: apu_ctrl, and set properties
+  set apu_ctrl [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_bram_ctrl:4.1 apu_ctrl ]
+  set_property CONFIG.SINGLE_PORT_BRAM {1} $apu_ctrl
 
 
-  # Create instance: xlslice_5, and set properties
-  # DIN_FROM/DIN_TO select bits [12:2] of the byte address (bram_addr_a) to
-  # produce an 11-bit word address, matching APU_0/addr (INSTR_ADDR_SIZE=11,
-  # covering the 8K/2048-word instr_bram range). Was previously [15:2] (14
-  # bits), wider than APU_0/addr actually is.
-  set xlslice_5 [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlslice:1.0 xlslice_5 ]
+  # Create instance: apu_addr_slice, and set properties
+  # DIN_WIDTH=13 matches apu_ctrl's actual bram_addr_a width (its AXI range
+  # is 0x2000 = 8192 bytes = 2^13). DIN_FROM/DIN_TO select bits [12:2] of
+  # that byte address to produce an 11-bit word address, matching
+  # APU_0/addr (INSTR_ADDR_SIZE=11, covering the 8K/2048-word instr_bram
+  # range). Was previously [15:2] (14 bits) over a declared 16-bit input,
+  # both wider than needed.
+  set apu_addr_slice [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlslice:1.0 apu_addr_slice ]
   set_property -dict [list \
     CONFIG.DIN_FROM {12} \
     CONFIG.DIN_TO {2} \
-    CONFIG.DIN_WIDTH {16} \
-  ] $xlslice_5
+    CONFIG.DIN_WIDTH {13} \
+  ] $apu_addr_slice
 
 
   # Create interface connections
   connect_bd_intf_net -intf_net RV32I_AXI_Bridge_0_M_AXI [get_bd_intf_pins RV32I_AXI_Bridge_0/M_AXI] [get_bd_intf_pins axi_smc/S00_AXI]
-  connect_bd_intf_net -intf_net axi_bram_ctrl_0_BRAM_PORTA [get_bd_intf_pins axi_bram_ctrl_0_bram/BRAM_PORTA] [get_bd_intf_pins axi_bram_ctrl_0/BRAM_PORTA]
+  connect_bd_intf_net -intf_net data_mem_ctrl_BRAM_PORTA [get_bd_intf_pins data_mem_bram/BRAM_PORTA] [get_bd_intf_pins data_mem_ctrl/BRAM_PORTA]
   connect_bd_intf_net -intf_net axi_gpio_0_GPIO [get_bd_intf_ports gpio_rtl_0] [get_bd_intf_pins axi_gpio_0/GPIO]
   connect_bd_intf_net -intf_net axi_gpio_0_GPIO2 [get_bd_intf_ports gpio_rtl_1] [get_bd_intf_pins axi_gpio_0/GPIO2]
-  connect_bd_intf_net -intf_net axi_smc_M00_AXI [get_bd_intf_pins axi_smc/M00_AXI] [get_bd_intf_pins axi_bram_ctrl_0/S_AXI]
+  connect_bd_intf_net -intf_net axi_smc_M00_AXI [get_bd_intf_pins axi_smc/M00_AXI] [get_bd_intf_pins data_mem_ctrl/S_AXI]
   connect_bd_intf_net -intf_net axi_smc_M01_AXI [get_bd_intf_pins axi_smc/M01_AXI] [get_bd_intf_pins axi_uartlite_0/S_AXI]
-  connect_bd_intf_net -intf_net axi_smc_M02_AXI [get_bd_intf_pins axi_smc/M02_AXI] [get_bd_intf_pins axi_bram_ctrl_1/S_AXI]
+  connect_bd_intf_net -intf_net axi_smc_M02_AXI [get_bd_intf_pins axi_smc/M02_AXI] [get_bd_intf_pins instr_mem_ctrl/S_AXI]
   connect_bd_intf_net -intf_net axi_smc_M03_AXI [get_bd_intf_pins axi_smc/M03_AXI] [get_bd_intf_pins axi_gpio_0/S_AXI]
-  connect_bd_intf_net -intf_net axi_smc_M04_AXI [get_bd_intf_pins axi_smc/M04_AXI] [get_bd_intf_pins axi_bram_ctrl_2/S_AXI]
+  connect_bd_intf_net -intf_net axi_smc_M04_AXI [get_bd_intf_pins axi_smc/M04_AXI] [get_bd_intf_pins apu_ctrl/S_AXI]
   connect_bd_intf_net -intf_net axi_uartlite_0_UART [get_bd_intf_ports uart_rtl_0] [get_bd_intf_pins axi_uartlite_0/UART]
 
   # Create port connections
@@ -475,7 +485,7 @@ proc create_root_design { parentCell } {
   connect_bd_net -net APU_0_AC_SCK  [get_bd_pins APU_0/AC_SCK] \
   [get_bd_ports AC_SCK_0]
   connect_bd_net -net APU_0_data_out  [get_bd_pins APU_0/data_out] \
-  [get_bd_pins axi_bram_ctrl_2/bram_rddata_a]
+  [get_bd_pins apu_ctrl/bram_rddata_a]
   connect_bd_net -net CPU_0_data_mem_addr  [get_bd_pins CPU_0/data_mem_addr] \
   [get_bd_pins RV32I_AXI_Bridge_0/cpu_addr]
   connect_bd_net -net CPU_0_data_mem_data_out  [get_bd_pins CPU_0/data_mem_data_out] \
@@ -494,71 +504,71 @@ proc create_root_design { parentCell } {
   [get_bd_pins CPU_0/data_mem_data_in]
   connect_bd_net -net RV32I_AXI_Bridge_0_cpu_stall  [get_bd_pins RV32I_AXI_Bridge_0/cpu_stall] \
   [get_bd_pins CPU_0/stall]
-  connect_bd_net -net axi_bram_ctrl_0_bram_addr_a  [get_bd_pins axi_bram_ctrl_0/bram_addr_a] \
-  [get_bd_pins xlslice_0/Din]
-  connect_bd_net -net axi_bram_ctrl_0_bram_clk_a  [get_bd_pins axi_bram_ctrl_0/bram_clk_a] \
-  [get_bd_pins axi_bram_ctrl_0_bram/clka]
-  connect_bd_net -net axi_bram_ctrl_0_bram_douta  [get_bd_pins axi_bram_ctrl_0_bram/douta] \
-  [get_bd_pins axi_bram_ctrl_0/bram_rddata_a]
-  connect_bd_net -net axi_bram_ctrl_0_bram_en_a  [get_bd_pins axi_bram_ctrl_0/bram_en_a] \
-  [get_bd_pins axi_bram_ctrl_0_bram/ena]
-  connect_bd_net -net axi_bram_ctrl_0_bram_we_a  [get_bd_pins axi_bram_ctrl_0/bram_we_a] \
-  [get_bd_pins axi_bram_ctrl_0_bram/wea]
-  connect_bd_net -net axi_bram_ctrl_0_bram_wrdata_a  [get_bd_pins axi_bram_ctrl_0/bram_wrdata_a] \
-  [get_bd_pins axi_bram_ctrl_0_bram/dina]
-  connect_bd_net -net axi_bram_ctrl_1_bram_addr_a  [get_bd_pins axi_bram_ctrl_1/bram_addr_a] \
-  [get_bd_pins xlslice_4/Din]
-  connect_bd_net -net axi_bram_ctrl_1_bram_clk_a  [get_bd_pins axi_bram_ctrl_1/bram_clk_a] \
-  [get_bd_pins blk_mem_gen_0/clkb]
-  connect_bd_net -net axi_bram_ctrl_1_bram_en_a  [get_bd_pins axi_bram_ctrl_1/bram_en_a] \
-  [get_bd_pins blk_mem_gen_0/enb]
-  connect_bd_net -net axi_bram_ctrl_1_bram_we_a  [get_bd_pins axi_bram_ctrl_1/bram_we_a] \
-  [get_bd_pins blk_mem_gen_0/web]
-  connect_bd_net -net axi_bram_ctrl_1_bram_wrdata_a  [get_bd_pins axi_bram_ctrl_1/bram_wrdata_a] \
-  [get_bd_pins blk_mem_gen_0/dinb]
-  connect_bd_net -net axi_bram_ctrl_2_bram_addr_a  [get_bd_pins axi_bram_ctrl_2/bram_addr_a] \
-  [get_bd_pins xlslice_5/Din]
-  connect_bd_net -net axi_bram_ctrl_2_bram_clk_a  [get_bd_pins axi_bram_ctrl_2/bram_clk_a] \
+  connect_bd_net -net data_mem_bram_addr_a  [get_bd_pins data_mem_ctrl/bram_addr_a] \
+  [get_bd_pins data_mem_addr_slice/Din]
+  connect_bd_net -net data_mem_bram_clk_a  [get_bd_pins data_mem_ctrl/bram_clk_a] \
+  [get_bd_pins data_mem_bram/clka]
+  connect_bd_net -net data_mem_bram_douta  [get_bd_pins data_mem_bram/douta] \
+  [get_bd_pins data_mem_ctrl/bram_rddata_a]
+  connect_bd_net -net data_mem_bram_en_a  [get_bd_pins data_mem_ctrl/bram_en_a] \
+  [get_bd_pins data_mem_bram/ena]
+  connect_bd_net -net data_mem_bram_we_a  [get_bd_pins data_mem_ctrl/bram_we_a] \
+  [get_bd_pins data_mem_bram/wea]
+  connect_bd_net -net data_mem_bram_wrdata_a  [get_bd_pins data_mem_ctrl/bram_wrdata_a] \
+  [get_bd_pins data_mem_bram/dina]
+  connect_bd_net -net instr_mem_ctrl_bram_addr_a  [get_bd_pins instr_mem_ctrl/bram_addr_a] \
+  [get_bd_pins instr_load_addr_slice/Din]
+  connect_bd_net -net instr_mem_ctrl_bram_clk_a  [get_bd_pins instr_mem_ctrl/bram_clk_a] \
+  [get_bd_pins instr_mem_bram/clkb]
+  connect_bd_net -net instr_mem_ctrl_bram_en_a  [get_bd_pins instr_mem_ctrl/bram_en_a] \
+  [get_bd_pins instr_mem_bram/enb]
+  connect_bd_net -net instr_mem_ctrl_bram_we_a  [get_bd_pins instr_mem_ctrl/bram_we_a] \
+  [get_bd_pins instr_mem_bram/web]
+  connect_bd_net -net instr_mem_ctrl_bram_wrdata_a  [get_bd_pins instr_mem_ctrl/bram_wrdata_a] \
+  [get_bd_pins instr_mem_bram/dinb]
+  connect_bd_net -net apu_ctrl_bram_addr_a  [get_bd_pins apu_ctrl/bram_addr_a] \
+  [get_bd_pins apu_addr_slice/Din]
+  connect_bd_net -net apu_ctrl_bram_clk_a  [get_bd_pins apu_ctrl/bram_clk_a] \
   [get_bd_pins APU_0/clk]
-  connect_bd_net -net axi_bram_ctrl_2_bram_en_a  [get_bd_pins axi_bram_ctrl_2/bram_en_a] \
+  connect_bd_net -net apu_ctrl_bram_en_a  [get_bd_pins apu_ctrl/bram_en_a] \
   [get_bd_pins APU_0/en]
-  connect_bd_net -net axi_bram_ctrl_2_bram_we_a  [get_bd_pins axi_bram_ctrl_2/bram_we_a] \
+  connect_bd_net -net apu_ctrl_bram_we_a  [get_bd_pins apu_ctrl/bram_we_a] \
   [get_bd_pins APU_0/we]
-  connect_bd_net -net axi_bram_ctrl_2_bram_wrdata_a  [get_bd_pins axi_bram_ctrl_2/bram_wrdata_a] \
+  connect_bd_net -net apu_ctrl_bram_wrdata_a  [get_bd_pins apu_ctrl/bram_wrdata_a] \
   [get_bd_pins APU_0/data_in]
-  connect_bd_net -net blk_mem_gen_0_douta  [get_bd_pins blk_mem_gen_0/douta] \
+  connect_bd_net -net instr_mem_bram_douta  [get_bd_pins instr_mem_bram/douta] \
   [get_bd_pins instr_mem_mux_0/instr_mem_data_in]
-  connect_bd_net -net blk_mem_gen_0_doutb  [get_bd_pins blk_mem_gen_0/doutb] \
-  [get_bd_pins axi_bram_ctrl_1/bram_rddata_a]
-  connect_bd_net -net blk_mem_gen_1_douta  [get_bd_pins blk_mem_gen_1/douta] \
+  connect_bd_net -net instr_mem_bram_doutb  [get_bd_pins instr_mem_bram/doutb] \
+  [get_bd_pins instr_mem_ctrl/bram_rddata_a]
+  connect_bd_net -net boot_mem_bram_douta  [get_bd_pins boot_mem_bram/douta] \
   [get_bd_pins instr_mem_mux_0/boot_mem_data_in]
   connect_bd_net -net clk_in1_0_1  [get_bd_ports clk_in1_0] \
   [get_bd_pins clk_wiz_0/clk_in1]
   connect_bd_net -net clk_wiz_0_clk_out1  [get_bd_pins clk_wiz_0/clk_out1] \
-  [get_bd_pins axi_bram_ctrl_0/s_axi_aclk] \
+  [get_bd_pins data_mem_ctrl/s_axi_aclk] \
   [get_bd_pins axi_smc/aclk] \
-  [get_bd_pins axi_bram_ctrl_1/s_axi_aclk] \
+  [get_bd_pins instr_mem_ctrl/s_axi_aclk] \
   [get_bd_pins axi_uartlite_0/s_axi_aclk] \
   [get_bd_pins CPU_0/clk] \
   [get_bd_pins rst_clk_wiz_100M/slowest_sync_clk] \
   [get_bd_pins RV32I_AXI_Bridge_0/m_axi_aclk] \
-  [get_bd_pins blk_mem_gen_1/clka] \
-  [get_bd_pins blk_mem_gen_0/clka] \
+  [get_bd_pins boot_mem_bram/clka] \
+  [get_bd_pins instr_mem_bram/clka] \
   [get_bd_pins axi_gpio_0/s_axi_aclk] \
-  [get_bd_pins axi_bram_ctrl_0_bram/clkb] \
-  [get_bd_pins axi_bram_ctrl_2/s_axi_aclk]
+  [get_bd_pins data_mem_bram/clkb] \
+  [get_bd_pins apu_ctrl/s_axi_aclk]
   connect_bd_net -net clk_wiz_0_locked  [get_bd_pins clk_wiz_0/locked] \
   [get_bd_pins rst_clk_wiz_100M/dcm_locked]
   connect_bd_net -net instr_mem_mux_0_boot_mem_addr_out  [get_bd_pins instr_mem_mux_0/boot_mem_addr_out] \
-  [get_bd_pins xlslice_3/Din]
+  [get_bd_pins boot_mem_addr_slice/Din]
   connect_bd_net -net instr_mem_mux_0_boot_mem_ena_out  [get_bd_pins instr_mem_mux_0/boot_mem_ena_out] \
-  [get_bd_pins blk_mem_gen_1/ena]
+  [get_bd_pins boot_mem_bram/ena]
   connect_bd_net -net instr_mem_mux_0_instr_mem_addr_out  [get_bd_pins instr_mem_mux_0/instr_mem_addr_out] \
-  [get_bd_pins xlslice_1/Din]
+  [get_bd_pins instr_fetch_addr_slice/Din]
   connect_bd_net -net instr_mem_mux_0_instr_mem_data_out  [get_bd_pins instr_mem_mux_0/instr_mem_data_out] \
   [get_bd_pins CPU_0/instr_mem_data]
   connect_bd_net -net instr_mem_mux_0_instr_mem_ena_out  [get_bd_pins instr_mem_mux_0/instr_mem_ena_out] \
-  [get_bd_pins blk_mem_gen_0/ena]
+  [get_bd_pins instr_mem_bram/ena]
   connect_bd_net -net reset_rtl_0_1  [get_bd_ports reset_rtl_0] \
   [get_bd_pins rst_clk_wiz_100M/ext_reset_in] \
   [get_bd_pins clk_wiz_0/reset]
@@ -566,29 +576,29 @@ proc create_root_design { parentCell } {
   [get_bd_pins APU_0/rst]
   connect_bd_net -net rst_clk_wiz_100M_peripheral_aresetn  [get_bd_pins rst_clk_wiz_100M/peripheral_aresetn] \
   [get_bd_pins RV32I_AXI_Bridge_0/m_axi_aresetn] \
-  [get_bd_pins axi_bram_ctrl_0/s_axi_aresetn] \
+  [get_bd_pins data_mem_ctrl/s_axi_aresetn] \
   [get_bd_pins axi_smc/aresetn] \
   [get_bd_pins axi_uartlite_0/s_axi_aresetn] \
-  [get_bd_pins axi_bram_ctrl_1/s_axi_aresetn] \
+  [get_bd_pins instr_mem_ctrl/s_axi_aresetn] \
   [get_bd_pins axi_gpio_0/s_axi_aresetn] \
-  [get_bd_pins axi_bram_ctrl_2/s_axi_aresetn]
+  [get_bd_pins apu_ctrl/s_axi_aresetn]
   connect_bd_net -net rst_clk_wiz_100M_peripheral_reset  [get_bd_pins rst_clk_wiz_100M/peripheral_reset] \
   [get_bd_pins CPU_0/rst]
-  connect_bd_net -net xlslice_0_Dout  [get_bd_pins xlslice_0/Dout] \
-  [get_bd_pins axi_bram_ctrl_0_bram/addra]
-  connect_bd_net -net xlslice_1_Dout  [get_bd_pins xlslice_1/Dout] \
-  [get_bd_pins blk_mem_gen_0/addra]
-  connect_bd_net -net xlslice_3_Dout  [get_bd_pins xlslice_3/Dout] \
-  [get_bd_pins blk_mem_gen_1/addra]
-  connect_bd_net -net xlslice_4_Dout  [get_bd_pins xlslice_4/Dout] \
-  [get_bd_pins blk_mem_gen_0/addrb]
-  connect_bd_net -net xlslice_5_Dout  [get_bd_pins xlslice_5/Dout] \
+  connect_bd_net -net data_mem_addr_slice_Dout  [get_bd_pins data_mem_addr_slice/Dout] \
+  [get_bd_pins data_mem_bram/addra]
+  connect_bd_net -net instr_fetch_addr_slice_Dout  [get_bd_pins instr_fetch_addr_slice/Dout] \
+  [get_bd_pins instr_mem_bram/addra]
+  connect_bd_net -net boot_mem_addr_slice_Dout  [get_bd_pins boot_mem_addr_slice/Dout] \
+  [get_bd_pins boot_mem_bram/addra]
+  connect_bd_net -net instr_load_addr_slice_Dout  [get_bd_pins instr_load_addr_slice/Dout] \
+  [get_bd_pins instr_mem_bram/addrb]
+  connect_bd_net -net apu_addr_slice_Dout  [get_bd_pins apu_addr_slice/Dout] \
   [get_bd_pins APU_0/addr]
 
   # Create address segments
-  assign_bd_address -offset 0x00020000 -range 0x00008000 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0x00010000 -range 0x00010000 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_bram_ctrl_1/S_AXI/Mem0] -force
-  assign_bd_address -offset 0x00030000 -range 0x00002000 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_bram_ctrl_2/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00020000 -range 0x00008000 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs data_mem_ctrl/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00010000 -range 0x00010000 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs instr_mem_ctrl/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00030000 -range 0x00002000 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs apu_ctrl/S_AXI/Mem0] -force
   assign_bd_address -offset 0x00029000 -range 0x00000080 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_gpio_0/S_AXI/Reg] -force
   assign_bd_address -offset 0x00028000 -range 0x00000080 -target_address_space [get_bd_addr_spaces RV32I_AXI_Bridge_0/M_AXI] [get_bd_addr_segs axi_uartlite_0/S_AXI/Reg] -force
 
@@ -616,24 +626,24 @@ preplace port port-id_AC_GPIO0_0 -pg 1 -lvl 12 -x 4200 -y 640 -defaultsOSRD
 preplace port port-id_AC_ADR1_0 -pg 1 -lvl 12 -x 4200 -y 610 -defaultsOSRD
 preplace inst CPU_0 -pg 1 -lvl 1 -x 590 -y 340 -defaultsOSRD
 preplace inst RV32I_AXI_Bridge_0 -pg 1 -lvl 1 -x 590 -y 560 -defaultsOSRD
-preplace inst axi_bram_ctrl_0 -pg 1 -lvl 1 -x 590 -y 780 -defaultsOSRD
-preplace inst axi_bram_ctrl_0_bram -pg 1 -lvl 1 -x 590 -y 1020 -defaultsOSRD
+preplace inst data_mem_ctrl -pg 1 -lvl 1 -x 590 -y 780 -defaultsOSRD
+preplace inst data_mem_bram -pg 1 -lvl 1 -x 590 -y 1020 -defaultsOSRD
 preplace inst axi_smc -pg 1 -lvl 9 -x 3400 -y 70 -defaultsOSRD
 preplace inst rst_clk_wiz_100M -pg 1 -lvl 10 -x 3760 -y 80 -defaultsOSRD
-preplace inst xlslice_0 -pg 1 -lvl 7 -x 2880 -y 140 -defaultsOSRD
-preplace inst blk_mem_gen_0 -pg 1 -lvl 8 -x 3160 -y 50 -defaultsOSRD
-preplace inst xlslice_1 -pg 1 -lvl 2 -x 1040 -y 10 -defaultsOSRD
+preplace inst data_mem_addr_slice -pg 1 -lvl 7 -x 2880 -y 140 -defaultsOSRD
+preplace inst instr_mem_bram -pg 1 -lvl 8 -x 3160 -y 50 -defaultsOSRD
+preplace inst instr_fetch_addr_slice -pg 1 -lvl 2 -x 1040 -y 10 -defaultsOSRD
 preplace inst axi_uartlite_0 -pg 1 -lvl 2 -x 1040 -y -110 -defaultsOSRD
 preplace inst instr_mem_mux_0 -pg 1 -lvl 6 -x 2490 -y -90 -defaultsOSRD
-preplace inst axi_bram_ctrl_1 -pg 1 -lvl 3 -x 1400 -y -110 -defaultsOSRD
-preplace inst blk_mem_gen_1 -pg 1 -lvl 8 -x 3160 -y 300 -defaultsOSRD
+preplace inst instr_mem_ctrl -pg 1 -lvl 3 -x 1400 -y -110 -defaultsOSRD
+preplace inst boot_mem_bram -pg 1 -lvl 8 -x 3160 -y 300 -defaultsOSRD
 preplace inst clk_wiz_0 -pg 1 -lvl 7 -x 2880 -y -70 -defaultsOSRD
-preplace inst xlslice_3 -pg 1 -lvl 7 -x 2880 -y 40 -defaultsOSRD
-preplace inst xlslice_4 -pg 1 -lvl 6 -x 2490 -y 120 -defaultsOSRD
+preplace inst boot_mem_addr_slice -pg 1 -lvl 7 -x 2880 -y 40 -defaultsOSRD
+preplace inst instr_load_addr_slice -pg 1 -lvl 6 -x 2490 -y 120 -defaultsOSRD
 preplace inst axi_gpio_0 -pg 1 -lvl 11 -x 4060 -y 40 -defaultsOSRD
 preplace inst APU_0 -pg 1 -lvl 5 -x 2080 -y 670 -defaultsOSRD
-preplace inst axi_bram_ctrl_2 -pg 1 -lvl 3 -x 1400 -y 710 -defaultsOSRD
-preplace inst xlslice_5 -pg 1 -lvl 4 -x 1750 -y 510 -defaultsOSRD
+preplace inst apu_ctrl -pg 1 -lvl 3 -x 1400 -y 710 -defaultsOSRD
+preplace inst apu_addr_slice -pg 1 -lvl 4 -x 1750 -y 510 -defaultsOSRD
 preplace netloc CPU_0_data_mem_addr 1 0 2 350 180 870
 preplace netloc CPU_0_data_mem_data_out 1 0 2 300 130 880
 preplace netloc CPU_0_data_mem_ena 1 0 2 280 110 890
@@ -642,20 +652,20 @@ preplace netloc CPU_0_instr_mem_addr 1 1 5 NJ 280 NJ 280 1630 -30 N -30 2230
 preplace netloc CPU_0_instr_mem_ena 1 1 5 NJ 300 NJ 300 1650 -20 N -20 2240
 preplace netloc RV32I_AXI_Bridge_0_cpu_rdata 1 0 2 290 120 790
 preplace netloc RV32I_AXI_Bridge_0_cpu_stall 1 0 2 310 140 810
-preplace netloc axi_bram_ctrl_0_bram_addr_a 1 1 6 920J 200 NJ 200 NJ 200 N 200 N 200 2700
-preplace netloc axi_bram_ctrl_0_bram_clk_a 1 0 2 320 150 860
-preplace netloc axi_bram_ctrl_0_bram_douta 1 0 2 330 160 820
-preplace netloc axi_bram_ctrl_0_bram_en_a 1 0 2 370 200 840
-preplace netloc axi_bram_ctrl_0_bram_we_a 1 0 2 390 220 800
-preplace netloc axi_bram_ctrl_0_bram_wrdata_a 1 0 2 380 210 830
-preplace netloc axi_bram_ctrl_1_bram_addr_a 1 3 3 1650 -40 N -40 2260
-preplace netloc axi_bram_ctrl_1_bram_clk_a 1 3 5 1580 -250 N -250 N -250 NJ -250 3050J
-preplace netloc axi_bram_ctrl_1_bram_en_a 1 3 5 1610 220 N 220 N 220 NJ 220 3040J
-preplace netloc axi_bram_ctrl_1_bram_we_a 1 3 5 1550 230 N 230 N 230 NJ 230 3060J
-preplace netloc axi_bram_ctrl_1_bram_wrdata_a 1 3 5 1640 -10 N -10 2230 240 NJ 240 3050J
-preplace netloc blk_mem_gen_0_douta 1 5 3 2260 -190 NJ -190 3040J
-preplace netloc blk_mem_gen_0_doutb 1 3 5 1620 0 N 0 2270 10 2760J -140 3000J
-preplace netloc blk_mem_gen_1_douta 1 5 3 2290 320 NJ 320 NJ
+preplace netloc data_mem_bram_addr_a 1 1 6 920J 200 NJ 200 NJ 200 N 200 N 200 2700
+preplace netloc data_mem_bram_clk_a 1 0 2 320 150 860
+preplace netloc data_mem_bram_douta 1 0 2 330 160 820
+preplace netloc data_mem_bram_en_a 1 0 2 370 200 840
+preplace netloc data_mem_bram_we_a 1 0 2 390 220 800
+preplace netloc data_mem_bram_wrdata_a 1 0 2 380 210 830
+preplace netloc instr_mem_ctrl_bram_addr_a 1 3 3 1650 -40 N -40 2260
+preplace netloc instr_mem_ctrl_bram_clk_a 1 3 5 1580 -250 N -250 N -250 NJ -250 3050J
+preplace netloc instr_mem_ctrl_bram_en_a 1 3 5 1610 220 N 220 N 220 NJ 220 3040J
+preplace netloc instr_mem_ctrl_bram_we_a 1 3 5 1550 230 N 230 N 230 NJ 230 3060J
+preplace netloc instr_mem_ctrl_bram_wrdata_a 1 3 5 1640 -10 N -10 2230 240 NJ 240 3050J
+preplace netloc instr_mem_bram_douta 1 5 3 2260 -190 NJ -190 3040J
+preplace netloc instr_mem_bram_doutb 1 3 5 1620 0 N 0 2270 10 2760J -140 3000J
+preplace netloc boot_mem_bram_douta 1 5 3 2290 320 NJ 320 NJ
 preplace netloc clk_in1_0_1 1 0 7 NJ 20 830J 70 NJ 70 NJ 70 N 70 2240 50 2780
 preplace netloc clk_wiz_0_clk_out1 1 0 11 240 -110 890 -200 1170 250 NJ 250 N 250 N 250 NJ 250 3030 -120 3260 -30 3590 -30 3950
 preplace netloc clk_wiz_0_locked 1 7 3 2990J -130 NJ -130 3560
@@ -667,14 +677,14 @@ preplace netloc instr_mem_mux_0_instr_mem_ena_out 1 6 2 2730 -150 3010J
 preplace netloc reset_rtl_0_1 1 0 10 30 -220 NJ -220 1230J 20 NJ 20 N 20 2220 30 2720 -170 NJ -170 NJ -170 3570
 preplace netloc rst_clk_wiz_100M_peripheral_aresetn 1 0 11 260 100 890 100 1200 420 NJ 420 N 420 N 420 NJ 420 NJ 420 3270 180 NJ 180 3950
 preplace netloc rst_clk_wiz_100M_peripheral_reset 1 0 11 270 80 NJ 80 1150J 60 NJ 60 1860 40 N 40 2750J -160 NJ -160 NJ -160 NJ -160 3930
-preplace netloc xlslice_0_Dout 1 0 8 340 170 900J 210 NJ 210 NJ 210 N 210 N 210 NJ 210 2980
-preplace netloc xlslice_1_Dout 1 2 6 1180J 30 1600J -50 N -50 2220 -200 NJ -200 3060
-preplace netloc xlslice_3_Dout 1 7 1 2990J 40n
-preplace netloc xlslice_4_Dout 1 6 2 2710J 200 3010J
-preplace netloc axi_bram_ctrl_2_bram_clk_a 1 3 2 1650 590 N
-preplace netloc axi_bram_ctrl_2_bram_en_a 1 3 2 1650 710 N
-preplace netloc axi_bram_ctrl_2_bram_wrdata_a 1 3 2 N 700 1850
-preplace netloc axi_bram_ctrl_2_bram_we_a 1 3 2 1630 690 N
+preplace netloc data_mem_addr_slice_Dout 1 0 8 340 170 900J 210 NJ 210 NJ 210 N 210 N 210 NJ 210 2980
+preplace netloc instr_fetch_addr_slice_Dout 1 2 6 1180J 30 1600J -50 N -50 2220 -200 NJ -200 3060
+preplace netloc boot_mem_addr_slice_Dout 1 7 1 2990J 40n
+preplace netloc instr_load_addr_slice_Dout 1 6 2 2710J 200 3010J
+preplace netloc apu_ctrl_bram_clk_a 1 3 2 1650 590 N
+preplace netloc apu_ctrl_bram_en_a 1 3 2 1650 710 N
+preplace netloc apu_ctrl_bram_wrdata_a 1 3 2 N 700 1850
+preplace netloc apu_ctrl_bram_we_a 1 3 2 1630 690 N
 preplace netloc APU_0_data_out 1 3 3 1590 450 N 450 2220
 preplace netloc APU_0_AC_ADR0 1 5 7 2240J 580 NJ 580 NJ 580 NJ 580 NJ 580 NJ 580 NJ
 preplace netloc Net 1 5 7 NJ 710 NJ 710 NJ 710 NJ 710 NJ 710 NJ 710 4180J
@@ -686,10 +696,10 @@ preplace netloc AC_GPIO1_0_1 1 0 5 40J -250 NJ -250 1240J 40 NJ 40 1850
 preplace netloc APU_0_AC_GPIO0 1 5 7 2280J 640 NJ 640 NJ 640 NJ 640 NJ 640 NJ 640 NJ
 preplace netloc APU_0_AC_ADR1 1 5 7 2250J 610 NJ 610 NJ 610 NJ 610 NJ 610 NJ 610 NJ
 preplace netloc rst_clk_wiz_100M_interconnect_aresetn 1 4 7 1940 410 NJ 410 NJ 410 NJ 410 NJ 410 NJ 410 3930
-preplace netloc axi_bram_ctrl_2_bram_addr_a 1 3 1 1550 510n
-preplace netloc xlslice_5_Dout 1 4 1 1860 510n
+preplace netloc apu_ctrl_bram_addr_a 1 3 1 1550 510n
+preplace netloc apu_addr_slice_Dout 1 4 1 1860 510n
 preplace netloc RV32I_AXI_Bridge_0_M_AXI 1 1 8 910J 110 NJ 110 1590J -260 N -260 N -260 NJ -260 NJ -260 3270
-preplace netloc axi_bram_ctrl_0_BRAM_PORTA 1 0 2 270 1160 790
+preplace netloc data_mem_ctrl_BRAM_PORTA 1 0 2 270 1160 790
 preplace netloc axi_gpio_0_GPIO 1 11 1 4170 20n
 preplace netloc axi_gpio_0_GPIO2 1 11 1 N 50
 preplace netloc axi_smc_M00_AXI 1 0 10 230 -230 NJ -230 1200J -240 NJ -240 N -240 N -240 NJ -240 NJ -240 NJ -240 3530
