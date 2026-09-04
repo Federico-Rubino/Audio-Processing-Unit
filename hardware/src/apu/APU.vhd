@@ -124,6 +124,26 @@ architecture Behavioral of APU is
     signal vpuw_bram0_data_in_sig, vpuw_bram1_data_in_sig, vpuw_bram2_data_in_sig, vpuw_bram3_data_in_sig : std_logic_vector(31 downto 0);
     signal vpuw_bram0_data_out_sig, vpuw_bram1_data_out_sig, vpuw_bram2_data_out_sig, vpuw_bram3_data_out_sig : std_logic_vector(31 downto 0);
 
+    -- AudioCU <-> load unit (CU control side: destination descriptor + the
+    -- word-at-a-time data stream forwarded from AudioCU's own param-memory reads)
+    signal load_en_sig, load_count_en_sig, load_end_sig : std_logic;
+    signal load_bs_sig, load_bl_sig, load_os_sig, load_ol_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal load_data_sig : std_logic_vector(ARAM_WORD_SIZE-1 downto 0);
+
+    -- load unit's bmu_write (LANES=1) <-> aram_mux; port1 side is unused
+    -- (bmu_write only drives port0 at LANES=1) but wired straight through
+    -- regardless, same as every other unit's bus
+    signal load_bram0_port0_addr_sig, load_bram1_port0_addr_sig, load_bram2_port0_addr_sig, load_bram3_port0_addr_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal load_bram0_port1_addr_sig, load_bram1_port1_addr_sig, load_bram2_port1_addr_sig, load_bram3_port1_addr_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    signal load_bram0_port0_we_sig, load_bram1_port0_we_sig, load_bram2_port0_we_sig, load_bram3_port0_we_sig : std_logic;
+    signal load_bram0_port1_we_sig, load_bram1_port1_we_sig, load_bram2_port1_we_sig, load_bram3_port1_we_sig : std_logic;
+    signal load_bram0_port0_en_sig, load_bram1_port0_en_sig, load_bram2_port0_en_sig, load_bram3_port0_en_sig : std_logic;
+    signal load_bram0_port1_en_sig, load_bram1_port1_en_sig, load_bram2_port1_en_sig, load_bram3_port1_en_sig : std_logic;
+    signal load_bram0_port0_data_in_sig, load_bram1_port0_data_in_sig, load_bram2_port0_data_in_sig, load_bram3_port0_data_in_sig : std_logic_vector(31 downto 0);
+    signal load_bram0_port1_data_in_sig, load_bram1_port1_data_in_sig, load_bram2_port1_data_in_sig, load_bram3_port1_data_in_sig : std_logic_vector(31 downto 0);
+    signal load_bram0_port0_data_out_sig, load_bram1_port0_data_out_sig, load_bram2_port0_data_out_sig, load_bram3_port0_data_out_sig : std_logic_vector(31 downto 0);
+    signal load_bram0_port1_data_out_sig, load_bram1_port1_data_out_sig, load_bram2_port1_data_out_sig, load_bram3_port1_data_out_sig : std_logic_vector(31 downto 0);
+
     -- aram_mux <-> the 4 internal a-ram blocks (real, physical side)
     signal bram0_port0_addr_sig, bram1_port0_addr_sig, bram2_port0_addr_sig, bram3_port0_addr_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
     signal bram0_port1_addr_sig, bram1_port1_addr_sig, bram2_port1_addr_sig, bram3_port1_addr_sig : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
@@ -174,7 +194,11 @@ begin
             vec_en => vec_en_sig, vec_op => vec_op_sig, vec_scalar => vec_scalar_sig,
             vec_bsr1 => vec_bsr1_sig, vec_blr1 => vec_blr1_sig, vec_osr1 => vec_osr1_sig, vec_olr1 => vec_olr1_sig,
             vec_bsr2 => vec_bsr2_sig, vec_blr2 => vec_blr2_sig, vec_osr2 => vec_osr2_sig, vec_olr2 => vec_olr2_sig,
-            vec_bsw => vec_bsw_sig, vec_blw => vec_blw_sig, vec_osw => vec_osw_sig, vec_olw => vec_olw_sig
+            vec_bsw => vec_bsw_sig, vec_blw => vec_blw_sig, vec_osw => vec_osw_sig, vec_olw => vec_olw_sig,
+
+            load_end => load_end_sig, load_en => load_en_sig, load_count_en => load_count_en_sig,
+            load_bs => load_bs_sig, load_bl => load_bl_sig, load_os => load_os_sig, load_ol => load_ol_sig,
+            load_data => load_data_sig
         );
 
     aio : entity work.audioIO
@@ -304,6 +328,58 @@ begin
             bmu_write_bram2_data_out => vpuw_bram2_data_out_sig, bmu_write_bram3_data_out => vpuw_bram3_data_out_sig
         );
 
+    -- Load unit: a bare LANES=1 bmu_write, fed one word at a time by AudioCU's
+    -- own param-memory reads (see audio_control_unit.vhd's LOAD_COPY state).
+    -- buffer_length/operation_length are widened from ARAM_ADDR_SIZE to
+    -- ARAM_WORD_SIZE (zero-extended), same as audioIO's buffer_length above.
+    load_bmu_write_inst : entity work.bmu_write
+        generic map (
+            BUFFER_ADDR_WIDTH => ARAM_ADDR_SIZE,
+            BUFFER_SIZE_BITS  => ARAM_WORD_SIZE,
+            LANES             => 1
+        )
+        port map (
+            clk => clk, rst => rst,
+            start => load_en_sig, count_en => load_count_en_sig,
+
+            buffer_start     => load_bs_sig,
+            buffer_length    => std_logic_vector(resize(unsigned(load_bl_sig), ARAM_WORD_SIZE)),
+            operation_start  => load_os_sig,
+            operation_length => std_logic_vector(resize(unsigned(load_ol_sig), ARAM_WORD_SIZE)),
+
+            bram0_port0_addr => load_bram0_port0_addr_sig, bram1_port0_addr => load_bram1_port0_addr_sig,
+            bram2_port0_addr => load_bram2_port0_addr_sig, bram3_port0_addr => load_bram3_port0_addr_sig,
+            bram0_port1_addr => load_bram0_port1_addr_sig, bram1_port1_addr => load_bram1_port1_addr_sig,
+            bram2_port1_addr => load_bram2_port1_addr_sig, bram3_port1_addr => load_bram3_port1_addr_sig,
+
+            bram0_port0_we => load_bram0_port0_we_sig, bram1_port0_we => load_bram1_port0_we_sig,
+            bram2_port0_we => load_bram2_port0_we_sig, bram3_port0_we => load_bram3_port0_we_sig,
+            bram0_port1_we => load_bram0_port1_we_sig, bram1_port1_we => load_bram1_port1_we_sig,
+            bram2_port1_we => load_bram2_port1_we_sig, bram3_port1_we => load_bram3_port1_we_sig,
+
+            bram0_port0_en => load_bram0_port0_en_sig, bram1_port0_en => load_bram1_port0_en_sig,
+            bram2_port0_en => load_bram2_port0_en_sig, bram3_port0_en => load_bram3_port0_en_sig,
+            bram0_port1_en => load_bram0_port1_en_sig, bram1_port1_en => load_bram1_port1_en_sig,
+            bram2_port1_en => load_bram2_port1_en_sig, bram3_port1_en => load_bram3_port1_en_sig,
+
+            bram0_port0_data_in => load_bram0_port0_data_in_sig, bram1_port0_data_in => load_bram1_port0_data_in_sig,
+            bram2_port0_data_in => load_bram2_port0_data_in_sig, bram3_port0_data_in => load_bram3_port0_data_in_sig,
+            bram0_port1_data_in => load_bram0_port1_data_in_sig, bram1_port1_data_in => load_bram1_port1_data_in_sig,
+            bram2_port1_data_in => load_bram2_port1_data_in_sig, bram3_port1_data_in => load_bram3_port1_data_in_sig,
+
+            bram0_port0_data_out => load_bram0_port0_data_out_sig, bram1_port0_data_out => load_bram1_port0_data_out_sig,
+            bram2_port0_data_out => load_bram2_port0_data_out_sig, bram3_port0_data_out => load_bram3_port0_data_out_sig,
+            bram0_port1_data_out => load_bram0_port1_data_out_sig, bram1_port1_data_out => load_bram1_port1_data_out_sig,
+            bram2_port1_data_out => load_bram2_port1_data_out_sig, bram3_port1_data_out => load_bram3_port1_data_out_sig,
+
+            data_in_0 => load_data_sig,
+            data_in_1 => (others => '0'), data_in_2 => (others => '0'), data_in_3 => (others => '0'),
+            data_in_4 => (others => '0'), data_in_5 => (others => '0'),
+            data_in_6 => (others => '0'), data_in_7 => (others => '0'),
+
+            done => load_end_sig
+        );
+
     mux : entity work.aram_mux
         generic map (
             BUFFER_ADDR_WIDTH => ARAM_ADDR_SIZE,
@@ -412,6 +488,28 @@ begin
             ps_bram2_port0_data_out => open, ps_bram3_port0_data_out => open,
             ps_bram0_port1_data_out => open, ps_bram1_port1_data_out => open,
             ps_bram2_port1_data_out => open, ps_bram3_port1_data_out => open,
+
+            -- load unit's bmu_write (LANES=1, only ever drives port0)
+            load_bram0_port0_addr => load_bram0_port0_addr_sig, load_bram1_port0_addr => load_bram1_port0_addr_sig,
+            load_bram2_port0_addr => load_bram2_port0_addr_sig, load_bram3_port0_addr => load_bram3_port0_addr_sig,
+            load_bram0_port1_addr => load_bram0_port1_addr_sig, load_bram1_port1_addr => load_bram1_port1_addr_sig,
+            load_bram2_port1_addr => load_bram2_port1_addr_sig, load_bram3_port1_addr => load_bram3_port1_addr_sig,
+            load_bram0_port0_we => load_bram0_port0_we_sig, load_bram1_port0_we => load_bram1_port0_we_sig,
+            load_bram2_port0_we => load_bram2_port0_we_sig, load_bram3_port0_we => load_bram3_port0_we_sig,
+            load_bram0_port1_we => load_bram0_port1_we_sig, load_bram1_port1_we => load_bram1_port1_we_sig,
+            load_bram2_port1_we => load_bram2_port1_we_sig, load_bram3_port1_we => load_bram3_port1_we_sig,
+            load_bram0_port0_en => load_bram0_port0_en_sig, load_bram1_port0_en => load_bram1_port0_en_sig,
+            load_bram2_port0_en => load_bram2_port0_en_sig, load_bram3_port0_en => load_bram3_port0_en_sig,
+            load_bram0_port1_en => load_bram0_port1_en_sig, load_bram1_port1_en => load_bram1_port1_en_sig,
+            load_bram2_port1_en => load_bram2_port1_en_sig, load_bram3_port1_en => load_bram3_port1_en_sig,
+            load_bram0_port0_data_in => load_bram0_port0_data_in_sig, load_bram1_port0_data_in => load_bram1_port0_data_in_sig,
+            load_bram2_port0_data_in => load_bram2_port0_data_in_sig, load_bram3_port0_data_in => load_bram3_port0_data_in_sig,
+            load_bram0_port1_data_in => load_bram0_port1_data_in_sig, load_bram1_port1_data_in => load_bram1_port1_data_in_sig,
+            load_bram2_port1_data_in => load_bram2_port1_data_in_sig, load_bram3_port1_data_in => load_bram3_port1_data_in_sig,
+            load_bram0_port0_data_out => load_bram0_port0_data_out_sig, load_bram1_port0_data_out => load_bram1_port0_data_out_sig,
+            load_bram2_port0_data_out => load_bram2_port0_data_out_sig, load_bram3_port0_data_out => load_bram3_port0_data_out_sig,
+            load_bram0_port1_data_out => load_bram0_port1_data_out_sig, load_bram1_port1_data_out => load_bram1_port1_data_out_sig,
+            load_bram2_port1_data_out => load_bram2_port1_data_out_sig, load_bram3_port1_data_out => load_bram3_port1_data_out_sig,
 
             -- real a-ram: feeds the 4 internal blocks instantiated below
             bram0_port0_addr => bram0_port0_addr_sig, bram1_port0_addr => bram1_port0_addr_sig,

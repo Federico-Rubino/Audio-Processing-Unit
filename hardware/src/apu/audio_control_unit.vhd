@@ -45,15 +45,22 @@ entity AudioCU is
         vec_scalar : out std_logic_vector(15 downto 0);
         vec_bsr1, vec_blr1, vec_osr1, vec_olr1 : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
         vec_bsr2, vec_blr2, vec_osr2, vec_olr2 : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
-        vec_bsw, vec_blw, vec_osw, vec_olw : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0)
+        vec_bsw, vec_blw, vec_osw, vec_olw : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+
+        -- Load Unit Interfacing (copies a grain staged in param memory into a-ram)
+        load_end : in std_logic;
+        load_en, load_count_en : out std_logic;
+        load_bs, load_bl, load_os, load_ol : out std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+        load_data : out std_logic_vector(ARAM_WORD_SIZE-1 downto 0)
     );
 end AudioCU;
 
 architecture Behavioral of AudioCU is
-    -- TODO implement load operation with a STORE stage
-    type cu_state is (IDLE, SETUP, FETCH, DECODE, LOAD, EXECUTE);
+    type cu_state is (IDLE, SETUP, FETCH, DECODE, LOAD, EXECUTE, LOAD_COPY);
     signal state, next_state : cu_state;
     signal lr, next_lr : std_logic; -- 0=left, 1=right
+    signal did_load, next_did_load : std_logic; -- LOAD ran this program -> STOP skips the right-channel pass
+    signal load_counter, next_load_counter : std_logic_vector(7 downto 0); -- 0..127 active, 128 = all sent, waiting on load_end
     signal counter, next_counter : std_logic_vector(COUNTER_SIZE-1 downto 0);
     signal op, next_op : apu_code_t;
     signal instr, next_instr : std_logic_vector(INSTR_SIZE-1 downto 0);
@@ -77,6 +84,8 @@ begin
         if rst = '0' then
             state <= IDLE;
             lr <= '0';
+            did_load <= '0';
+            load_counter <= (others => '0');
             counter <= (others => '0');
             op <= APU_NOP;
             instr <= (others => '0');
@@ -90,6 +99,8 @@ begin
         elsif rising_edge(clk) then
             state <= next_state;
             lr <= next_lr;
+            did_load <= next_did_load;
+            load_counter <= next_load_counter;
             counter <= next_counter;
             op <= next_op;
             instr <= next_instr;
@@ -109,6 +120,8 @@ begin
         -- Default assignments
         next_state <= state;
         next_lr <= lr;
+        next_did_load <= did_load;
+        next_load_counter <= load_counter;
         next_counter <= counter;
         next_op <= op;
         next_instr <= instr;
@@ -135,6 +148,9 @@ begin
         vec_bsr1 <= (others => '0'); vec_blr1 <= (others => '0'); vec_osr1 <= (others => '0'); vec_olr1 <= (others => '0');
         vec_bsr2 <= (others => '0'); vec_blr2 <= (others => '0'); vec_osr2 <= (others => '0'); vec_olr2 <= (others => '0');
         vec_bsw <= (others => '0'); vec_blw <= (others => '0'); vec_osw <= (others => '0'); vec_olw <= (others => '0');
+        load_en <= '0'; load_count_en <= '0';
+        load_bs <= (others => '0'); load_bl <= (others => '0'); load_os <= (others => '0'); load_ol <= (others => '0');
+        load_data <= (others => '0');
 
         case state is
             when IDLE =>
@@ -196,7 +212,7 @@ begin
                 -- if op is stop, then execute go to idle or to the other channel,
                 -- otherwise transition to load state
                 if instr(INSTR_SIZE-1 downto INSTR_SIZE-APU_OP_WIDTH) = APU_OP_STOP then
-                    if lr = '0' then    -- last channel was left, going to execute right
+                    if lr = '0' and did_load = '0' then    -- last channel was left, going to execute right
                         next_state <= FETCH;
                         next_lr <= '1';
 
@@ -206,9 +222,11 @@ begin
                         ien <= '1'; iwe <= '0';
                         iaddr <= (others => '0');
                         iaddr(INSTR_ADDR_SIZE-2 downto 0) <= std_logic_vector(unsigned(start_addr) + SHADER_MEM_OFFSET);
-                    else                -- last channel was right, going to idle
+                    else                -- last channel was right, or LOAD ran this program (channel-independent,
+                                        -- no right-channel pass) -- going to idle
                         next_state <= IDLE;
                         next_lr <= '0';
+                        next_did_load <= '0';
 
                         -- reset 'busy' to 0
                         ien <= '1'; iwe <= '1';
@@ -246,7 +264,6 @@ begin
                             iaddr(UPARAM_SIZE-1 downto 0) <= instr(10*UPARAM_SIZE-1 downto 9*UPARAM_SIZE);
 
                         when APU_OP_LOAD =>
-                            -- TODO save immediate parameters
                             next_counter <= std_logic_vector(to_unsigned(3, COUNTER_SIZE));
                             iwe <= '0'; ien <= '1';
                             iaddr <= (others => '0');
@@ -407,9 +424,62 @@ begin
                             next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / ARAM_WORD_SIZE - 1, COUNTER_SIZE));
                         end if;
 
+                    -- Load: copy a 128-word grain staged in param memory (offsets 0..127)
+                    -- into a-ram. buf1 is the destination buffer descriptor, resolved by
+                    -- the LOAD state exactly like AUDIO_IN's.
+                    when APU_OP_LOAD =>
+                        unit_select <= APU_UNIT_LOAD;
+                        load_bs <= buf1(ARAM_ADDR_SIZE*1-1 downto 0);
+                        load_bl <= buf1(ARAM_ADDR_SIZE*2-1 downto ARAM_ADDR_SIZE*1);
+                        load_os <= buf1(ARAM_ADDR_SIZE*3-1 downto ARAM_ADDR_SIZE*2);
+                        load_ol <= op_len;
+                        load_en <= '1';
+                        next_did_load <= '1';
+                        next_load_counter <= (others => '0');
+
+                        next_state <= LOAD_COPY;
+
                     when others =>
                         next_state <= IDLE;
                 end case;
+
+            when LOAD_COPY =>
+                -- must stay asserted for aram_mux to keep routing the load
+                -- unit's bus to real a-ram for this whole multi-cycle copy --
+                -- unlike every other unit, LOAD's wait loop isn't inside
+                -- EXECUTE's own case branch, so this doesn't happen for free
+                unit_select <= APU_UNIT_LOAD;
+
+                -- idata_out is a synchronous (1-cycle-latency) read, same as
+                -- bmu_write's registered bram*_en/we/data_in (1 cycle behind
+                -- their triggering count_en) -- issuing the offset=load_counter
+                -- read on the SAME cycle as that offset's count_en pulse
+                -- (below) makes idata_out land exactly when the write does,
+                -- one extra cycle after the last pulse (load_counter=128)
+                if unsigned(load_counter) <= 128 then
+                    load_data <= idata_out;
+                end if;
+
+                if unsigned(load_counter) < 128 then
+                    iwe <= '0'; ien <= '1';
+                    iaddr <= (others => '0');
+                    iaddr(UPARAM_SIZE+1) <= '1';
+                    iaddr(UPARAM_SIZE) <= lr;
+                    iaddr(UPARAM_SIZE-1 downto 0) <= std_logic_vector(resize(unsigned(load_counter), UPARAM_SIZE));
+
+                    load_count_en <= '1';
+                    next_load_counter <= std_logic_vector(unsigned(load_counter) + 1);
+                else
+                    -- all 128 pulses issued; wait for the write BMU to finish
+                    if load_end = '1' then
+                        next_state <= FETCH;
+                        ien <= '1'; iwe <= '0';
+                        iaddr <= (others => '0');
+                        iaddr(INSTR_ADDR_SIZE-2 downto 0) <= pc;
+                        next_pc <= std_logic_vector(unsigned(pc) + 1);
+                        next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / ARAM_WORD_SIZE - 1, COUNTER_SIZE));
+                    end if;
+                end if;
 
             when others =>
                 next_state <= IDLE;

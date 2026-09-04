@@ -246,6 +246,53 @@ entity aram_mux is
         ps_bram2_port1_data_out : out std_logic_vector(31 downto 0);
         ps_bram3_port1_data_out : out std_logic_vector(31 downto 0);
 
+        --load unit (copies a param-memory-staged grain into a-ram)
+
+        load_bram0_port0_addr : in std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
+        load_bram1_port0_addr : in std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
+        load_bram2_port0_addr : in std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
+        load_bram3_port0_addr : in std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
+        load_bram0_port1_addr : in std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
+        load_bram1_port1_addr : in std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
+        load_bram2_port1_addr : in std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
+        load_bram3_port1_addr : in std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
+
+        load_bram0_port0_we : in std_logic;
+        load_bram1_port0_we : in std_logic;
+        load_bram2_port0_we : in std_logic;
+        load_bram3_port0_we : in std_logic;
+        load_bram0_port1_we : in std_logic;
+        load_bram1_port1_we : in std_logic;
+        load_bram2_port1_we : in std_logic;
+        load_bram3_port1_we : in std_logic;
+
+        load_bram0_port0_en : in std_logic;
+        load_bram1_port0_en : in std_logic;
+        load_bram2_port0_en : in std_logic;
+        load_bram3_port0_en : in std_logic;
+        load_bram0_port1_en : in std_logic;
+        load_bram1_port1_en : in std_logic;
+        load_bram2_port1_en : in std_logic;
+        load_bram3_port1_en : in std_logic;
+
+        load_bram0_port0_data_in : in std_logic_vector(31 downto 0);
+        load_bram1_port0_data_in : in std_logic_vector(31 downto 0);
+        load_bram2_port0_data_in : in std_logic_vector(31 downto 0);
+        load_bram3_port0_data_in : in std_logic_vector(31 downto 0);
+        load_bram0_port1_data_in : in std_logic_vector(31 downto 0);
+        load_bram1_port1_data_in : in std_logic_vector(31 downto 0);
+        load_bram2_port1_data_in : in std_logic_vector(31 downto 0);
+        load_bram3_port1_data_in : in std_logic_vector(31 downto 0);
+
+        load_bram0_port0_data_out : out std_logic_vector(31 downto 0);
+        load_bram1_port0_data_out : out std_logic_vector(31 downto 0);
+        load_bram2_port0_data_out : out std_logic_vector(31 downto 0);
+        load_bram3_port0_data_out : out std_logic_vector(31 downto 0);
+        load_bram0_port1_data_out : out std_logic_vector(31 downto 0);
+        load_bram1_port1_data_out : out std_logic_vector(31 downto 0);
+        load_bram2_port1_data_out : out std_logic_vector(31 downto 0);
+        load_bram3_port1_data_out : out std_logic_vector(31 downto 0);
+
         --to a-ram
         bram0_port0_addr : out std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
         bram1_port0_addr : out std_logic_vector(BUFFER_ADDR_WIDTH-1 downto 0);
@@ -434,6 +481,27 @@ begin
                 bram0_port1_data_in <= ps_bram0_port1_data_in; bram1_port1_data_in <= ps_bram1_port1_data_in;
                 bram2_port1_data_in <= ps_bram2_port1_data_in; bram3_port1_data_in <= ps_bram3_port1_data_in;
 
+            when APU_UNIT_LOAD =>
+                bram0_port0_addr <= load_bram0_port0_addr; bram1_port0_addr <= load_bram1_port0_addr;
+                bram2_port0_addr <= load_bram2_port0_addr; bram3_port0_addr <= load_bram3_port0_addr;
+                bram0_port1_addr <= load_bram0_port1_addr; bram1_port1_addr <= load_bram1_port1_addr;
+                bram2_port1_addr <= load_bram2_port1_addr; bram3_port1_addr <= load_bram3_port1_addr;
+
+                bram0_port0_we <= load_bram0_port0_we; bram1_port0_we <= load_bram1_port0_we;
+                bram2_port0_we <= load_bram2_port0_we; bram3_port0_we <= load_bram3_port0_we;
+                bram0_port1_we <= load_bram0_port1_we; bram1_port1_we <= load_bram1_port1_we;
+                bram2_port1_we <= load_bram2_port1_we; bram3_port1_we <= load_bram3_port1_we;
+
+                bram0_port0_en <= load_bram0_port0_en; bram1_port0_en <= load_bram1_port0_en;
+                bram2_port0_en <= load_bram2_port0_en; bram3_port0_en <= load_bram3_port0_en;
+                bram0_port1_en <= load_bram0_port1_en; bram1_port1_en <= load_bram1_port1_en;
+                bram2_port1_en <= load_bram2_port1_en; bram3_port1_en <= load_bram3_port1_en;
+
+                bram0_port0_data_in <= load_bram0_port0_data_in; bram1_port0_data_in <= load_bram1_port0_data_in;
+                bram2_port0_data_in <= load_bram2_port0_data_in; bram3_port0_data_in <= load_bram3_port0_data_in;
+                bram0_port1_data_in <= load_bram0_port1_data_in; bram1_port1_data_in <= load_bram1_port1_data_in;
+                bram2_port1_data_in <= load_bram2_port1_data_in; bram3_port1_data_in <= load_bram3_port1_data_in;
+
             when others =>
                 null;
         end case;
@@ -446,47 +514,55 @@ begin
     vpu_bram0_port0_data_out  <= bram0_port0_data_out;
     fft_bram0_port0_data_out  <= bram0_port0_data_out;
     ps_bram0_port0_data_out   <= bram0_port0_data_out;
+    load_bram0_port0_data_out <= bram0_port0_data_out;
 
     ain_bram1_port0_data_out  <= bram1_port0_data_out;
     aout_bram1_port0_data_out <= bram1_port0_data_out;
     vpu_bram1_port0_data_out  <= bram1_port0_data_out;
     fft_bram1_port0_data_out  <= bram1_port0_data_out;
     ps_bram1_port0_data_out   <= bram1_port0_data_out;
+    load_bram1_port0_data_out <= bram1_port0_data_out;
 
     ain_bram2_port0_data_out  <= bram2_port0_data_out;
     aout_bram2_port0_data_out <= bram2_port0_data_out;
     vpu_bram2_port0_data_out  <= bram2_port0_data_out;
     fft_bram2_port0_data_out  <= bram2_port0_data_out;
     ps_bram2_port0_data_out   <= bram2_port0_data_out;
+    load_bram2_port0_data_out <= bram2_port0_data_out;
 
     ain_bram3_port0_data_out  <= bram3_port0_data_out;
     aout_bram3_port0_data_out <= bram3_port0_data_out;
     vpu_bram3_port0_data_out  <= bram3_port0_data_out;
     fft_bram3_port0_data_out  <= bram3_port0_data_out;
     ps_bram3_port0_data_out   <= bram3_port0_data_out;
+    load_bram3_port0_data_out <= bram3_port0_data_out;
 
     ain_bram0_port1_data_out  <= bram0_port1_data_out;
     aout_bram0_port1_data_out <= bram0_port1_data_out;
     vpu_bram0_port1_data_out  <= bram0_port1_data_out;
     fft_bram0_port1_data_out  <= bram0_port1_data_out;
     ps_bram0_port1_data_out   <= bram0_port1_data_out;
+    load_bram0_port1_data_out <= bram0_port1_data_out;
 
     ain_bram1_port1_data_out  <= bram1_port1_data_out;
     aout_bram1_port1_data_out <= bram1_port1_data_out;
     vpu_bram1_port1_data_out  <= bram1_port1_data_out;
     fft_bram1_port1_data_out  <= bram1_port1_data_out;
     ps_bram1_port1_data_out   <= bram1_port1_data_out;
+    load_bram1_port1_data_out <= bram1_port1_data_out;
 
     ain_bram2_port1_data_out  <= bram2_port1_data_out;
     aout_bram2_port1_data_out <= bram2_port1_data_out;
     vpu_bram2_port1_data_out  <= bram2_port1_data_out;
     fft_bram2_port1_data_out  <= bram2_port1_data_out;
     ps_bram2_port1_data_out   <= bram2_port1_data_out;
+    load_bram2_port1_data_out <= bram2_port1_data_out;
 
     ain_bram3_port1_data_out  <= bram3_port1_data_out;
     aout_bram3_port1_data_out <= bram3_port1_data_out;
     vpu_bram3_port1_data_out  <= bram3_port1_data_out;
     fft_bram3_port1_data_out  <= bram3_port1_data_out;
     ps_bram3_port1_data_out   <= bram3_port1_data_out;
+    load_bram3_port1_data_out <= bram3_port1_data_out;
 
 end Behavioral;
