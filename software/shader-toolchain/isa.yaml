@@ -55,15 +55,14 @@ opcodes:
     value: 0xD
     fields: *audio_io_fields
 
+  # Copies a 256-sample grain the CPU has staged into param memory (always at
+  # fixed offsets 0-127 of the active channel's table -- not referenced by any
+  # field here) into the a-ram buffer described below, same 4-field layout as
+  # AUDIO_IN. Channel-independent: a program that runs LOAD does not repeat
+  # for the second channel (see audio_control_unit.vhd's did_load/STOP logic).
   LOAD:
-    value: 0x
-    implemented: false
-    fields:
-      - {name: instr_ram_start_addr, msb: 45, lsb: 36}
-      - {name: buffer_start_reg, msb: 35, lsb: 27}
-      - {name: buffer_length_reg, msb: 26, lsb: 18}
-      - {name: operation_start_reg, msb: 17, lsb: 9}
-      - {name: operation_length_reg, msb: 8, lsb: 0}
+    value: 0xB
+    fields: *audio_io_fields
 
   ADD_VEC:
     value: 0x3
