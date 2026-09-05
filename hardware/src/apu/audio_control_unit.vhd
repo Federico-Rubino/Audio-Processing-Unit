@@ -69,7 +69,16 @@ architecture Behavioral of AudioCU is
     signal buf2, next_buf2 : std_logic_vector(ARAM_ADDR_SIZE*3-1 downto 0);
     signal buf3, next_buf3 : std_logic_vector(ARAM_ADDR_SIZE*3-1 downto 0);
     signal op_len, next_op_len : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
+    -- live mirror of aio_new_grain (not a one-shot latch): registered every
+    -- cycle so both its rising AND falling transitions are real, letting
+    -- firmware detect "a grain is currently waiting, unconsumed" repeatedly
+    -- rather than just once at boot.
     signal new_grain, next_new_grain : std_logic;
+    -- last value of new_grain actually written to the CPU-visible status
+    -- word -- IDLE's single memory port is shared with reading the control
+    -- register, so status is refreshed opportunistically (whenever this
+    -- differs from new_grain), not every cycle.
+    signal new_grain_reported, next_new_grain_reported : std_logic;
     signal start_addr, next_start_addr : std_logic_vector(INSTR_ADDR_SIZE-2 downto 0);
 
     constant TO_CPU_ADDR : std_logic_vector(INSTR_ADDR_SIZE-1 downto 0) := (others => '0');
@@ -95,6 +104,7 @@ begin
             buf3 <= (others => '0');
             op_len <= (others => '0');
             new_grain <= '0';
+            new_grain_reported <= '0';
             start_addr <= (others => '0');
         elsif rising_edge(clk) then
             state <= next_state;
@@ -110,6 +120,7 @@ begin
             buf3 <= next_buf3;
             op_len <= next_op_len;
             new_grain <= next_new_grain;
+            new_grain_reported <= next_new_grain_reported;
             start_addr <= next_start_addr;
         end if;
     end process;
@@ -130,7 +141,8 @@ begin
         next_buf2 <= buf2;
         next_buf3 <= buf3;
         next_op_len <= op_len;
-        next_new_grain <= new_grain;
+        next_new_grain <= aio_new_grain;
+        next_new_grain_reported <= new_grain_reported;
         next_start_addr <= start_addr;
         
         ien <= '0'; iwe <= '0';
@@ -167,13 +179,14 @@ begin
                     idata_in <= (others => '0');
                     idata_in(1) <= '1';
                     idata_in(2) <= new_grain;
+                    next_new_grain_reported <= new_grain;
 
-                elsif new_grain = '0' and aio_new_grain = '1' then  -- update new grain value
+                elsif new_grain_reported /= new_grain then  -- status is stale, refresh it
                     iwe <= '1';
                     iaddr <= TO_CPU_ADDR;
                     idata_in <= (others => '0');
-                    idata_in(2) <= '1';
-                    next_new_grain <= '1';
+                    idata_in(2) <= new_grain;
+                    next_new_grain_reported <= new_grain;
 
                 end if;
 
@@ -233,6 +246,7 @@ begin
                         iaddr <= TO_CPU_ADDR;
                         idata_in <= (others => '0');
                         idata_in(2) <= new_grain;
+                        next_new_grain_reported <= new_grain;
                     end if;
 
                 else
