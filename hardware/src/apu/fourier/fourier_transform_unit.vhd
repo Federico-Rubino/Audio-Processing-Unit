@@ -122,10 +122,6 @@ architecture Behavioral of fft_unit is
     signal bw_p1_en,   br_p1_en   : std_logic;
     signal bw_p0_we,   bw_p1_we   : std_logic;
     signal bw_p0_din,  bw_p1_din  : std_logic_vector(31 downto 0);
-
-    -- per-bank (lane) enables for banks 1-3: LANES=1 round-robins one
-    -- physical BRAM bank at a time, so each bank needs its own en/we pulse
-    -- instead of collapsing them all onto bank0's
     signal bw_p0_en1, bw_p0_en2, bw_p0_en3 : std_logic;
     signal bw_p0_we1, bw_p0_we2, bw_p0_we3 : std_logic;
     signal br_p0_en1, br_p0_en2, br_p0_en3 : std_logic;
@@ -391,8 +387,7 @@ begin
     end process;
 
     -- FSM combinational
-    process(state, en, m_axis_fft_config_tready, m_axis_cordic_fwd_tlast, m_axis_cordic_fwd_tvalid, 
-            m_axis_fft_data_tlast, m_axis_fft_data_tvalid, reg_fwd_inv, reg_size, xilinx_fft_fwd_inv, bw_done)
+    process(all)
     begin
         next_state               <= state;
         finished                 <= '0';
@@ -492,7 +487,6 @@ begin
                 bw_count_en_int <= '0';
 
                 if reg_fwd_inv = '0' then
-                    -- track pending BRAM reads
                     if br_count_en = '1' then
                         br_read_pending <= '1';
                     elsif br_data_valid = '1' then
