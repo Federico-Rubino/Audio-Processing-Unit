@@ -4,30 +4,7 @@ use IEEE.NUMERIC_STD.ALL;
 use work.apu_opcode_pkg.all;
 use work.apu_internal_pkg.all;
 
--- Top-level APU: AudioCU (instruction fetch/decode/execute) + AudioIO unit +
--- VPU, connected to the shared a-ram through aram_mux.
---
--- All memory lives inside APU, as named BRAM instances below -- create
--- matching Vivado Block Memory Generator IPs with these same names to back
--- them:
---   instr_bram          : dual-port, instructions + params + CPU<->CU comms
---   aram_bram0..aram_bram3 : dual-port, the 4 row-major a-ram lanes
---
--- instr_bram's port A is the only memory port exposed outside APU
--- (we/en/addr/data_in/data_out) -- an axi_bram_ctrl's BRAM-facing port
--- connects here, giving the CPU AXI access. Port B is AudioCU's own,
--- entirely internal.
---
--- VPU's two internal buses (bmu_read_bram*, shared read for both its input
--- operands; bmu_write_bram*, its output) both only ever use port0 (LANES=4),
--- so they fold onto aram_mux's single vpu_bram* reservation without
--- colliding: read -> vpu_bram*_port0_*, write -> vpu_bram*_port1_*.
---
--- FFT unit doesn't exist yet, so AudioCU's fft_* control outputs are left
--- open and fft_end is tied low -- shaders using FFT/IFFT will stall
--- forever until it's built. Same for aram_mux's fft_*/ps_* ports: tied to
--- idle/open since only AudioIO and VPU are wired up "for now" per the
--- current scope.
+-- FFT UNIT NOT IMPLEMENTED
 entity APU is
     Generic (
         ARAM_WORD_SIZE    : integer := 32;    -- word size of aram and iram
@@ -184,7 +161,7 @@ begin
             aio_out_en => aio_out_en_sig, aio_out_lr => aio_out_lr_sig,
             aio_out_bs => aio_out_bs_sig, aio_out_bl => aio_out_bl_sig, aio_out_os => aio_out_os_sig, aio_out_ol => aio_out_ol_sig,
 
-            -- no FFT unit yet: end tied low (would stall a shader using FFT/IFFT forever), outputs unused
+            -- no FFT unit
             fft_end => '0',
             fft_en => open, fft_size => open, fwd_inv => open,
             fft_bsr => open, fft_blr => open, fft_osr => open, fft_olr => open,
@@ -213,13 +190,6 @@ begin
             AC_GPIO1 => AC_GPIO1, AC_GPIO2 => AC_GPIO2, AC_GPIO3 => AC_GPIO3,
             AC_MCLK => AC_MCLK, AC_SCK => AC_SCK, AC_SDA => AC_SDA,
 
-            -- audioIO's generics are set to ARAM_ADDR_SIZE/ARAM_WORD_SIZE above, so
-            -- buffer_start/operation_start line up with AudioCU's own field width
-            -- (ARAM_ADDR_SIZE) directly -- no truncation needed. buffer_length is
-            -- widened from ARAM_ADDR_SIZE to ARAM_WORD_SIZE (zero-extended).
-            -- audio_in_unit/audio_out_unit hardcode their own operation length to
-            -- one grain (256 samples), so aio_in_ol/aio_out_ol have no destination
-            -- here -- the shader's operation_length_reg field is a no-op today.
             audio_in_enable          => aio_in_en_sig,
             audio_in_left_right      => aio_in_lr_sig,
             audio_in_buffer_start    => aio_in_bs_sig,
@@ -289,8 +259,7 @@ begin
             aout_bram2_port1_data_out => aout_bram2_port1_data_out_sig, aout_bram3_port1_data_out => aout_bram3_port1_data_out_sig
         );
 
-    -- VPU's two internal buses only ever use their own port0 (LANES=4); the
-    -- port1 sides are left open/tied since they're never enabled.
+
     vpu_inst : entity work.vpu
         generic map (
             BUFFER_ADDR_WIDTH => ARAM_ADDR_SIZE,
@@ -328,10 +297,6 @@ begin
             bmu_write_bram2_data_out => vpuw_bram2_data_out_sig, bmu_write_bram3_data_out => vpuw_bram3_data_out_sig
         );
 
-    -- Load unit: a bare LANES=1 bmu_write, fed one word at a time by AudioCU's
-    -- own param-memory reads (see audio_control_unit.vhd's LOAD_COPY state).
-    -- buffer_length/operation_length are widened from ARAM_ADDR_SIZE to
-    -- ARAM_WORD_SIZE (zero-extended), same as audioIO's buffer_length above.
     load_bmu_write_inst : entity work.bmu_write
         generic map (
             BUFFER_ADDR_WIDTH => ARAM_ADDR_SIZE,

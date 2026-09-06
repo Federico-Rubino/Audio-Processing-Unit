@@ -129,8 +129,7 @@ architecture Behavioral of audio_out_unit is
 
     signal row_cnt : unsigned(3 downto 0) := (others => '0');
 
-    -- 2-cycle delay: addr_gen registers addr (+1), a-ram registers read
-    -- (+1). FLUSH1/FLUSH2 drain rows 14/15.
+
     signal row_addr_d1, row_addr_d2 : unsigned(3 downto 0) := (others => '0');
     signal row_we_d1, row_we_d2      : std_logic := '0';
 
@@ -205,7 +204,6 @@ begin
     row_data_l_14 <= data_out_7(15 downto 0);  row_data_r_14 <= data_out_7(15 downto 0);
     row_data_l_15 <= data_out_7(31 downto 16); row_data_r_15 <= data_out_7(31 downto 16);
 
-    -- only the selected channel actually latches, so gating we is enough
     row_we_l <= row_we_d2 when left_right = '0' else '0';
     row_we_r <= row_we_d2 when left_right = '1' else '0';
 
@@ -254,7 +252,7 @@ begin
                         state <= RUN;
 
                     when RUN =>
-                        -- 16 pulses, rows 0..15, then FLUSH1/2 drain rows 14/15
+                        -- 16 pulses, rows 0..15, FLUSH1/2 drain rows 14/15
                         if row_cnt = 15 then
                             state <= FLUSH1;
                         else
@@ -262,11 +260,9 @@ begin
                         end if;
 
                     when FLUSH1 =>
-                        -- row 14 lands here
                         state <= FLUSH2;
 
                     when FLUSH2 =>
-                        -- row 15 (the last one) lands here
                         finished <= '1';
                         state    <= IDLE;
                 end case;

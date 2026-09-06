@@ -507,8 +507,7 @@ begin
         end case;
     end process;
 
-    -- data_out fans back to every unit unconditionally; only the selected
-    -- one is actually driving count_en on its own bmu, so only it cares
+    -- data_out fans back to every unit unconditionally
     ain_bram0_port0_data_out  <= bram0_port0_data_out;
     aout_bram0_port0_data_out <= bram0_port0_data_out;
     vpu_bram0_port0_data_out  <= bram0_port0_data_out;

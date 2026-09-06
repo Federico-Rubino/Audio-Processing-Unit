@@ -26,7 +26,7 @@ entity vpuCU is
         bmu_write_done : in std_logic;
 
         count_en : out std_logic;
-        exec1_en : in std_logic; -- pipe's first DSP-execute stage (vpu's s2b_en) -- next count_en waits for this, so bmu_read_1/bmu_read_2 never collide on the shared bus
+        exec1_en : in std_logic; -- next count_en waits for this, so bmu_read_1/bmu_read_2 never collide on the shared bus
 
         --to DSPs
         dsp_op_sel : out dsp_op_sel_array_t;

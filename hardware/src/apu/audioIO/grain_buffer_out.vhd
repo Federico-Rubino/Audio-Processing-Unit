@@ -92,8 +92,7 @@ begin
                 end if;
 
                 if read_count = DEPTH and back_written = '1' then
-                    -- swap: back becomes the new front; old front just
-                    -- gets overwritten next time audio_out_unit fills back
+                    -- swap: back becomes the new front, front overwritten on audio out
                     for i in 0 to DEPTH-1 loop
                         front_buf(i) <= back_buf(i);
                     end loop;

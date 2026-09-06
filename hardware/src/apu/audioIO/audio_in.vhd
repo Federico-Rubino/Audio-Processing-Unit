@@ -1,8 +1,7 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
--- ADAU-facing side of audio input: no more AXI/data_mem coupling, just the
--- two per-channel grain buffers between the ADAU wrapper and audio_in_unit.
+
 entity audio_in is
   Port (
     clk : in std_logic;

@@ -69,15 +69,8 @@ architecture Behavioral of AudioCU is
     signal buf2, next_buf2 : std_logic_vector(ARAM_ADDR_SIZE*3-1 downto 0);
     signal buf3, next_buf3 : std_logic_vector(ARAM_ADDR_SIZE*3-1 downto 0);
     signal op_len, next_op_len : std_logic_vector(ARAM_ADDR_SIZE-1 downto 0);
-    -- live mirror of aio_new_grain (not a one-shot latch): registered every
-    -- cycle so both its rising AND falling transitions are real, letting
-    -- firmware detect "a grain is currently waiting, unconsumed" repeatedly
-    -- rather than just once at boot.
     signal new_grain, next_new_grain : std_logic;
-    -- last value of new_grain actually written to the CPU-visible status
-    -- word -- IDLE's single memory port is shared with reading the control
-    -- register, so status is refreshed opportunistically (whenever this
-    -- differs from new_grain), not every cycle.
+
     signal new_grain_reported, next_new_grain_reported : std_logic;
     signal start_addr, next_start_addr : std_logic_vector(INSTR_ADDR_SIZE-2 downto 0);
 
@@ -169,7 +162,7 @@ begin
                 ien <= '1'; iwe <= '0';
                 iaddr <= FROM_CPU_ADDR;
 
-                if idata_out(0) = '1' then  -- check start signal written by CPU (on the first iteration idata_out is relative to another address, but bit 0 is always '0' so is doesn't go to state SETUP)
+                if idata_out(0) = '1' then  -- check start signal written by CPU
                     next_state <= SETUP;
                     next_start_addr <= idata_out(INSTR_ADDR_SIZE-1 downto 1);
 
@@ -235,8 +228,7 @@ begin
                         ien <= '1'; iwe <= '0';
                         iaddr <= (others => '0');
                         iaddr(INSTR_ADDR_SIZE-2 downto 0) <= std_logic_vector(unsigned(start_addr) + SHADER_MEM_OFFSET);
-                    else                -- last channel was right, or LOAD ran this program (channel-independent,
-                                        -- no right-channel pass) -- going to idle
+                    else                -- last channel was right, or LOAD ran this program going IDLE
                         next_state <= IDLE;
                         next_lr <= '0';
                         next_did_load <= '0';
@@ -414,8 +406,7 @@ begin
                         vec_olw <= op_len;
 
                         if (op = APU_OP_ADD_SCALAR or op = APU_OP_SUB_SCALAR or op = APU_OP_MUL_SCALAR) then
-                            -- scalar resolved from param memory via the in2_bs slot, unused
-                            -- by scalar ops otherwise (same indirection as a buffer descriptor field)
+                            -- scalar resolved from param memory 
                             vec_scalar <= std_logic_vector(resize(unsigned(buf2(ARAM_ADDR_SIZE*1-1 downto 0)), 16));
                             vec_bsr2 <= (others => '0');
                             vec_blr2 <= (others => '0');
@@ -438,9 +429,7 @@ begin
                             next_counter <= std_logic_vector(to_unsigned(INSTR_SIZE / ARAM_WORD_SIZE - 1, COUNTER_SIZE));
                         end if;
 
-                    -- Load: copy a 128-word grain staged in param memory (offsets 0..127)
-                    -- into a-ram. buf1 is the destination buffer descriptor, resolved by
-                    -- the LOAD state exactly like AUDIO_IN's.
+                    -- Load
                     when APU_OP_LOAD =>
                         unit_select <= APU_UNIT_LOAD;
                         load_bs <= buf1(ARAM_ADDR_SIZE*1-1 downto 0);
@@ -458,18 +447,9 @@ begin
                 end case;
 
             when LOAD_COPY =>
-                -- must stay asserted for aram_mux to keep routing the load
-                -- unit's bus to real a-ram for this whole multi-cycle copy --
-                -- unlike every other unit, LOAD's wait loop isn't inside
-                -- EXECUTE's own case branch, so this doesn't happen for free
                 unit_select <= APU_UNIT_LOAD;
 
-                -- idata_out is a synchronous (1-cycle-latency) read, same as
-                -- bmu_write's registered bram*_en/we/data_in (1 cycle behind
-                -- their triggering count_en) -- issuing the offset=load_counter
-                -- read on the SAME cycle as that offset's count_en pulse
-                -- (below) makes idata_out land exactly when the write does,
-                -- one extra cycle after the last pulse (load_counter=128)
+                -- idata_out synchronous (1-cycle-latency) read)
                 if unsigned(load_counter) <= 128 then
                     load_data <= idata_out;
                 end if;
@@ -484,7 +464,7 @@ begin
                     load_count_en <= '1';
                     next_load_counter <= std_logic_vector(unsigned(load_counter) + 1);
                 else
-                    -- all 128 pulses issued; wait for the write BMU to finish
+                    --  wait for the write BMU to finish
                     if load_end = '1' then
                         next_state <= FETCH;
                         ien <= '1'; iwe <= '0';

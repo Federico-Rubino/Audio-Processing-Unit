@@ -2,10 +2,7 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
--- on enable: drains 256-sample grain (left_right = channel) from
--- grain_buffer_in to a-ram via bmu_write, parallel8. pulses finished.
--- each a-ram cell carries 2 samples (sample 2k -> bits 15:0, sample 2k+1
--- -> bits 31:16), so 256 samples pack into 128 cells / 16 bmu rows.
+
 entity audio_in_unit is
     generic (
         BUFFER_ADDR_WIDTH : integer := 10;
@@ -125,8 +122,7 @@ architecture Behavioral of audio_in_unit is
 
     signal row_cnt : unsigned(3 downto 0) := (others => '0');
 
-    -- 1-cycle delay: bmu_write addr/we land 1 cycle after count_en,
-    -- grain_buffer_in read is immediate. FLUSH = extra cycle for row 15.
+.
     signal row_addr_d : unsigned(3 downto 0) := (others => '0');
 
     signal bw_start, bw_count_en, bw_done : std_logic;
@@ -182,8 +178,7 @@ begin
             done => bw_done
         );
 
-    -- pick the enabled channel, pack 2 samples/cell: even sample -> bits
-    -- 15:0, odd sample -> bits 31:16
+
     data_in_0 <= (row_data_l_1 & row_data_l_0) when left_right = '0' else (row_data_r_1 & row_data_r_0);
     data_in_1 <= (row_data_l_3 & row_data_l_2) when left_right = '0' else (row_data_r_3 & row_data_r_2);
     data_in_2 <= (row_data_l_5 & row_data_l_4) when left_right = '0' else (row_data_r_5 & row_data_r_4);
@@ -231,7 +226,6 @@ begin
                         state <= RUN;
 
                     when RUN =>
-                        -- 16 pulses, rows 0..15, then FLUSH lets row 15 land
                         if row_cnt = 15 then
                             state <= FLUSH;
                         else
@@ -239,7 +233,6 @@ begin
                         end if;
 
                     when FLUSH =>
-                        -- row_addr_d is still 15 here, so row 15's write lands
                         finished <= '1';
                         state    <= IDLE;
                 end case;

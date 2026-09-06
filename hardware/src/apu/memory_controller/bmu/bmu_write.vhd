@@ -142,7 +142,7 @@ begin
     end generate;
 
     serial_in : if LANES = 1 generate
-        -- only the enabled lane writes; broadcast is harmless
+        -- only the enabled lane writes
         bram0_port0_data_in <= data_in_0;
         bram1_port0_data_in <= data_in_0;
         bram2_port0_data_in <= data_in_0;

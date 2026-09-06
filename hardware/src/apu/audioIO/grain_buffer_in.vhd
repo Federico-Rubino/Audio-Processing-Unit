@@ -3,11 +3,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use work.audioIO_types.all;
 
--- double buffer, one channel. front fills 1 sample/cycle, swaps to back at
--- 256, back drains via audio_in_unit while front starts the next grain.
--- each row is 16 samples: two samples pack into one 32-bit a-ram cell
--- (sample 2k -> bits 15:0, sample 2k+1 -> bits 31:16), so one row of 16
--- samples matches one a-ram row of 8 packed cells.
+
 entity grain_buffer_in is
     Port (
         clk, rst   : in std_logic;
@@ -79,8 +75,7 @@ begin
                     front_buf(write_ptr) <= sample_in;
 
                     if write_ptr = DEPTH-1 then
-                        -- grain done: front -> back in one shot, fold in
-                        -- this cycle's sample directly (not in front_buf yet)
+                        
                         for i in 0 to DEPTH-2 loop
                             back_buf(i) <= front_buf(i);
                         end loop;
