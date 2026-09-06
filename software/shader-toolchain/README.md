@@ -16,6 +16,8 @@ the `.hex` word stream the APU's shader memory expects, and back again. See the 
 - `assembler.py` — CLI entry point tying the above together.
 - `disassemble.py` — inverse of the assembler: `.hex` back to mnemonic form, for checking a shader
   encoded as intended.
+- `audio_to_hex.py` — decodes an audio file to a grain-aligned `.hex` for a-ram upload (see its
+  own docstring for the venv it needs).
 - `examples/` — complete example shaders (see below).
 
 ## Usage
@@ -26,7 +28,7 @@ pip install -r requirements.txt
 # assemble
 python3 assembler.py examples/volume_up.shader -o volume_up.hex
 
-# also emit a C header with one #define per .param offset, for firmware
+# also emit a C header with the assembled word array and one #define per .param offset, for firmware
 python3 assembler.py examples/volume_up.shader -o volume_up.hex --emit-params volume_up.h
 
 # inspect the macro-expanded instruction list before encoding (debugging)
@@ -79,7 +81,7 @@ the new opcode's layout matches one that already exists, rather than repeating i
 
 ## Examples
 
-`examples/` contains worked shaders: `passthrough.shader` (baseline, no processing),
-`volume_up.shader` (scalar gain), and `test_add.shader`/`test_adds.shader` — diagnostic shaders
-used to isolate individual VPU operations (`ADD_VEC`, `ADD_SCALAR`/`SUB_SCALAR`) during hardware
-bring-up.
+`examples/` contains the shaders backing the demo firmware's modes (`volume.shader`,
+`synth_drain`/`synth_load`/`synth_play`, `ampmod_in`/`ampmod_load`/`ampmod_process`,
+`delay.shader`, `keys_add.shader`), plus `volume_up.shader`, an older standalone scalar-gain
+example.

@@ -13,6 +13,11 @@ as the sole bus master. The CPU never touches audio data directly — it drives 
 a peripheral: writing a status/control register pair, staging values into two parameter tables
 (one per stereo channel), and loading shader programs into a dedicated instruction memory.
 
+<p align="center">
+  <img src="img/soc-arch.png" height="360" alt="SoC top-level architecture">
+  <img src="img/apu-arch.png" height="360" alt="APU internal architecture">
+</p>
+
 Inside the APU, audio is processed in fixed-size grains and lives in one shared memory (a-ram),
 arbitrated so that exactly one "Unit" has access at a time:
 
@@ -43,7 +48,7 @@ hardware/
   constraints/    Zedboard XDC
 software/
   firmware/       RV32I C firmware: bootloader, apu/gpio/uart drivers, main application
-  host-tools/     PC-side Python: UART loader, .hex -> .coe converter
+  host-tools/     PC-side Python: UART loader, a-ram sample upload, .hex -> .coe converter
   shader-toolchain/  APU shader assembler/disassembler, isa.yaml (declarative ISA spec), examples/
 ```
 
@@ -75,4 +80,6 @@ simulation/bring-up.
    pip install pyserial
    python3 software/host-tools/loader.py instr.hex data.hex COM3 --shader volume_up.hex
    ```
-   Serial port addresses are read from `software/host-tools/memory_map.ini`.
+   Serial port addresses are read from `software/host-tools/memory_map.ini`. Add `--sample
+   file.hex` to also upload a grain-aligned audio sample (see `shader-toolchain/audio_to_hex.py`)
+   into a-ram on the same connection, right after the firmware jump.
