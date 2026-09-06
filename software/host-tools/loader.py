@@ -1,13 +1,12 @@
 import argparse
 import configparser
-import os
 from pathlib import Path
 
 import serial
 import sys
 import struct
-import time
-import threading
+
+import ir_protocol
 
 # Protocol Constants
 READY_SIGNAL = 0xAA
@@ -68,19 +67,6 @@ def send_chunk(ser, address, data_words):
         print(f"\n[!] Error: Expected ACK, got {ack.hex() if ack else 'Timeout'}")
         sys.exit(1)
 
-def serial_monitor(ser):
-    """Continuously reads from serial and prints to console."""
-    print("\n--- Serial Monitor Active (Ctrl+C to stop) ---")
-    try:
-        while True:
-            if ser.in_waiting > 0:
-                data = ser.read(ser.in_waiting)
-                # Using 'replace' for bytes that aren't valid UTF-8
-                print(data.decode('utf-8', errors='replace'), end='', flush=True)
-            time.sleep(0.01)
-    except KeyboardInterrupt:
-        print("\n--- Closing Monitor ---")
-
 def main():
     parser = argparse.ArgumentParser(description="Upload a CPU program (and optionally a shader) over the UART bootloader.")
     parser.add_argument("instr", help="Path to the CPU instruction .hex file")
@@ -91,6 +77,13 @@ def main():
         "--config",
         default=str(DEFAULT_CONFIG_PATH),
         help=f"Path to the memory-map config file (default: {DEFAULT_CONFIG_PATH.name} alongside this script)",
+    )
+    parser.add_argument(
+        "--sample",
+        help="Path to a grain-aligned sample .hex file (from audio_to_hex.py -- an impulse "
+             "response, a one-shot, or any other pre-recorded audio) to upload into a-ram right "
+             "after the jump, on this same connection -- avoids reopening the port a second time, "
+             "which resets the ESP32 UART bridge (and the board with it)",
     )
     args = parser.parse_args()
 
@@ -125,8 +118,13 @@ def main():
     # 3. Finish and Jump
     print("[*] Sending Finished Command...")
     ser.write(bytes([CMD_FINISHED]))
+
+    # 4. Optionally upload a sample right after the jump, on this same connection (see ir_protocol.py)
+    if args.sample:
+        ir_protocol.upload_ir(ser, args.sample)
+
     ser.close()
-    os.system(f"python -m serial.tools.miniterm {args.port} 115200 --dtr 0 --rts 0")
+    print(f"[+] Done. Port {args.port} closed and free for another tool to use.")
 
 if __name__ == "__main__":
     main()
