@@ -73,9 +73,12 @@ def _split_args(text):
     return [a.strip() for a in text.split(",") if a.strip()]
 
 
-def preprocess(source_lines):
+def preprocess(source_lines, min_param_offset=0):
     """source_lines: raw text lines from the .shader source file (1-indexed
-    by position). Returns (instructions, params):
+    by position). min_param_offset: force .param allocation to start no
+    lower than this offset, for a shader that needs to avoid a param range
+    written directly by firmware rather than by its own .params.
+    Returns (instructions, params):
       - instructions: list of (line_no, instruction_text) ready for the
         encoder -- comments stripped, .define/.param substituted, .macro
         calls expanded inline. line_no is the original source line (a macro
@@ -94,9 +97,12 @@ def preprocess(source_lines):
 
     lines = _join_blocks(stripped)
 
+    # LOAD reads its grain from fixed param offsets 0-127 (isa.yaml), so .param allocation must start past that range
+    uses_load = any(re.match(r"^LOAD\b", text) for _, text in lines)
+
     defines = {}
     params = []  # (name, offset), in declaration order
-    next_param_offset = 0
+    next_param_offset = max(128 if uses_load else 0, min_param_offset)
     macros = {}  # name -> (params, body [(line_no, text), ...])
 
     candidates = []  # (line_no, text) -- plain lines or macro calls
