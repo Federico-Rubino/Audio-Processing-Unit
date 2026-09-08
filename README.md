@@ -1,7 +1,7 @@
 # Audio Processing Unit
 
 A custom SoC on a Zynq-7000 (Zedboard): a from-scratch RV32I RISC-V core plus a proprietary
-Audio Processing Unit (APU), both implemented entirely in programmable logic — no dependency on
+Audio Processing Unit (APU), both implemented entirely in programmable logic with no dependency on
 the Zynq's hard ARM cores. The RV32I core handles control-plane orchestration; the APU is a
 fixed-function accelerator that runs small, purpose-built "shader" programs to process the
 board's audio codec in real time.
@@ -25,7 +25,7 @@ arbitrated so that exactly one "Unit" has access at a time:
   from the CPU's own timing.
 - **Vector Processing Unit** — a pipelined datapath of eight parallel DSP48 cores doing elementwise
   vector/scalar arithmetic (add, subtract, multiply, complex multiply) across a-ram.
-- **FFT Unit** — frequency-domain transforms.
+- **FFT Unit** — frequency-domain transforms, for now not working.
 
 A control unit (`AudioCU`) fetches shader instructions, resolves every buffer/scalar reference
 through the parameter tables, and dispatches each instruction to the Unit it targets.
@@ -34,7 +34,7 @@ On reset, the CPU boots from an on-chip ROM bootloader, which receives firmware,
 optional shader image over UART and jumps to the loaded firmware once the transfer completes —
 no JTAG reflash needed to iterate on software.
 
-A full write-up (ISA encoding, control-unit FSMs, per-unit design detail, verification notes)
+A full write-up (ISA encoding, control-unit FSMs, per-unit design detail)
 lives in the project report.
 
 ## Repository Layout
