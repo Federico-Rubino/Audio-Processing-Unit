@@ -122,7 +122,6 @@ architecture Behavioral of audio_in_unit is
 
     signal row_cnt : unsigned(3 downto 0) := (others => '0');
 
-.
     signal row_addr_d : unsigned(3 downto 0) := (others => '0');
 
     signal bw_start, bw_count_en, bw_done : std_logic;
